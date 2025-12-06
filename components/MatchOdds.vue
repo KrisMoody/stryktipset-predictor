@@ -34,15 +34,15 @@
     >
       <div class="text-xs text-gray-600 dark:text-gray-400 mb-2">10 Tidningars Tips</div>
       <div class="flex gap-3 text-xs">
-        <span v-if="currentOdds.tio_tidningars_tips_home"
-          >1: {{ currentOdds.tio_tidningars_tips_home }}</span
-        >
-        <span v-if="currentOdds.tio_tidningars_tips_draw"
-          >X: {{ currentOdds.tio_tidningars_tips_draw }}</span
-        >
-        <span v-if="currentOdds.tio_tidningars_tips_away"
-          >2: {{ currentOdds.tio_tidningars_tips_away }}</span
-        >
+        <span v-if="currentOdds.tio_tidningars_tips_home">
+          1: {{ currentOdds.tio_tidningars_tips_home }}
+        </span>
+        <span v-if="currentOdds.tio_tidningars_tips_draw">
+          X: {{ currentOdds.tio_tidningars_tips_draw }}
+        </span>
+        <span v-if="currentOdds.tio_tidningars_tips_away">
+          2: {{ currentOdds.tio_tidningars_tips_away }}
+        </span>
       </div>
     </div>
   </div>

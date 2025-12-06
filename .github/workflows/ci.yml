@@ -31,19 +31,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Run ESLint
-        run: npm run lint
+        run: yarn lint
 
       - name: Check Prettier formatting
-        run: npm run format:check
+        run: yarn format:check
 
       - name: TypeScript type check
-        run: npm run typecheck
+        run: yarn typecheck
 
       - name: Validate Prisma schema
         run: npx prisma validate
@@ -58,25 +58,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Generate Prisma Client
         run: npx prisma generate
 
       - name: Run unit tests
-        run: npm run test:unit
+        run: yarn test:unit
 
       - name: Run component tests
-        run: npm run test:components
+        run: yarn test:components
 
       - name: Run API tests
-        run: npm run test:api
+        run: yarn test:api
 
       - name: Run tests with coverage
-        run: npm run test:coverage
+        run: yarn test:coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -96,10 +96,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Generate Prisma Client
         run: npx prisma generate
@@ -108,10 +108,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Build application
-        run: npm run build
+        run: yarn build
 
       - name: Run accessibility tests
-        run: npm run test:a11y
+        run: yarn test:a11y
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -153,10 +153,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Setup test database
         run: |
@@ -166,7 +166,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
 
       - name: Run integration tests
-        run: npm run test:integration
+        run: yarn test:integration
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
 
@@ -182,10 +182,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Generate Prisma Client
         run: npx prisma generate
@@ -194,10 +194,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Build application
-        run: npm run build
+        run: yarn build
 
       - name: Run E2E smoke tests
-        run: npm run test:e2e:smoke
+        run: yarn test:e2e:smoke
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { ref, computed } from 'vue'
 import type { BettingSystem } from '~/types'
 
@@ -15,27 +15,35 @@ const getGuaranteeColor = (guarantee: number): string => {
 
 const getReductionRatio = (system: BettingSystem): string => {
   const fullRows = Math.pow(3, system.helgarderingar) * Math.pow(2, system.halvgarderingar)
-  const ratio = (system.rows / fullRows * 100).toFixed(1)
+  const ratio = ((system.rows / fullRows) * 100).toFixed(1)
   return `${ratio}%`
 }
 
 // Parse guarantee string to number
 const parseGuarantee = (guaranteeStr: string): number | null => {
   switch (guaranteeStr) {
-    case '10 rätt': return 10
-    case '11 rätt': return 11
-    case '12 rätt': return 12
-    default: return null
+    case '10 rätt':
+      return 10
+    case '11 rätt':
+      return 11
+    case '12 rätt':
+      return 12
+    default:
+      return null
   }
 }
 
 // Parse sort string to sort key
 const parseSortBy = (sortByStr: string): string => {
   switch (sortByStr) {
-    case 'Cost (High to Low)': return 'cost-desc'
-    case 'Coverage (High to Low)': return 'coverage-desc'
-    case 'Guarantee (High to Low)': return 'guarantee-desc'
-    default: return 'cost-asc'
+    case 'Cost (High to Low)':
+      return 'cost-desc'
+    case 'Coverage (High to Low)':
+      return 'coverage-desc'
+    case 'Guarantee (High to Low)':
+      return 'guarantee-desc'
+    default:
+      return 'cost-asc'
   }
 }
 
@@ -64,10 +72,7 @@ const filterSystems = (
 }
 
 // Sort systems based on criteria
-const sortSystems = (
-  systems: BettingSystem[],
-  sortBy: string
-): BettingSystem[] => {
+const sortSystems = (systems: BettingSystem[], sortBy: string): BettingSystem[] => {
   const sorted = [...systems]
 
   switch (sortBy) {
@@ -262,19 +267,19 @@ describe('SystemSelector - filterSystems', () => {
     it('filters by guarantee 12', () => {
       const filtered = filterSystems(systems, null, 12, null)
       expect(filtered).toHaveLength(1)
-      expect(filtered[0].guarantee).toBe(12)
+      expect(filtered[0]!.guarantee).toBe(12)
     })
 
     it('filters by guarantee 11', () => {
       const filtered = filterSystems(systems, null, 11, null)
       expect(filtered).toHaveLength(1)
-      expect(filtered[0].guarantee).toBe(11)
+      expect(filtered[0]!.guarantee).toBe(11)
     })
 
     it('filters by guarantee 10', () => {
       const filtered = filterSystems(systems, null, 10, null)
       expect(filtered).toHaveLength(1)
-      expect(filtered[0].guarantee).toBe(10)
+      expect(filtered[0]!.guarantee).toBe(10)
     })
 
     it('returns empty when no systems match guarantee', () => {
@@ -313,7 +318,7 @@ describe('SystemSelector - filterSystems', () => {
     it('filters by type R and guarantee 12', () => {
       const filtered = filterSystems(systems, 'R', 12, null)
       expect(filtered).toHaveLength(1)
-      expect(filtered[0].id).toBe('R-4-0-9-12')
+      expect(filtered[0]!.id).toBe('R-4-0-9-12')
     })
 
     it('filters by type R and max cost 20', () => {
@@ -324,7 +329,7 @@ describe('SystemSelector - filterSystems', () => {
     it('filters by all criteria simultaneously', () => {
       const filtered = filterSystems(systems, 'R', 11, 20)
       expect(filtered).toHaveLength(1)
-      expect(filtered[0].id).toBe('R-5-0-18-11')
+      expect(filtered[0]!.id).toBe('R-5-0-18-11')
     })
 
     it('returns U-systems when filtering by U type and guarantee 12', () => {
@@ -352,22 +357,22 @@ describe('SystemSelector - sortSystems', () => {
 
   it('sorts by cost ascending (default)', () => {
     const sorted = sortSystems(systems, 'cost-asc')
-    expect(sorted[0].rows).toBe(9)
-    expect(sorted[sorted.length - 1].rows).toBe(27)
+    expect(sorted[0]!.rows).toBe(9)
+    expect(sorted[sorted.length - 1]!.rows).toBe(27)
   })
 
   it('sorts by cost descending', () => {
     const sorted = sortSystems(systems, 'cost-desc')
-    expect(sorted[0].rows).toBe(27)
-    expect(sorted[sorted.length - 1].rows).toBe(9)
+    expect(sorted[0]!.rows).toBe(27)
+    expect(sorted[sorted.length - 1]!.rows).toBe(9)
   })
 
   it('sorts by coverage descending', () => {
     const sorted = sortSystems(systems, 'coverage-desc')
     // Coverage = helg + halvg
     // U-4-4-16 = 8, R-8-0-27 = 8, U-0-7-10 = 7, R-5-0-18 = 5, R-4-0-9 = 4
-    expect(sorted[0].helgarderingar + sorted[0].halvgarderingar).toBeGreaterThanOrEqual(
-      sorted[sorted.length - 1].helgarderingar + sorted[sorted.length - 1].halvgarderingar
+    expect(sorted[0]!.helgarderingar + sorted[0]!.halvgarderingar).toBeGreaterThanOrEqual(
+      sorted[sorted.length - 1]!.helgarderingar + sorted[sorted.length - 1]!.halvgarderingar
     )
   })
 
@@ -376,9 +381,9 @@ describe('SystemSelector - sortSystems', () => {
     // Systems with guarantee: 12, 11, 10, undefined, undefined
     // R-systems should come first (sorted by guarantee), U-systems at the end (guarantee || 0 = 0)
     const rSystems = sorted.filter(s => s.type === 'R')
-    expect(rSystems[0].guarantee).toBe(12)
-    expect(rSystems[1].guarantee).toBe(11)
-    expect(rSystems[2].guarantee).toBe(10)
+    expect(rSystems[0]!.guarantee).toBe(12)
+    expect(rSystems[1]!.guarantee).toBe(11)
+    expect(rSystems[2]!.guarantee).toBe(10)
   })
 
   it('treats undefined guarantee as 0 when sorting', () => {
@@ -414,9 +419,9 @@ describe('SystemSelector - Integration', () => {
     const sorted = sortSystems(filtered, 'cost-asc')
 
     expect(sorted).toHaveLength(3)
-    expect(sorted[0].id).toBe('R-4-0-9-12') // 9 rows
-    expect(sorted[1].id).toBe('R-5-0-18-11') // 18 rows
-    expect(sorted[2].id).toBe('R-8-0-27-10') // 27 rows
+    expect(sorted[0]!.id).toBe('R-4-0-9-12') // 9 rows
+    expect(sorted[1]!.id).toBe('R-5-0-18-11') // 18 rows
+    expect(sorted[2]!.id).toBe('R-8-0-27-10') // 27 rows
   })
 
   it('filters by guarantee and sorts by cost desc', () => {
@@ -424,8 +429,8 @@ describe('SystemSelector - Integration', () => {
     const sorted = sortSystems(filtered, 'cost-desc')
 
     // Systems <= 20 rows: 9, 10, 16, 18 sorted desc: 18, 16, 10, 9
-    expect(sorted[0].rows).toBe(18)
-    expect(sorted[sorted.length - 1].rows).toBe(9)
+    expect(sorted[0]!.rows).toBe(18)
+    expect(sorted[sorted.length - 1]!.rows).toBe(9)
   })
 
   it('handles edge case of all systems filtered out', () => {
@@ -440,7 +445,7 @@ describe('SystemSelector - Integration', () => {
     const sorted = sortSystems(filtered, 'cost-asc')
 
     expect(sorted).toHaveLength(1)
-    expect(sorted[0].id).toBe('R-4-0-9-12')
+    expect(sorted[0]!.id).toBe('R-4-0-9-12')
   })
 })
 

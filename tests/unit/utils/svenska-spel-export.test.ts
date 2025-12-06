@@ -33,7 +33,7 @@ const createSelection = (matchNumber: number, selection: string): CouponSelectio
 
 const create13Selections = (selectionPattern: string[]): CouponSelection[] => {
   return Array.from({ length: 13 }, (_, i) =>
-    createSelection(i + 1, selectionPattern[i % selectionPattern.length])
+    createSelection(i + 1, selectionPattern[i % selectionPattern.length]!)
   )
 }
 
@@ -155,7 +155,7 @@ describe('validateForEnkelraderExport', () => {
 // ============================================================================
 
 describe('validateSelection', () => {
-  it.each(['1', 'X', '2', '1X', 'X2', '12', '1X2'])('validates "%s" as valid', (selection) => {
+  it.each(['1', 'X', '2', '1X', 'X2', '12', '1X2'])('validates "%s" as valid', selection => {
     expect(validateSelection(selection, 1)).toEqual({ valid: true })
   })
 
@@ -186,7 +186,21 @@ describe('validateSelection', () => {
 describe('validateForMSystemExport', () => {
   it('validates valid M-system selections', () => {
     // Create selections that result in more than 1 row
-    const selections = create13Selections(['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1X', '1X'])
+    const selections = create13Selections([
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+      '1',
+      '1X',
+      '1X',
+    ])
     const result = validateForMSystemExport(selections)
     expect(result.isValid).toBe(true)
   })
@@ -319,7 +333,9 @@ describe('generateEnkelraderContent', () => {
   })
 
   it('normalizes lowercase to uppercase', () => {
-    const rows = [createValidRow(1, ['1', 'x', '2', '1', '1', 'x', '2', '1', 'x', '2', '1', '1', '2'])]
+    const rows = [
+      createValidRow(1, ['1', 'x', '2', '1', '1', 'x', '2', '1', 'x', '2', '1', '1', '2']),
+    ]
     const content = generateEnkelraderContent(rows)
     expect(content).toBe('E,1,X,2,1,1,X,2,1,X,2,1,1,2')
   })
@@ -351,7 +367,7 @@ describe('generateMSystemContent', () => {
       createSelection(1, '1'),
       createSelection(7, 'X'),
       ...Array.from({ length: 10 }, (_, i) =>
-        createSelection([2, 3, 4, 5, 6, 8, 9, 10, 11, 12][i], '1')
+        createSelection([2, 3, 4, 5, 6, 8, 9, 10, 11, 12][i]!, '1')
       ),
     ]
     const content = generateMSystemContent(selections)

@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
-import { mockDeep, mockReset, DeepMockProxy } from 'vitest-mock-extended'
+import { mockDeep, mockReset } from 'vitest-mock-extended'
+import type { DeepMockProxy } from 'vitest-mock-extended'
 import type { PrismaClient } from '@prisma/client'
 
 // Create a deep mock of PrismaClient
@@ -19,7 +20,22 @@ export const resetPrismaMock = () => mockReset(prismaMock)
 // Mock Data Factories
 // ============================================
 
-export const mockDrawFactory = (overrides: Partial<ReturnType<typeof mockDrawFactory>> = {}) => ({
+interface MockDraw {
+  id: number
+  draw_number: number
+  draw_date: Date
+  close_time: Date
+  status: 'Open' | 'Closed'
+  net_sale: string | null
+  product_id: number
+  raw_data: unknown
+  is_current: boolean
+  archived_at: Date | null
+  created_at: Date
+  updated_at: Date
+}
+
+export const mockDrawFactory = (overrides: Partial<MockDraw> = {}): MockDraw => ({
   id: 1,
   draw_number: 2849,
   draw_date: new Date('2024-12-14'),
@@ -35,7 +51,17 @@ export const mockDrawFactory = (overrides: Partial<ReturnType<typeof mockDrawFac
   ...overrides,
 })
 
-export const mockTeamFactory = (overrides: Partial<ReturnType<typeof mockTeamFactory>> = {}) => ({
+interface MockTeam {
+  id: number
+  name: string
+  short_name: string
+  country_id: number
+  external_id: string | null
+  created_at: Date
+  updated_at: Date
+}
+
+export const mockTeamFactory = (overrides: Partial<MockTeam> = {}): MockTeam => ({
   id: 1,
   name: 'Test Team',
   short_name: 'TT',
@@ -46,7 +72,16 @@ export const mockTeamFactory = (overrides: Partial<ReturnType<typeof mockTeamFac
   ...overrides,
 })
 
-export const mockLeagueFactory = (overrides: Partial<ReturnType<typeof mockLeagueFactory>> = {}) => ({
+interface MockLeague {
+  id: number
+  name: string
+  country_id: number
+  external_id: string | null
+  created_at: Date
+  updated_at: Date
+}
+
+export const mockLeagueFactory = (overrides: Partial<MockLeague> = {}): MockLeague => ({
   id: 1,
   name: 'Test League',
   country_id: 1,
@@ -56,7 +91,29 @@ export const mockLeagueFactory = (overrides: Partial<ReturnType<typeof mockLeagu
   ...overrides,
 })
 
-export const mockMatchFactory = (overrides: Partial<ReturnType<typeof mockMatchFactory>> = {}) => ({
+interface MockMatch {
+  id: number
+  draw_id: number
+  match_number: number
+  match_id: number
+  home_team_id: number
+  away_team_id: number
+  league_id: number
+  start_time: Date
+  status: 'Not started' | 'In progress' | 'Finished'
+  status_time: string | null
+  result_home: number | null
+  result_away: number | null
+  outcome: string | null
+  coverage: number
+  betRadar_id: string | null
+  kambi_id: string | null
+  raw_data: unknown
+  created_at: Date
+  updated_at: Date
+}
+
+export const mockMatchFactory = (overrides: Partial<MockMatch> = {}): MockMatch => ({
   id: 1,
   draw_id: 1,
   match_number: 1,
@@ -65,7 +122,7 @@ export const mockMatchFactory = (overrides: Partial<ReturnType<typeof mockMatchF
   away_team_id: 2,
   league_id: 1,
   start_time: new Date('2024-12-14T18:00:00Z'),
-  status: 'Not started' as const,
+  status: 'Not started',
   status_time: null,
   result_home: null,
   result_away: null,
@@ -79,16 +136,36 @@ export const mockMatchFactory = (overrides: Partial<ReturnType<typeof mockMatchF
   ...overrides,
 })
 
-export const mockPredictionFactory = (overrides: Partial<ReturnType<typeof mockPredictionFactory>> = {}) => ({
+interface MockPrediction {
+  id: number
+  match_id: number
+  model: string
+  model_version: string
+  probability_home: number
+  probability_draw: number
+  probability_away: number
+  predicted_outcome: '1' | 'X' | '2'
+  confidence: 'high' | 'medium' | 'low'
+  is_spik_suitable: boolean
+  reasoning: string
+  key_factors: string[]
+  similar_matches: unknown
+  raw_response: unknown
+  user_context: string | null
+  is_reevaluation: boolean
+  created_at: Date
+}
+
+export const mockPredictionFactory = (overrides: Partial<MockPrediction> = {}): MockPrediction => ({
   id: 1,
   match_id: 1,
   model: 'claude-sonnet-4-20250514',
   model_version: '20250514',
   probability_home: 0.45,
-  probability_draw: 0.30,
+  probability_draw: 0.3,
   probability_away: 0.25,
-  predicted_outcome: '1' as const,
-  confidence: 'medium' as const,
+  predicted_outcome: '1',
+  confidence: 'medium',
   is_spik_suitable: false,
   reasoning: 'Test reasoning for this prediction',
   key_factors: ['Factor 1', 'Factor 2', 'Factor 3'],
@@ -100,23 +177,47 @@ export const mockPredictionFactory = (overrides: Partial<ReturnType<typeof mockP
   ...overrides,
 })
 
-export const mockMatchOddsFactory = (overrides: Partial<ReturnType<typeof mockMatchOddsFactory>> = {}) => ({
+interface MockMatchOdds {
+  id: number
+  match_id: number
+  source: 'svenska_spel' | 'betfair'
+  odds_type: 'current' | 'opening'
+  home_odds: number
+  draw_odds: number
+  away_odds: number
+  fetched_at: Date
+  raw_data: unknown
+}
+
+export const mockMatchOddsFactory = (overrides: Partial<MockMatchOdds> = {}): MockMatchOdds => ({
   id: 1,
   match_id: 1,
-  source: 'svenska_spel' as const,
-  odds_type: 'current' as const,
-  home_odds: 2.10,
-  draw_odds: 3.40,
-  away_odds: 3.50,
+  source: 'svenska_spel',
+  odds_type: 'current',
+  home_odds: 2.1,
+  draw_odds: 3.4,
+  away_odds: 3.5,
   fetched_at: new Date(),
   raw_data: null,
   ...overrides,
 })
 
-export const mockMatchScrapedDataFactory = (overrides: Partial<ReturnType<typeof mockMatchScrapedDataFactory>> = {}) => ({
+interface MockMatchScrapedData {
+  id: number
+  match_id: number
+  data_type: 'xstats' | 'statistics' | 'headtohead' | 'news'
+  source: string
+  scraped_at: Date
+  data: unknown
+  scrape_operation_id: number | null
+}
+
+export const mockMatchScrapedDataFactory = (
+  overrides: Partial<MockMatchScrapedData> = {}
+): MockMatchScrapedData => ({
   id: 1,
   match_id: 1,
-  data_type: 'xstats' as const,
+  data_type: 'xstats',
   source: 'flashscore',
   scraped_at: new Date(),
   data: {
@@ -127,17 +228,36 @@ export const mockMatchScrapedDataFactory = (overrides: Partial<ReturnType<typeof
   ...overrides,
 })
 
-export const mockCouponFactory = (overrides: Partial<ReturnType<typeof mockCouponFactory>> = {}) => ({
+interface MockCoupon {
+  id: number
+  draw_id: number
+  system_type: 'R' | 'U' | 'M'
+  system_id: string
+  total_rows: number
+  total_cost: number
+  selections: unknown[]
+  hedge_assignment: unknown
+  expected_value: number
+  status: 'generated' | 'saved' | 'played'
+  saved_at: Date | null
+  played_at: Date | null
+  analyzed_at: Date | null
+  performance_data: unknown
+  created_at: Date
+  updated_at: Date
+}
+
+export const mockCouponFactory = (overrides: Partial<MockCoupon> = {}): MockCoupon => ({
   id: 1,
   draw_id: 1,
-  system_type: 'R' as const,
+  system_type: 'R',
   system_id: 'R-4-0-9-12',
   total_rows: 9,
   total_cost: 9,
   selections: [],
   hedge_assignment: null,
   expected_value: 5.2,
-  status: 'generated' as const,
+  status: 'generated',
   saved_at: null,
   played_at: null,
   analyzed_at: null,
@@ -152,24 +272,28 @@ export const mockCouponFactory = (overrides: Partial<ReturnType<typeof mockCoupo
 // ============================================
 
 export const generateMatches = (drawId: number, count = 13) => {
-  return Array.from({ length: count }, (_, i) => mockMatchFactory({
-    id: i + 1,
-    draw_id: drawId,
-    match_number: i + 1,
-    match_id: 10000 + i,
-    home_team_id: i * 2 + 1,
-    away_team_id: i * 2 + 2,
-  }))
+  return Array.from({ length: count }, (_, i) =>
+    mockMatchFactory({
+      id: i + 1,
+      draw_id: drawId,
+      match_number: i + 1,
+      match_id: 10000 + i,
+      home_team_id: i * 2 + 1,
+      away_team_id: i * 2 + 2,
+    })
+  )
 }
 
 export const generatePredictions = (matches: ReturnType<typeof mockMatchFactory>[]) => {
-  return matches.map((match, i) => mockPredictionFactory({
-    id: i + 1,
-    match_id: match.id,
-    probability_home: 0.3 + Math.random() * 0.4,
-    probability_draw: 0.2 + Math.random() * 0.2,
-    probability_away: 0.2 + Math.random() * 0.3,
-    confidence: ['high', 'medium', 'low'][i % 3] as 'high' | 'medium' | 'low',
-    is_spik_suitable: i < 6,
-  }))
+  return matches.map((match, i) =>
+    mockPredictionFactory({
+      id: i + 1,
+      match_id: match.id,
+      probability_home: 0.3 + Math.random() * 0.4,
+      probability_draw: 0.2 + Math.random() * 0.2,
+      probability_away: 0.2 + Math.random() * 0.3,
+      confidence: ['high', 'medium', 'low'][i % 3] as 'high' | 'medium' | 'low',
+      is_spik_suitable: i < 6,
+    })
+  )
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 
 // We need to test the class directly, so we'll import and instantiate
 // Mock the module to control time
@@ -50,8 +50,7 @@ const createScheduleWindowService = () => {
         const closeTime = this.getNextCloseTime(now)
         if (now < closeTime && now.getDay() >= 2 && now.getDay() <= 6) {
           open.setDate(open.getDate() + 7)
-        }
-        else if (daysUntilTuesday === 0) {
+        } else if (daysUntilTuesday === 0) {
           open.setDate(open.getDate() + 7)
         }
       }
@@ -123,7 +122,10 @@ const createScheduleWindowService = () => {
       }
     }
 
-    shouldAllowOperation(operationType: string, adminOverride: boolean = false): { allowed: boolean; reason: string } {
+    shouldAllowOperation(
+      operationType: string,
+      adminOverride: boolean = false
+    ): { allowed: boolean; reason: string } {
       if (adminOverride) {
         return {
           allowed: true,
@@ -165,8 +167,7 @@ const createScheduleWindowService = () => {
       if (isActive) {
         closeTime = this.getNextCloseTime(now)
         minutesUntilClose = Math.floor((closeTime.getTime() - now.getTime()) / (1000 * 60))
-      }
-      else {
+      } else {
         openTime = this.getNextOpenTime(now)
         minutesUntilOpen = Math.floor((openTime.getTime() - now.getTime()) / (1000 * 60))
       }
@@ -199,9 +200,9 @@ const createScheduleWindowService = () => {
 function createStockholmDate(dateStr: string): Date {
   // Parse as local time, treating it as Stockholm time for testing
   const [datePart, timePart] = dateStr.split(' ')
-  const [year, month, day] = datePart.split('-').map(Number)
-  const [hour, minute] = timePart.split(':').map(Number)
-  return new Date(year, month - 1, day, hour, minute, 0, 0)
+  const [year, month, day] = datePart!.split('-').map(Number)
+  const [hour, minute] = timePart!.split(':').map(Number)
+  return new Date(year!, month! - 1, day!, hour!, minute!, 0, 0)
 }
 
 // ============================================================================

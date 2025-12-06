@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { BettingSystem } from '~/types'
 
 /**
@@ -35,7 +35,24 @@ const handleGetBettingSystems = (systems: BettingSystem[]) => {
   }
 }
 
-const handleGetBettingSystemById = (systems: BettingSystem[], systemId: string) => {
+type SystemSuccessResponse = {
+  success: true
+  system: BettingSystem & {
+    fullSystemRows: number
+    reductionRatio: string
+    estimatedCost: string
+  }
+}
+
+type SystemErrorResponse = {
+  success: false
+  error: string
+}
+
+const handleGetBettingSystemById = (
+  systems: BettingSystem[],
+  systemId: string
+): SystemSuccessResponse | SystemErrorResponse => {
   const system = systems.find(s => s.id === systemId)
 
   if (!system) {
@@ -44,7 +61,7 @@ const handleGetBettingSystemById = (systems: BettingSystem[], systemId: string) 
 
   // Calculate additional metadata (matches actual API at server/api/betting-systems/[systemId].get.ts)
   const fullSystemRows = Math.pow(3, system.helgarderingar) * Math.pow(2, system.halvgarderingar)
-  const reductionRatio = (system.rows / fullSystemRows * 100).toFixed(1)
+  const reductionRatio = ((system.rows / fullSystemRows) * 100).toFixed(1)
   const estimatedCost = `${system.rows} SEK`
 
   return {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { h, defineComponent, computed, type PropType } from 'vue'
 
@@ -23,9 +23,14 @@ const UBadge = defineComponent({
     class: { type: String, default: '' },
   },
   setup(props, { slots }) {
-    return () => h('span', {
-      class: `badge badge-${props.color} badge-${props.variant} badge-${props.size} ${props.class}`,
-    }, slots.default?.())
+    return () =>
+      h(
+        'span',
+        {
+          class: `badge badge-${props.color} badge-${props.variant} badge-${props.size} ${props.class}`,
+        },
+        slots.default?.()
+      )
   },
 })
 
@@ -78,8 +83,7 @@ const AIAnalysis = defineComponent({
         try {
           const parsed = JSON.parse(props.prediction.key_factors)
           return Array.isArray(parsed) ? parsed : []
-        }
-        catch {
+        } catch {
           // If not valid JSON, return as single item
           return [props.prediction.key_factors]
         }
@@ -101,8 +105,7 @@ const AIAnalysis = defineComponent({
         try {
           const parsed = JSON.parse(props.prediction.similar_matches)
           return Array.isArray(parsed) ? parsed : []
-        }
-        catch {
+        } catch {
           return []
         }
       }
@@ -114,10 +117,14 @@ const AIAnalysis = defineComponent({
     const getOutcomeColor = (outcome: string | undefined) => {
       if (!outcome) return 'neutral'
       switch (outcome) {
-        case '1': return 'success'
-        case 'X': return 'warning'
-        case '2': return 'error'
-        default: return 'neutral'
+        case '1':
+          return 'success'
+        case 'X':
+          return 'warning'
+        case '2':
+          return 'error'
+        default:
+          return 'neutral'
       }
     }
 
@@ -332,7 +339,9 @@ describe('AIAnalysis Component', () => {
       })
 
       expect(wrapper.find('[data-testid="reasoning-section"]').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="reasoning-text"]').text()).toContain('favorable for the home team')
+      expect(wrapper.find('[data-testid="reasoning-text"]').text()).toContain(
+        'favorable for the home team'
+      )
     })
 
     it('hides reasoning section when reasoning is empty', () => {
@@ -353,9 +362,9 @@ describe('AIAnalysis Component', () => {
       expect(wrapper.find('[data-testid="key-factors-section"]').exists()).toBe(true)
       const factors = wrapper.findAll('[data-testid="key-factor"]')
       expect(factors).toHaveLength(3)
-      expect(factors[0].text()).toContain('Strong home form')
-      expect(factors[1].text()).toContain('Injured away players')
-      expect(factors[2].text()).toContain('Historical advantage')
+      expect(factors[0]!.text()).toContain('Strong home form')
+      expect(factors[1]!.text()).toContain('Injured away players')
+      expect(factors[2]!.text()).toContain('Historical advantage')
     })
 
     it('parses key factors from JSON string', () => {
@@ -366,7 +375,7 @@ describe('AIAnalysis Component', () => {
       expect(wrapper.find('[data-testid="key-factors-section"]').exists()).toBe(true)
       const factors = wrapper.findAll('[data-testid="key-factor"]')
       expect(factors).toHaveLength(2)
-      expect(factors[0].text()).toContain('Factor A')
+      expect(factors[0]!.text()).toContain('Factor A')
     })
 
     it('treats invalid JSON string as single factor', () => {
@@ -377,7 +386,7 @@ describe('AIAnalysis Component', () => {
       expect(wrapper.find('[data-testid="key-factors-section"]').exists()).toBe(true)
       const factors = wrapper.findAll('[data-testid="key-factor"]')
       expect(factors).toHaveLength(1)
-      expect(factors[0].text()).toContain('This is a plain string factor')
+      expect(factors[0]!.text()).toContain('This is a plain string factor')
     })
 
     it('hides key factors section when empty array', () => {
@@ -403,7 +412,13 @@ describe('AIAnalysis Component', () => {
       const wrapper = mountComponent({
         similar_matches: [
           { homeTeam: 'AIK', awayTeam: 'Djurgården', score: '2-1', outcome: '1', similarity: 0.85 },
-          { home_team: 'IFK', away_team: 'Hammarby', result: '0-0', outcome: 'X', similarity: 0.72 },
+          {
+            home_team: 'IFK',
+            away_team: 'Hammarby',
+            result: '0-0',
+            outcome: 'X',
+            similarity: 0.72,
+          },
         ],
       })
 
@@ -434,15 +449,13 @@ describe('AIAnalysis Component', () => {
       })
 
       const teamTexts = wrapper.findAll('[data-testid="match-teams"]')
-      expect(teamTexts[0].text()).toContain('AIK vs Djurgården')
-      expect(teamTexts[1].text()).toContain('IFK vs Hammarby')
+      expect(teamTexts[0]!.text()).toContain('AIK vs Djurgården')
+      expect(teamTexts[1]!.text()).toContain('IFK vs Hammarby')
     })
 
     it('displays similarity percentage correctly', () => {
       const wrapper = mountComponent({
-        similar_matches: [
-          { homeTeam: 'A', awayTeam: 'B', similarity: 0.925 },
-        ],
+        similar_matches: [{ homeTeam: 'A', awayTeam: 'B', similarity: 0.925 }],
       })
 
       expect(wrapper.find('[data-testid="match-similarity"]').text()).toContain('93% similar')
@@ -450,9 +463,7 @@ describe('AIAnalysis Component', () => {
 
     it('hides similarity when not provided', () => {
       const wrapper = mountComponent({
-        similar_matches: [
-          { homeTeam: 'A', awayTeam: 'B' },
-        ],
+        similar_matches: [{ homeTeam: 'A', awayTeam: 'B' }],
       })
 
       expect(wrapper.find('[data-testid="match-similarity"]').exists()).toBe(false)
@@ -475,7 +486,9 @@ describe('AIAnalysis Component', () => {
       })
 
       expect(wrapper.find('[data-testid="user-context-section"]').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="user-context-text"]').text()).toContain('Key striker is injured')
+      expect(wrapper.find('[data-testid="user-context-text"]').text()).toContain(
+        'Key striker is injured'
+      )
     })
 
     it('hides user context section when not provided', () => {
@@ -638,10 +651,10 @@ describe('AIAnalysis Component', () => {
       })
 
       const metaElements = wrapper.findAll('[data-testid="match-meta"]')
-      expect(metaElements[0].text()).toContain('2024-01-15')
-      expect(metaElements[0].text()).toContain('Allsvenskan')
-      expect(metaElements[1].text()).toContain('2024-02-20')
-      expect(metaElements[1].text()).toContain('Superettan')
+      expect(metaElements[0]!.text()).toContain('2024-01-15')
+      expect(metaElements[0]!.text()).toContain('Allsvenskan')
+      expect(metaElements[1]!.text()).toContain('2024-02-20')
+      expect(metaElements[1]!.text()).toContain('Superettan')
     })
   })
 })

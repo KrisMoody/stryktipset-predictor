@@ -15,7 +15,7 @@ class ProgressiveScraper {
    * @param thresholdHours - Data older than this threshold will be refreshed
    * @returns Number of matches queued for scraping
    */
-  async queueStaleMatches(thresholdHours: number): Promise<{ queued: number, skipped: number }> {
+  async queueStaleMatches(thresholdHours: number): Promise<{ queued: number; skipped: number }> {
     if (this.isRunning) {
       console.log('[Progressive Scraper] Already running, skipping...')
       return { queued: 0, skipped: 0 }
@@ -24,7 +24,9 @@ class ProgressiveScraper {
     this.isRunning = true
     const status = scheduleWindowService.getWindowStatus()
 
-    console.log(`[Progressive Scraper] Starting stale match scan (threshold: ${thresholdHours}h, phase: ${status.currentPhase})`)
+    console.log(
+      `[Progressive Scraper] Starting stale match scan (threshold: ${thresholdHours}h, phase: ${status.currentPhase})`
+    )
 
     try {
       const thresholdTime = new Date(Date.now() - thresholdHours * 60 * 60 * 1000)
@@ -52,14 +54,20 @@ class ProgressiveScraper {
 
       let queued = 0
       let skipped = 0
-      const dataTypes = ['xStats', 'statistics', 'headToHead']
+      const dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news')[] = [
+        'xStats',
+        'statistics',
+        'headToHead',
+      ]
 
       for (const draw of currentDraws) {
-        console.log(`[Progressive Scraper] Checking draw #${draw.draw_number} (${draw.matches.length} matches)`)
+        console.log(
+          `[Progressive Scraper] Checking draw #${draw.draw_number} (${draw.matches.length} matches)`
+        )
 
         for (const match of draw.matches) {
           // Check which data types need refreshing
-          const staleDataTypes: string[] = []
+          const staleDataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news')[] = []
 
           for (const dataType of dataTypes) {
             const latestScrape = match.match_scraped_data.find(d => d.data_type === dataType)
@@ -70,7 +78,9 @@ class ProgressiveScraper {
           }
 
           if (staleDataTypes.length > 0) {
-            console.log(`[Progressive Scraper] Match ${match.match_number} (ID: ${match.id}) has stale data: ${staleDataTypes.join(', ')}`)
+            console.log(
+              `[Progressive Scraper] Match ${match.match_number} (ID: ${match.id}) has stale data: ${staleDataTypes.join(', ')}`
+            )
 
             // Queue the match for scraping
             try {
@@ -81,25 +91,23 @@ class ProgressiveScraper {
                 dataTypes: staleDataTypes,
               })
               queued++
-            }
-            catch (error) {
+            } catch (error) {
               console.error(`[Progressive Scraper] Error queueing match ${match.id}:`, error)
             }
-          }
-          else {
+          } else {
             skipped++
           }
         }
       }
 
-      console.log(`[Progressive Scraper] Scan complete: ${queued} matches queued, ${skipped} skipped (data fresh)`)
+      console.log(
+        `[Progressive Scraper] Scan complete: ${queued} matches queued, ${skipped} skipped (data fresh)`
+      )
       return { queued, skipped }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Progressive Scraper] Error in stale match scan:', error)
       return { queued: 0, skipped: 0 }
-    }
-    finally {
+    } finally {
       this.isRunning = false
     }
   }
@@ -129,7 +137,11 @@ class ProgressiveScraper {
       })
 
       let queued = 0
-      const dataTypes = ['xStats', 'statistics', 'headToHead']
+      const dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news')[] = [
+        'xStats',
+        'statistics',
+        'headToHead',
+      ]
 
       for (const draw of currentDraws) {
         console.log(`[Progressive Scraper] Queueing all matches from draw #${draw.draw_number}`)
@@ -143,8 +155,7 @@ class ProgressiveScraper {
               dataTypes,
             })
             queued++
-          }
-          catch (error) {
+          } catch (error) {
             console.error(`[Progressive Scraper] Error queueing match ${match.id}:`, error)
           }
         }
@@ -152,12 +163,10 @@ class ProgressiveScraper {
 
       console.log(`[Progressive Scraper] Full refresh queued: ${queued} matches`)
       return { queued }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Progressive Scraper] Error in full refresh:', error)
       return { queued: 0 }
-    }
-    finally {
+    } finally {
       this.isRunning = false
     }
   }

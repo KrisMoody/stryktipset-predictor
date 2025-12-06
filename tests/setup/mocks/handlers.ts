@@ -5,41 +5,43 @@ import { http, HttpResponse } from 'msw'
 // ============================================
 
 const svenskaSpelDrawResponse = {
-  responses: [{
-    draw: {
-      drawNumber: 2849,
-      drawState: 'Open',
-      regCloseTime: '2024-12-14T14:59:59.999Z',
-      productId: 1,
-      netSale: 15000000,
-      drawEvents: Array.from({ length: 13 }, (_, i) => ({
-        eventNumber: i + 1,
-        eventDescription: `Home Team ${i + 1} - Away Team ${i + 1}`,
-        match: {
-          matchId: 10000 + i,
-          matchStart: '2024-12-14T18:00:00Z',
-          status: 'Not started',
-          participants: [
-            { id: i * 2 + 1, name: `Home Team ${i + 1}`, type: 'home' },
-            { id: i * 2 + 2, name: `Away Team ${i + 1}`, type: 'away' },
-          ],
-          league: { id: 1, name: 'Test League', country: { id: 1, name: 'Sweden' } },
-        },
-        odds: {
-          odds: [
-            { outcome: '1', odds: 2.10 + i * 0.1 },
-            { outcome: 'X', odds: 3.40 },
-            { outcome: '2', odds: 3.50 - i * 0.05 },
-          ],
-        },
-        distribution: {
-          outcome1: 45 - i,
-          outcomeX: 25,
-          outcome2: 30 + i,
-        },
-      })),
+  responses: [
+    {
+      draw: {
+        drawNumber: 2849,
+        drawState: 'Open',
+        regCloseTime: '2024-12-14T14:59:59.999Z',
+        productId: 1,
+        netSale: 15000000,
+        drawEvents: Array.from({ length: 13 }, (_, i) => ({
+          eventNumber: i + 1,
+          eventDescription: `Home Team ${i + 1} - Away Team ${i + 1}`,
+          match: {
+            matchId: 10000 + i,
+            matchStart: '2024-12-14T18:00:00Z',
+            status: 'Not started',
+            participants: [
+              { id: i * 2 + 1, name: `Home Team ${i + 1}`, type: 'home' },
+              { id: i * 2 + 2, name: `Away Team ${i + 1}`, type: 'away' },
+            ],
+            league: { id: 1, name: 'Test League', country: { id: 1, name: 'Sweden' } },
+          },
+          odds: {
+            odds: [
+              { outcome: '1', odds: 2.1 + i * 0.1 },
+              { outcome: 'X', odds: 3.4 },
+              { outcome: '2', odds: 3.5 - i * 0.05 },
+            ],
+          },
+          distribution: {
+            outcome1: 45 - i,
+            outcomeX: 25,
+            outcome2: 30 + i,
+          },
+        })),
+      },
     },
-  }],
+  ],
 }
 
 // ============================================
@@ -56,10 +58,11 @@ const claudePredictionResponse = {
       text: JSON.stringify({
         probabilities: {
           home_win: 0.45,
-          draw: 0.30,
+          draw: 0.3,
           away_win: 0.25,
         },
-        reasoning: 'The home team has shown strong form in recent matches with 4 wins in their last 5 games. Key player statistics favor the home side.',
+        reasoning:
+          'The home team has shown strong form in recent matches with 4 wins in their last 5 games. Key player statistics favor the home side.',
         key_factors: [
           'Strong home form (4W 1D in last 5)',
           'Key striker returning from injury',
@@ -90,11 +93,17 @@ export const handlers = [
   }),
 
   // Svenska Spel API - Get specific draw
-  http.get('https://api.spela.svenskaspel.se/draw/1/stryktipset/draws/:drawNumber', ({ params }) => {
-    const response = { ...svenskaSpelDrawResponse }
-    response.responses[0].draw.drawNumber = parseInt(params.drawNumber as string)
-    return HttpResponse.json(response)
-  }),
+  http.get(
+    'https://api.spela.svenskaspel.se/draw/1/stryktipset/draws/:drawNumber',
+    ({ params }) => {
+      const response = { ...svenskaSpelDrawResponse }
+      const firstResponse = response.responses[0]
+      if (firstResponse) {
+        firstResponse.draw.drawNumber = parseInt(params.drawNumber as string)
+      }
+      return HttpResponse.json(response)
+    }
+  ),
 
   // Anthropic Claude API
   http.post('https://api.anthropic.com/v1/messages', () => {
@@ -114,12 +123,14 @@ export const handlers = [
   http.get('/api/draws/current', () => {
     return HttpResponse.json({
       success: true,
-      draws: [{
-        draw_number: 2849,
-        status: 'Open',
-        close_time: '2024-12-14T14:59:00Z',
-        matches: [],
-      }],
+      draws: [
+        {
+          draw_number: 2849,
+          status: 'Open',
+          close_time: '2024-12-14T14:59:00Z',
+          matches: [],
+        },
+      ],
     })
   }),
 
@@ -142,7 +153,7 @@ export const handlers = [
 
   // Optimize coupon
   http.post('/api/draws/:drawNumber/optimize', async ({ params, request }) => {
-    const body = await request.json() as { mode?: string; systemId?: string; budget?: number }
+    const body = (await request.json()) as { mode?: string; systemId?: string; budget?: number }
     const drawNumber = parseInt(params.drawNumber as string)
 
     return HttpResponse.json({
@@ -174,7 +185,7 @@ export const handlers = [
       prediction: {
         match_id: parseInt(params.matchId as string),
         probability_home: 0.45,
-        probability_draw: 0.30,
+        probability_draw: 0.3,
         probability_away: 0.25,
         predicted_outcome: '1',
         confidence: 'medium',
@@ -209,7 +220,7 @@ export const handlers = [
     return HttpResponse.json({
       success: true,
       summary: {
-        totalCost: 15.50,
+        totalCost: 15.5,
         totalTokens: 125000,
         totalRequests: 50,
         avgCostPerRequest: 0.31,
@@ -225,14 +236,15 @@ export const handlers = [
 
 export const createErrorHandler = (path: string, statusCode: number, message: string) => {
   return http.all(path, () => {
-    return HttpResponse.json(
-      { success: false, error: message },
-      { status: statusCode }
-    )
+    return HttpResponse.json({ success: false, error: message }, { status: statusCode })
   })
 }
 
-export const createDelayedHandler = (path: string, delayMs: number, response: unknown) => {
+export const createDelayedHandler = (
+  path: string,
+  delayMs: number,
+  response: Record<string, unknown>
+) => {
   return http.all(path, async () => {
     await new Promise(resolve => setTimeout(resolve, delayMs))
     return HttpResponse.json(response)

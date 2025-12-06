@@ -3,22 +3,14 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 export default defineConfig({
-  plugins: [vue()],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  plugins: [vue() as any],
   test: {
     globals: true,
     environment: 'happy-dom',
     setupFiles: ['./tests/setup/vitest.setup.ts'],
-    include: [
-      'tests/unit/**/*.test.ts',
-      'tests/components/**/*.test.ts',
-      'tests/api/**/*.test.ts',
-    ],
-    exclude: [
-      'node_modules',
-      'tests/e2e/**',
-      'tests/integration/**',
-      'tests/accessibility/**',
-    ],
+    include: ['tests/unit/**/*.test.ts', 'tests/components/**/*.test.ts', 'tests/api/**/*.test.ts'],
+    exclude: ['node_modules', 'tests/e2e/**', 'tests/integration/**', 'tests/accessibility/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
@@ -30,13 +22,7 @@ export default defineConfig({
         'composables/**/*.ts',
         'components/**/*.vue',
       ],
-      exclude: [
-        'node_modules',
-        'tests/**',
-        '**/*.d.ts',
-        'server/plugins/**',
-        '.nuxt/**',
-      ],
+      exclude: ['node_modules', 'tests/**', '**/*.d.ts', 'server/plugins/**', '.nuxt/**'],
       thresholds: {
         // Overall threshold
         lines: 90,

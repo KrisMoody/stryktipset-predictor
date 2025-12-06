@@ -290,7 +290,7 @@ describe('GET /api/schedule/status', () => {
       ['early', 24],
       ['mid', 12],
       ['late', 4],
-    ] as const)('returns %d hours threshold for %s phase', (phase, threshold) => {
+    ] as const)('returns %s phase with %d hours threshold', (phase, threshold) => {
       const factories = {
         early: createEarlyPhaseStatus,
         mid: createMidPhaseStatus,

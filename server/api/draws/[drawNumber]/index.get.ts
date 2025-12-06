@@ -1,6 +1,6 @@
 import { drawCacheService } from '~/server/services/draw-cache-service'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const drawNumber = parseInt(event.context.params?.drawNumber || '0')
 
@@ -18,8 +18,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       draw,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error fetching draw:', error)
     throw error
   }

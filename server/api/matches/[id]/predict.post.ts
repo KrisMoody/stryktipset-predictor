@@ -7,7 +7,7 @@ interface PredictRequestBody {
   isReevaluation?: boolean
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const matchId = parseInt(event.context.params?.id || '0')
     const body = await readBody<PredictRequestBody>(event).catch((): PredictRequestBody => ({}))
@@ -39,8 +39,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       prediction,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error predicting match:', error)
     throw error
   }

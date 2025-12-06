@@ -1,6 +1,6 @@
 import { performanceTracker } from '~/server/services/performance-tracker'
 
-export default defineEventHandler(async (_event) => {
+export default defineEventHandler(async _event => {
   try {
     // Update performance first
     await performanceTracker.updatePerformance()
@@ -12,8 +12,7 @@ export default defineEventHandler(async (_event) => {
       success: true,
       stats,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error getting performance summary:', error)
     return {
       success: false,

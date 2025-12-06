@@ -1,5 +1,7 @@
 <template>
-  <header class="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
+  <header
+    class="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800"
+  >
     <UContainer>
       <div class="flex items-center justify-between h-16">
         <!-- Logo/Brand -->
@@ -17,26 +19,20 @@
         </NuxtLink>
 
         <!-- Desktop Navigation -->
-        <nav
-          class="hidden md:flex items-center gap-1"
-          aria-label="Huvudnavigering"
-        >
+        <nav class="hidden md:flex items-center gap-1" aria-label="Huvudnavigering">
           <NuxtLink
             v-for="item in mainNavItems"
             :key="item.to"
             :to="item.to"
             class="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors"
-            :class="isActive(item.to)
-              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'"
+            :class="
+              isActive(item.to)
+                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+            "
             :aria-current="isActive(item.to) ? 'page' : undefined"
           >
-            <UIcon
-              v-if="item.icon"
-              :name="item.icon"
-              class="w-4 h-4"
-              aria-hidden="true"
-            />
+            <UIcon v-if="item.icon" :name="item.icon" class="w-4 h-4" aria-hidden="true" />
             {{ item.label }}
           </NuxtLink>
         </nav>
@@ -74,18 +70,15 @@
           :key="item.to"
           :to="item.to"
           class="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors"
-          :class="isActive(item.to)
-            ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'"
+          :class="
+            isActive(item.to)
+              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+          "
           :aria-current="isActive(item.to) ? 'page' : undefined"
           @click="mobileMenuOpen = false"
         >
-          <UIcon
-            v-if="item.icon"
-            :name="item.icon"
-            class="w-5 h-5"
-            aria-hidden="true"
-          />
+          <UIcon v-if="item.icon" :name="item.icon" class="w-5 h-5" aria-hidden="true" />
           {{ item.label }}
         </NuxtLink>
       </nav>

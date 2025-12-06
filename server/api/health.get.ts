@@ -2,7 +2,7 @@ import { prisma } from '../utils/prisma'
 import { failedWritesQueue } from '../utils/failed-writes-queue'
 import { aiUsageMetrics } from '../utils/ai-usage-metrics'
 
-export default defineEventHandler(async (_event) => {
+export default defineEventHandler(async _event => {
   const health = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -18,8 +18,7 @@ export default defineEventHandler(async (_event) => {
     await prisma.$queryRaw`SELECT 1`
     health.checks.database.status = 'healthy'
     health.checks.database.message = 'Database connection successful'
-  }
-  catch (error) {
+  } catch (error) {
     health.status = 'unhealthy'
     health.checks.database.status = 'unhealthy'
     health.checks.database.message = error instanceof Error ? error.message : String(error)
@@ -30,8 +29,7 @@ export default defineEventHandler(async (_event) => {
     await prisma.$queryRaw`SELECT COUNT(*) FROM ai_usage LIMIT 1`
     health.checks.aiUsageTable.status = 'healthy'
     health.checks.aiUsageTable.message = 'ai_usage table is accessible'
-  }
-  catch (error) {
+  } catch (error) {
     health.status = 'unhealthy'
     health.checks.aiUsageTable.status = 'unhealthy'
     health.checks.aiUsageTable.message = error instanceof Error ? error.message : String(error)
@@ -49,12 +47,10 @@ export default defineEventHandler(async (_event) => {
     if (successRate === 100 && queueSize === 0) {
       health.checks.aiUsageTracking.status = 'healthy'
       health.checks.aiUsageTracking.message = 'All AI usage writes successful'
-    }
-    else if (successRate >= 95 && queueSize < 10) {
+    } else if (successRate >= 95 && queueSize < 10) {
       health.checks.aiUsageTracking.status = 'degraded'
       health.checks.aiUsageTracking.message = 'Some AI usage writes failing'
-    }
-    else {
+    } else {
       health.status = 'degraded'
       health.checks.aiUsageTracking.status = 'unhealthy'
       health.checks.aiUsageTracking.message = 'Many AI usage writes failing'
@@ -67,8 +63,7 @@ export default defineEventHandler(async (_event) => {
       queueSize: queueStatus.queueSize,
       recentErrorsCount: metrics.recentErrors.length,
     }
-  }
-  catch (error) {
+  } catch (error) {
     health.checks.aiUsageTracking.status = 'unknown'
     health.checks.aiUsageTracking.message = error instanceof Error ? error.message : String(error)
   }

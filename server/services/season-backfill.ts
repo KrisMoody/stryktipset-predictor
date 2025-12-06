@@ -27,7 +27,7 @@ export interface BackfillProgress {
   skippedDraws: number
   currentBatch?: number
   totalBatches?: number
-  errors: Array<{ drawNumber: number, error: string, retryCount: number }>
+  errors: Array<{ drawNumber: number; error: string; retryCount: number }>
 }
 
 /**
@@ -40,7 +40,7 @@ export interface BackfillResult {
   successfulDraws: number
   failedDraws: number
   skippedDraws: number
-  errors: Array<{ drawNumber: number, error: string }>
+  errors: Array<{ drawNumber: number; error: string }>
   duration: number // milliseconds
 }
 
@@ -49,7 +49,7 @@ export interface BackfillResult {
  */
 interface BatchResult {
   successful: number[]
-  failed: Array<{ drawNumber: number, error: string }>
+  failed: Array<{ drawNumber: number; error: string }>
 }
 
 /**
@@ -81,7 +81,9 @@ export class SeasonBackfillService {
     } = options
 
     console.log('[Season Backfill] Starting backfill operation...')
-    console.log(`[Season Backfill] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`)
+    console.log(
+      `[Season Backfill] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
+    )
     console.log(`[Season Backfill] Batch size: ${batchSize}, Skip existing: ${skipExisting}`)
 
     this.isCancelled = false
@@ -147,7 +149,9 @@ export class SeasonBackfillService {
         }
       }
 
-      console.log(`[Season Backfill] Processing ${drawsToProcess.length} draws (${progress.skippedDraws} skipped)`)
+      console.log(
+        `[Season Backfill] Processing ${drawsToProcess.length} draws (${progress.skippedDraws} skipped)`
+      )
 
       // Phase 3: Process draws in batches
       progress.phase = 'processing'
@@ -155,7 +159,7 @@ export class SeasonBackfillService {
       progress.totalBatches = batches.length
       progressCallback?.(progress)
 
-      const failedDraws: Array<{ drawNumber: number, error: string, retryCount: number }> = []
+      const failedDraws: Array<{ drawNumber: number; error: string; retryCount: number }> = []
 
       for (let i = 0; i < batches.length; i++) {
         if (this.isCancelled) {
@@ -185,13 +189,14 @@ export class SeasonBackfillService {
         if (batchResult.failed.length === batch.length) {
           this.consecutiveFailures++
           if (this.consecutiveFailures >= this.CIRCUIT_BREAKER_THRESHOLD) {
-            console.warn(`[Season Backfill] Circuit breaker triggered after ${this.consecutiveFailures} consecutive failures`)
+            console.warn(
+              `[Season Backfill] Circuit breaker triggered after ${this.consecutiveFailures} consecutive failures`
+            )
             console.warn(`[Season Backfill] Pausing for ${this.CIRCUIT_BREAKER_PAUSE_MS}ms...`)
             await this.delay(this.CIRCUIT_BREAKER_PAUSE_MS)
             this.consecutiveFailures = 0
           }
-        }
-        else {
+        } else {
           this.consecutiveFailures = 0
         }
 
@@ -226,7 +231,9 @@ export class SeasonBackfillService {
 
       const duration = Date.now() - startTime
       console.log('[Season Backfill] Backfill complete!')
-      console.log(`[Season Backfill] Total: ${progress.totalDraws}, Successful: ${progress.successfulDraws}, Failed: ${progress.failedDraws}, Skipped: ${progress.skippedDraws}`)
+      console.log(
+        `[Season Backfill] Total: ${progress.totalDraws}, Successful: ${progress.successfulDraws}, Failed: ${progress.failedDraws}, Skipped: ${progress.skippedDraws}`
+      )
       console.log(`[Season Backfill] Duration: ${(duration / 1000).toFixed(2)}s`)
 
       return {
@@ -239,8 +246,7 @@ export class SeasonBackfillService {
         errors: progress.errors,
         duration,
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Season Backfill] Fatal error during backfill:', error)
       throw error
     }
@@ -264,13 +270,14 @@ export class SeasonBackfillService {
 
         if (monthDrawNumbers.length > 0) {
           drawNumbers.push(...monthDrawNumbers)
-          console.log(`[Season Backfill] Found ${monthDrawNumbers.length} draws in ${year}-${month}`)
+          console.log(
+            `[Season Backfill] Found ${monthDrawNumbers.length} draws in ${year}-${month}`
+          )
         }
 
         // Rate limiting between discovery calls
         await this.delay(this.DISCOVERY_DELAY_MS)
-      }
-      catch (error) {
+      } catch (error) {
         console.warn(`[Season Backfill] Error discovering draws for ${year}-${month}:`, error)
         // Continue with other months
       }
@@ -300,7 +307,9 @@ export class SeasonBackfillService {
     const existingNumbers = new Set(existingDraws.map(d => d.draw_number))
     const newDraws = drawNumbers.filter(num => !existingNumbers.has(num))
 
-    console.log(`[Season Backfill] ${existingNumbers.size} draws already exist, ${newDraws.length} to process`)
+    console.log(
+      `[Season Backfill] ${existingNumbers.size} draws already exist, ${newDraws.length} to process`
+    )
     return newDraws
   }
 
@@ -324,7 +333,7 @@ export class SeasonBackfillService {
     console.log(`[Season Backfill] Fetching batch of ${batch.length} draws...`)
 
     const successful: number[] = []
-    const failed: Array<{ drawNumber: number, error: string }> = []
+    const failed: Array<{ drawNumber: number; error: string }> = []
 
     try {
       // Batch fetch all draws
@@ -341,22 +350,19 @@ export class SeasonBackfillService {
 
             if (syncResult.success) {
               successful.push(result.drawNumber)
-            }
-            else {
+            } else {
               failed.push({
                 drawNumber: result.drawNumber,
                 error: syncResult.error || 'Unknown sync error',
               })
             }
-          }
-          catch (error) {
+          } catch (error) {
             failed.push({
               drawNumber: result.drawNumber,
               error: error instanceof Error ? error.message : 'Unknown error during sync',
             })
           }
-        }
-        else if (result.error) {
+        } else if (result.error) {
           failed.push({
             drawNumber: result.drawNumber,
             error: result.error,
@@ -364,10 +370,11 @@ export class SeasonBackfillService {
         }
       }
 
-      console.log(`[Season Backfill] Batch complete: ${successful.length} successful, ${failed.length} failed`)
+      console.log(
+        `[Season Backfill] Batch complete: ${successful.length} successful, ${failed.length} failed`
+      )
       return { successful, failed }
-    }
-    catch (error) {
+    } catch (error) {
       // Entire batch failed
       console.error('[Season Backfill] Batch fetch failed:', error)
       return {
@@ -384,11 +391,14 @@ export class SeasonBackfillService {
    * Retry failed draws with exponential backoff
    */
   private async retryFailedDraws(
-    failedDraws: Array<{ drawNumber: number, error: string, retryCount: number }>,
-    maxRetries: number,
-  ): Promise<{ successful: number, stillFailed: Array<{ drawNumber: number, error: string, retryCount: number }> }> {
+    failedDraws: Array<{ drawNumber: number; error: string; retryCount: number }>,
+    maxRetries: number
+  ): Promise<{
+    successful: number
+    stillFailed: Array<{ drawNumber: number; error: string; retryCount: number }>
+  }> {
     let successful = 0
-    const stillFailed: Array<{ drawNumber: number, error: string, retryCount: number }> = []
+    const stillFailed: Array<{ drawNumber: number; error: string; retryCount: number }> = []
 
     for (const failedDraw of failedDraws) {
       if (this.isCancelled) break
@@ -398,7 +408,9 @@ export class SeasonBackfillService {
 
       while (retryCount < maxRetries && !success) {
         const backoffDelay = Math.pow(2, retryCount) * 1000 // 1s, 2s, 4s
-        console.log(`[Season Backfill] Retrying draw ${failedDraw.drawNumber} (attempt ${retryCount + 1}/${maxRetries})...`)
+        console.log(
+          `[Season Backfill] Retrying draw ${failedDraw.drawNumber} (attempt ${retryCount + 1}/${maxRetries})...`
+        )
 
         await this.delay(backoffDelay)
 
@@ -413,21 +425,20 @@ export class SeasonBackfillService {
             if (result.success) {
               successful++
               success = true
-              console.log(`[Season Backfill] Successfully synced draw ${failedDraw.drawNumber} on retry`)
-            }
-            else {
+              console.log(
+                `[Season Backfill] Successfully synced draw ${failedDraw.drawNumber} on retry`
+              )
+            } else {
               retryCount++
               failedDraw.error = result.error || 'Unknown retry error'
               failedDraw.retryCount = retryCount
             }
-          }
-          else {
+          } else {
             retryCount++
             failedDraw.error = 'Failed to fetch draw data'
             failedDraw.retryCount = retryCount
           }
-        }
-        catch (error) {
+        } catch (error) {
           retryCount++
           failedDraw.error = error instanceof Error ? error.message : 'Unknown retry error'
           failedDraw.retryCount = retryCount
@@ -439,7 +450,9 @@ export class SeasonBackfillService {
       }
     }
 
-    console.log(`[Season Backfill] Retry complete: ${successful} recovered, ${stillFailed.length} still failed`)
+    console.log(
+      `[Season Backfill] Retry complete: ${successful} recovered, ${stillFailed.length} still failed`
+    )
     return { successful, stillFailed }
   }
 
@@ -460,8 +473,7 @@ export class SeasonBackfillService {
         },
       })
       console.log(`[Season Backfill] Archived ${drawNumbers.length} draws`)
-    }
-    catch (error) {
+    } catch (error) {
       console.warn('[Season Backfill] Error archiving draws:', error)
       // Non-fatal - continue
     }
@@ -470,8 +482,8 @@ export class SeasonBackfillService {
   /**
    * Get array of {year, month} objects for date range
    */
-  private getMonthsInRange(startDate: Date, endDate: Date): Array<{ year: number, month: number }> {
-    const months: Array<{ year: number, month: number }> = []
+  private getMonthsInRange(startDate: Date, endDate: Date): Array<{ year: number; month: number }> {
+    const months: Array<{ year: number; month: number }> = []
 
     const current = new Date(startDate)
     current.setDate(1) // Normalize to first of month

@@ -77,7 +77,9 @@ class FailedWritesQueue {
     }
   }
 
-  async retryAll(retryFn: (data: AIUsageData) => Promise<void>): Promise<{ succeeded: number, failed: number }> {
+  async retryAll(
+    retryFn: (data: AIUsageData) => Promise<void>
+  ): Promise<{ succeeded: number; failed: number }> {
     if (this.queue.length === 0) {
       return { succeeded: 0, failed: 0 }
     }
@@ -94,8 +96,7 @@ class FailedWritesQueue {
         this.remove(write.id)
         results.succeeded++
         logger.info('Successfully retried failed write', { id: write.id })
-      }
-      catch (error) {
+      } catch (error) {
         results.failed++
         logger.error('Failed to retry write', error, {
           id: write.id,
@@ -135,7 +136,8 @@ class FailedWritesQueue {
       queueSize: this.queue.length,
       maxQueueSize: this.maxQueueSize,
       oldestEntry: this.queue.length > 0 ? this.queue[0]?.timestamp.toISOString() : null,
-      newestEntry: this.queue.length > 0 ? this.queue[this.queue.length - 1]?.timestamp.toISOString() : null,
+      newestEntry:
+        this.queue.length > 0 ? this.queue[this.queue.length - 1]?.timestamp.toISOString() : null,
       entries: this.queue.map(fw => ({
         id: fw.id,
         timestamp: fw.timestamp.toISOString(),

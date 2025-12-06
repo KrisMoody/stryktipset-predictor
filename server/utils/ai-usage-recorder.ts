@@ -24,7 +24,7 @@ async function sleep(ms: number): Promise<void> {
 
 export async function recordAIUsage(
   data: AIUsageData,
-  options: RecorderOptions = {},
+  options: RecorderOptions = {}
 ): Promise<void> {
   const opts = { ...defaultOptions, ...options }
 
@@ -43,8 +43,7 @@ export async function recordAIUsage(
       logger.warn('Attempting to sanitize and retry with cleaned data')
       const sanitized = sanitizeAIUsageData(data)
       return recordAIUsage(sanitized, { ...opts, sanitizeOnValidationFailure: false })
-    }
-    else {
+    } else {
       const errorMsg = `Validation failed: ${validation.errors.map(e => `${e.field}: ${e.message}`).join(', ')}`
       failedWritesQueue.add(data, errorMsg)
       throw new Error(errorMsg)
@@ -84,8 +83,7 @@ export async function recordAIUsage(
       })
 
       return
-    }
-    catch (error) {
+    } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
 
       if (attempt < opts.maxRetries) {
@@ -118,9 +116,9 @@ export async function recordAIUsage(
   // Don't throw - we've logged and queued it
 }
 
-export async function retryFailedWrites(): Promise<{ succeeded: number, failed: number }> {
+export async function retryFailedWrites(): Promise<{ succeeded: number; failed: number }> {
   logger.info('Starting manual retry of failed writes')
-  return await failedWritesQueue.retryAll(async (data) => {
+  return await failedWritesQueue.retryAll(async data => {
     await recordAIUsage(data, { sanitizeOnValidationFailure: false })
   })
 }

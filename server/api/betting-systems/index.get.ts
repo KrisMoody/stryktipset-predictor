@@ -23,8 +23,7 @@ export default defineEventHandler(async () => {
         total: systems.length,
       },
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[API] Error loading betting systems:', error)
     throw createError({
       statusCode: 500,

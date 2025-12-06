@@ -93,8 +93,7 @@ class ScheduleWindowService {
       if (now < closeTime && now.getDay() >= WINDOW_OPEN_DAY && now.getDay() <= WINDOW_CLOSE_DAY) {
         // We're in the window, next open is next week
         open.setDate(open.getDate() + 7)
-      }
-      else if (daysUntilTuesday === 0) {
+      } else if (daysUntilTuesday === 0) {
         // It's Tuesday but we've passed 00:00, get next Tuesday
         open.setDate(open.getDate() + 7)
       }
@@ -235,8 +234,7 @@ class ScheduleWindowService {
     if (isActive) {
       closeTime = this.getNextCloseTime(now)
       minutesUntilClose = Math.floor((closeTime.getTime() - now.getTime()) / (1000 * 60))
-    }
-    else {
+    } else {
       openTime = this.getNextOpenTime(now)
       minutesUntilOpen = Math.floor((openTime.getTime() - now.getTime()) / (1000 * 60))
     }
@@ -258,7 +256,10 @@ class ScheduleWindowService {
   /**
    * Check if an operation should be allowed
    */
-  shouldAllowOperation(operationType: string, adminOverride: boolean = false): ScheduleOperationPermission {
+  shouldAllowOperation(
+    operationType: string,
+    adminOverride: boolean = false
+  ): ScheduleOperationPermission {
     if (adminOverride) {
       return {
         allowed: true,

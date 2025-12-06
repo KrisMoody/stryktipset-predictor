@@ -1,6 +1,11 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
 import { cookieManager } from './cookie-manager'
-import { configureAntiDetection, getRandomUserAgent, getRandomViewport, getRealisticHeaders } from './utils/fingerprint'
+import {
+  configureAntiDetection,
+  getRandomUserAgent,
+  getRandomViewport,
+  getRealisticHeaders,
+} from './utils/fingerprint'
 
 /**
  * Manages browser lifecycle and context for scraping
@@ -63,12 +68,10 @@ export class BrowserManager {
         await cookieManager.loadCookies(this.context)
 
         console.log('[Browser Manager] Browser initialized successfully')
-      }
-      catch (error) {
+      } catch (error) {
         console.error('[Browser Manager] Error initializing browser:', error)
         throw error
-      }
-      finally {
+      } finally {
         this.initializing = null
       }
     })()
@@ -118,8 +121,7 @@ export class BrowserManager {
       }
 
       console.log('[Browser Manager] Browser closed')
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Browser Manager] Error closing browser:', error)
     }
   }

@@ -1,26 +1,14 @@
 <template>
-  <div
-    v-if="hasData"
-    class="space-y-3"
-  >
-    <div class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-      Svenska Folket (Crowd)
-    </div>
+  <div v-if="hasData" class="space-y-3">
+    <div class="text-sm font-semibold text-gray-700 dark:text-gray-300">Svenska Folket (Crowd)</div>
 
     <div class="space-y-2">
-      <div
-        v-for="outcome in outcomes"
-        :key="outcome.label"
-        class="space-y-1"
-      >
+      <div v-for="outcome in outcomes" :key="outcome.label" class="space-y-1">
         <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
           <span>{{ outcome.label }}</span>
           <div class="flex gap-2">
             <span class="font-semibold">{{ outcome.current }}%</span>
-            <span
-              v-if="outcome.ref"
-              class="text-gray-500 dark:text-gray-400"
-            >
+            <span v-if="outcome.ref" class="text-gray-500 dark:text-gray-400">
               ({{ outcome.ref }}%)
             </span>
           </div>
@@ -36,36 +24,22 @@
     </div>
 
     <!-- Distribution from betMetrics if available -->
-    <div
-      v-if="betMetricsData"
-      class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700"
-    >
+    <div v-if="betMetricsData" class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
       <div class="text-xs text-gray-600 dark:text-gray-400 mb-2">
         Bet Distribution
-        <span
-          v-if="distributionDate"
-          class="ml-2 text-gray-500 dark:text-gray-400"
-        >
+        <span v-if="distributionDate" class="ml-2 text-gray-500 dark:text-gray-400">
           ({{ formatDate(distributionDate) }})
         </span>
       </div>
       <div class="flex gap-3 text-xs">
-        <span
-          v-for="value in betMetricsData.values"
-          :key="value.outcome"
-        >
+        <span v-for="value in betMetricsData.values" :key="value.outcome">
           {{ value.outcome }}: {{ value.distribution.distribution }}%
         </span>
       </div>
     </div>
   </div>
 
-  <div
-    v-else
-    class="text-sm text-gray-500 dark:text-gray-400"
-  >
-    No distribution data available
-  </div>
+  <div v-else class="text-sm text-gray-500 dark:text-gray-400">No distribution data available</div>
 </template>
 
 <script setup lang="ts">
@@ -93,7 +67,9 @@ interface Props {
 const props = defineProps<Props>()
 
 const hasData = computed(() => {
-  return !!props.svenskaFolketData?.one || !!props.svenskaFolketData?.x || !!props.svenskaFolketData?.two
+  return (
+    !!props.svenskaFolketData?.one || !!props.svenskaFolketData?.x || !!props.svenskaFolketData?.two
+  )
 })
 
 const distributionDate = computed(() => {
@@ -133,8 +109,7 @@ const formatDate = (dateString: string) => {
       hour: '2-digit',
       minute: '2-digit',
     })
-  }
-  catch {
+  } catch {
     return ''
   }
 }

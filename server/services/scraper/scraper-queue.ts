@@ -58,7 +58,7 @@ export class ScraperQueue {
    * - aggressive (Friday): 3-6s
    * - normal (Tue-Thu): 5-10s
    */
-  private getDelayForIntensity(): { min: number, max: number } {
+  private getDelayForIntensity(): { min: number; max: number } {
     const status = scheduleWindowService.getWindowStatus()
     switch (status.scrapingIntensity) {
       case 'very_aggressive':
@@ -93,12 +93,13 @@ export class ScraperQueue {
 
       const isFresh = recentData.length === dataTypes.length
       if (isFresh) {
-        console.log(`[Scraper Queue] Data for match ${matchId} is fresh (< ${thresholdHours}h old, phase: ${status.currentPhase})`)
+        console.log(
+          `[Scraper Queue] Data for match ${matchId} is fresh (< ${thresholdHours}h old, phase: ${status.currentPhase})`
+        )
       }
 
       return isFresh
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Scraper Queue] Error checking recent scrape:', error)
       return false
     }
@@ -114,7 +115,9 @@ export class ScraperQueue {
 
     this.processing = true
     const status = scheduleWindowService.getWindowStatus()
-    console.log(`[Scraper Queue] Starting queue processing (${this.queue.length} tasks, intensity: ${status.scrapingIntensity})`)
+    console.log(
+      `[Scraper Queue] Starting queue processing (${this.queue.length} tasks, intensity: ${status.scrapingIntensity})`
+    )
 
     while (this.queue.length > 0) {
       const task = this.queue.shift()!
@@ -127,7 +130,9 @@ export class ScraperQueue {
 
       if (timeSinceLastScrape < randomDelay) {
         const waitTime = randomDelay - timeSinceLastScrape
-        console.log(`[Scraper Queue] Rate limiting: waiting ${Math.floor(waitTime / 1000)}s before next scrape`)
+        console.log(
+          `[Scraper Queue] Rate limiting: waiting ${Math.floor(waitTime / 1000)}s before next scrape`
+        )
         await new Promise(resolve => setTimeout(resolve, waitTime))
       }
 
@@ -137,8 +142,7 @@ export class ScraperQueue {
         // Note: Actual scraping will be implemented by the scraper service
         // This is just the queue management
         this.lastScrapeTime = Date.now()
-      }
-      catch (error) {
+      } catch (error) {
         console.error(`[Scraper Queue] Error processing task ${task.id}:`, error)
 
         // Retry logic
@@ -152,8 +156,7 @@ export class ScraperQueue {
             this.queue.push(task)
             this.queue.sort((a, b) => b.priority - a.priority)
           }, backoffDelay)
-        }
-        else {
+        } else {
           console.error(`[Scraper Queue] Task ${task.id} failed after 3 attempts`)
 
           // Log failure to database
@@ -183,8 +186,7 @@ export class ScraperQueue {
           },
         })
       }
-    }
-    catch (dbError) {
+    } catch (dbError) {
       console.error('[Scraper Queue] Error logging scrape failure:', dbError)
     }
   }
@@ -192,7 +194,7 @@ export class ScraperQueue {
   /**
    * Get queue status
    */
-  getStatus(): { queueLength: number, processing: boolean, lastScrapeTime: Date | null } {
+  getStatus(): { queueLength: number; processing: boolean; lastScrapeTime: Date | null } {
     return {
       queueLength: this.queue.length,
       processing: this.processing,

@@ -47,7 +47,12 @@ export class TableScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, _matchId: number, drawNumber: number, matchNumber: number): Promise<TableData | null> {
+  async scrape(
+    page: Page,
+    _matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<TableData | null> {
     try {
       this.log('Starting table scraping')
 
@@ -56,7 +61,10 @@ export class TableScraper extends BaseScraper {
       await this.navigateTo(page, url)
 
       // Wait for the Enetpulse widget to load
-      await page.waitForSelector('#enetpulse-container .wff_standings_table_row, .wff_standings_generic_root', { timeout: 15000 })
+      await page.waitForSelector(
+        '#enetpulse-container .wff_standings_table_row, .wff_standings_generic_root',
+        { timeout: 15000 }
+      )
 
       // Give the widget extra time to fully render
       await this.humanDelay(1000, 2000)
@@ -80,8 +88,7 @@ export class TableScraper extends BaseScraper {
 
       this.log(`Table scraping complete: ${entries.length} teams, type: ${standingType}`)
       return tableData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping table: ${error}`)
       return null
     }
@@ -92,13 +99,14 @@ export class TableScraper extends BaseScraper {
    */
   private async getSelectedStandingType(page: Page): Promise<'total' | 'home' | 'away'> {
     try {
-      const selectedTab = await page.locator('.wff_standing_type_tab.wff_selected_tab .wff_label_text').textContent()
+      const selectedTab = await page
+        .locator('.wff_standing_type_tab.wff_selected_tab .wff_label_text')
+        .textContent()
 
       if (selectedTab?.toLowerCase().includes('hemma')) return 'home'
       if (selectedTab?.toLowerCase().includes('borta')) return 'away'
       return 'total'
-    }
-    catch {
+    } catch {
       return 'total'
     }
   }
@@ -117,7 +125,7 @@ export class TableScraper extends BaseScraper {
         try {
           // Check if this row is highlighted (one of the match teams)
           const isHighlighted = await row.evaluate((el: Element) =>
-            el.classList.contains('wff_highlight_event_selected_row'),
+            el.classList.contains('wff_highlight_event_selected_row')
           )
 
           // Extract position from .wff_standings_position
@@ -131,7 +139,11 @@ export class TableScraper extends BaseScraper {
           let positionMarker: string | undefined
           if (markerClass) {
             const markerMatch = markerClass.match(/wff_(\w+)$/)
-            if (markerMatch && markerMatch[1] && markerMatch[1] !== 'standing_position_marker_strip') {
+            if (
+              markerMatch &&
+              markerMatch[1] &&
+              markerMatch[1] !== 'standing_position_marker_strip'
+            ) {
               positionMarker = markerMatch[1]
             }
           }
@@ -141,7 +153,9 @@ export class TableScraper extends BaseScraper {
 
           // Extract stats from .wff_standings_stats_box cells
           // Order: M (played), V (won), O (drawn), F (lost), +/- (goal diff), P (points)
-          const statsCells = await row.locator('.wff_standings_stats_box div[tabindex="0"]').allTextContents()
+          const statsCells = await row
+            .locator('.wff_standings_stats_box div[tabindex="0"]')
+            .allTextContents()
 
           if (teamName && statsCells.length >= 6) {
             const entry: LeagueTableEntry = {
@@ -159,15 +173,13 @@ export class TableScraper extends BaseScraper {
 
             entries.push(entry)
           }
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single table row: ${innerError}`)
         }
       }
 
       this.log(`Extracted ${entries.length} table entries`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting table entries: ${error}`)
     }
 

@@ -2,9 +2,7 @@
   <div class="space-y-4">
     <!-- Reasoning Section -->
     <div v-if="prediction?.reasoning">
-      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-        AI Analysis
-      </h4>
+      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">AI Analysis</h4>
       <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
         <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
           {{ prediction.reasoning }}
@@ -14,15 +12,9 @@
 
     <!-- Key Factors Section -->
     <div v-if="keyFactors && keyFactors.length > 0">
-      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-        Key Factors
-      </h4>
+      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Key Factors</h4>
       <ul class="space-y-2">
-        <li
-          v-for="(factor, idx) in keyFactors"
-          :key="idx"
-          class="flex items-start gap-2 text-sm"
-        >
+        <li v-for="(factor, idx) in keyFactors" :key="idx" class="flex items-start gap-2 text-sm">
           <UIcon
             name="i-heroicons-check-circle"
             class="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0"
@@ -50,7 +42,9 @@
               </p>
               <p class="text-xs text-gray-500 dark:text-gray-400">
                 {{ match.date || match.match_date }}
-                <span v-if="match.league || match.competition"> &bull; {{ match.league || match.competition }}</span>
+                <span v-if="match.league || match.competition">
+                  &bull; {{ match.league || match.competition }}</span
+                >
               </p>
             </div>
             <div class="text-right">
@@ -62,18 +56,12 @@
               >
                 {{ match.score || match.result }}
               </UBadge>
-              <p
-                v-if="match.outcome"
-                class="text-xs text-gray-500 mt-1"
-              >
+              <p v-if="match.outcome" class="text-xs text-gray-500 mt-1">
                 Outcome: {{ match.outcome }}
               </p>
             </div>
           </div>
-          <p
-            v-if="match.similarity"
-            class="text-xs text-gray-500 mt-2"
-          >
+          <p v-if="match.similarity" class="text-xs text-gray-500 mt-2">
             {{ (match.similarity * 100).toFixed(0) }}% similar
           </p>
         </div>
@@ -81,15 +69,11 @@
     </div>
 
     <!-- User Context Section -->
-    <div
-      v-if="prediction?.user_context"
-      class="pt-4 border-t border-gray-200 dark:border-gray-700"
-    >
-      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-        <UIcon
-          name="i-heroicons-user"
-          class="w-4 h-4"
-        />
+    <div v-if="prediction?.user_context" class="pt-4 border-t border-gray-200 dark:border-gray-700">
+      <h4
+        class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2"
+      >
+        <UIcon name="i-heroicons-user" class="w-4 h-4" />
         User-Provided Context
       </h4>
       <div class="bg-warning-50 dark:bg-warning-900/20 rounded-lg p-3">
@@ -103,38 +87,17 @@
     </div>
 
     <!-- Re-evaluation Badge -->
-    <div
-      v-if="prediction?.is_reevaluation"
-      class="pt-2"
-    >
-      <UBadge
-        color="info"
-        variant="soft"
-        size="sm"
-      >
-        <UIcon
-          name="i-heroicons-arrow-path"
-          class="w-3 h-3 mr-1"
-        />
+    <div v-if="prediction?.is_reevaluation" class="pt-2">
+      <UBadge color="info" variant="soft" size="sm">
+        <UIcon name="i-heroicons-arrow-path" class="w-3 h-3 mr-1" />
         Re-evaluated prediction
       </UBadge>
     </div>
 
     <!-- Spik Suitability -->
-    <div
-      v-if="prediction?.is_spik_suitable"
-      class="pt-2"
-    >
-      <UBadge
-        color="warning"
-        variant="soft"
-        size="lg"
-        class="gap-1"
-      >
-        <UIcon
-          name="i-heroicons-star"
-          class="w-4 h-4"
-        />
+    <div v-if="prediction?.is_spik_suitable" class="pt-2">
+      <UBadge color="warning" variant="soft" size="lg" class="gap-1">
+        <UIcon name="i-heroicons-star" class="w-4 h-4" />
         Recommended as Spik (Banker)
       </UBadge>
       <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -144,16 +107,15 @@
 
     <!-- Empty State -->
     <div
-      v-if="!prediction?.reasoning && (!keyFactors || keyFactors.length === 0) && (!similarMatches || similarMatches.length === 0)"
+      v-if="
+        !prediction?.reasoning &&
+        (!keyFactors || keyFactors.length === 0) &&
+        (!similarMatches || similarMatches.length === 0)
+      "
       class="text-center py-6 text-gray-500 dark:text-gray-400"
     >
-      <UIcon
-        name="i-heroicons-document-magnifying-glass"
-        class="w-8 h-8 mx-auto mb-2 opacity-50"
-      />
-      <p class="text-sm">
-        No detailed analysis available for this match.
-      </p>
+      <UIcon name="i-heroicons-document-magnifying-glass" class="w-8 h-8 mx-auto mb-2 opacity-50" />
+      <p class="text-sm">No detailed analysis available for this match.</p>
     </div>
   </div>
 </template>
@@ -200,8 +162,7 @@ const keyFactors = computed(() => {
     try {
       const parsed = JSON.parse(props.prediction.key_factors)
       return Array.isArray(parsed) ? parsed : []
-    }
-    catch {
+    } catch {
       // If not valid JSON, return as single item
       return [props.prediction.key_factors]
     }
@@ -223,8 +184,7 @@ const similarMatches = computed(() => {
     try {
       const parsed = JSON.parse(props.prediction.similar_matches)
       return Array.isArray(parsed) ? parsed : []
-    }
-    catch {
+    } catch {
       return []
     }
   }
@@ -236,10 +196,14 @@ const similarMatches = computed(() => {
 const getOutcomeColor = (outcome: string | undefined) => {
   if (!outcome) return 'neutral'
   switch (outcome) {
-    case '1': return 'success'
-    case 'X': return 'warning'
-    case '2': return 'error'
-    default: return 'neutral'
+    case '1':
+      return 'success'
+    case 'X':
+      return 'warning'
+    case '2':
+      return 'error'
+    default:
+      return 'neutral'
   }
 }
 </script>

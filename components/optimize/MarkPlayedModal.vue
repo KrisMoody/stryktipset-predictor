@@ -11,23 +11,21 @@
               />
             </div>
             <div>
-              <h3 class="text-lg font-semibold">
-                Mark Coupon as Played?
-              </h3>
+              <h3 class="text-lg font-semibold">Mark Coupon as Played?</h3>
             </div>
           </div>
         </template>
 
         <div class="space-y-4">
           <p class="text-gray-600 dark:text-gray-400">
-            You just {{ actionType === 'copy' ? 'copied' : 'downloaded' }} this coupon.
-            Would you like to mark it as <strong>"played"</strong>?
+            You just {{ actionType === 'copy' ? 'copied' : 'downloaded' }} this coupon. Would you
+            like to mark it as <strong>"played"</strong>?
           </p>
 
-          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-400">
-            <p class="font-medium text-gray-900 dark:text-gray-100 mb-1">
-              Why mark as played?
-            </p>
+          <div
+            class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-sm text-gray-600 dark:text-gray-400"
+          >
+            <p class="font-medium text-gray-900 dark:text-gray-100 mb-1">Why mark as played?</p>
             <ul class="list-disc list-inside space-y-1">
               <li>Track which coupons you actually submitted</li>
               <li>Analyze performance after the draw completes</li>
@@ -38,22 +36,9 @@
 
         <template #footer>
           <div class="flex justify-end gap-3">
-            <UButton
-              variant="ghost"
-              :disabled="loading"
-              @click="handleSkip"
-            >
-              Skip
-            </UButton>
-            <UButton
-              color="primary"
-              :loading="loading"
-              @click="handleMarkPlayed"
-            >
-              <UIcon
-                name="i-heroicons-check-circle"
-                class="w-4 h-4 mr-1"
-              />
+            <UButton variant="ghost" :disabled="loading" @click="handleSkip"> Skip </UButton>
+            <UButton color="primary" :loading="loading" @click="handleMarkPlayed">
+              <UIcon name="i-heroicons-check-circle" class="w-4 h-4 mr-1" />
               Mark as Played
             </UButton>
           </div>
@@ -73,7 +58,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  'completed': [markedPlayed: boolean]
+  completed: [markedPlayed: boolean]
 }>()
 
 const isOpen = computed({
@@ -101,13 +86,11 @@ const handleMarkPlayed = async () => {
     })
     emit('completed', true)
     close()
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to mark coupon as played:', error)
     emit('completed', false)
     close()
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }

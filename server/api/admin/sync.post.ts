@@ -2,7 +2,7 @@ import { drawSyncService } from '~/server/services/draw-sync'
 import { drawCacheService } from '~/server/services/draw-cache-service'
 import { scheduleWindowService } from '~/server/services/schedule-window-service'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     // Read body for adminOverride flag
     const body = await readBody(event).catch(() => ({}))
@@ -44,8 +44,7 @@ export default defineEventHandler(async (event) => {
       },
       error: result.error,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error syncing draws:', error)
     return {
       success: false,

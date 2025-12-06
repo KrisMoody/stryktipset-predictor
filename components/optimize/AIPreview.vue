@@ -10,12 +10,7 @@
           <div class="text-sm font-semibold text-gray-700 dark:text-gray-300">
             {{ selection.matchNumber }}. {{ selection.homeTeam }} - {{ selection.awayTeam }}
           </div>
-          <UBadge
-            v-if="selection.is_spik"
-            color="warning"
-            variant="soft"
-            size="sm"
-          >
+          <UBadge v-if="selection.is_spik" color="warning" variant="soft" size="sm">
             🎯 Spik
           </UBadge>
         </div>
@@ -25,7 +20,8 @@
             {{ selection.selection }}
           </div>
           <div class="text-xs text-gray-600 dark:text-gray-400">
-            EV: <span :class="getEVColor(selection.expected_value)">
+            EV:
+            <span :class="getEVColor(selection.expected_value)">
               {{ selection.expected_value.toFixed(1) }}%
             </span>
           </div>

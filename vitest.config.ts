@@ -35,12 +35,27 @@ export default defineConfig({
     restoreMocks: true,
     projects: [
       {
+        resolve: {
+          alias: {
+            '~': resolve(__dirname, '.'),
+            '@': resolve(__dirname, '.'),
+            '#imports': resolve(__dirname, '.nuxt/imports.d.ts'),
+          },
+        },
         test: {
           name: 'unit',
           include: ['tests/unit/**/*.test.ts'],
+          environment: 'happy-dom',
         },
       },
       {
+        resolve: {
+          alias: {
+            '~': resolve(__dirname, '.'),
+            '@': resolve(__dirname, '.'),
+            '#imports': resolve(__dirname, '.nuxt/imports.d.ts'),
+          },
+        },
         test: {
           name: 'components',
           include: ['tests/components/**/*.test.ts'],
@@ -48,6 +63,13 @@ export default defineConfig({
         },
       },
       {
+        resolve: {
+          alias: {
+            '~': resolve(__dirname, '.'),
+            '@': resolve(__dirname, '.'),
+            '#imports': resolve(__dirname, '.nuxt/imports.d.ts'),
+          },
+        },
         test: {
           name: 'integration',
           include: ['tests/integration/**/*.test.ts'],

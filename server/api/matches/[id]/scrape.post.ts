@@ -1,7 +1,7 @@
 import { scraperServiceV2 } from '~/server/services/scraper/scraper-service-v2'
 import { getScraperServiceV3 } from '~/server/services/scraper/scraper-service-v3'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const config = useRuntimeConfig()
     const matchId = parseInt(event.context.params?.id || '0')
@@ -28,7 +28,9 @@ export default defineEventHandler(async (event) => {
       ? getScraperServiceV3(config.enableAiScraper, config.aiScraperUrl)
       : scraperServiceV2
 
-    console.log(`[Scrape API] Using ${useV3 ? 'ScraperServiceV3 (AI+DOM)' : 'ScraperServiceV2 (DOM only)'}`)
+    console.log(
+      `[Scrape API] Using ${useV3 ? 'ScraperServiceV3 (AI+DOM)' : 'ScraperServiceV2 (DOM only)'}`
+    )
     if (useV3) {
       console.log(`[Scrape API] AI Scraper enabled: ${config.enableAiScraper}`)
       console.log(`[Scrape API] AI Scraper URL: ${config.aiScraperUrl}`)
@@ -46,8 +48,7 @@ export default defineEventHandler(async (event) => {
       results,
       scraperVersion: useV3 ? 'v3' : 'v2',
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error scraping match:', error)
     throw error
   }

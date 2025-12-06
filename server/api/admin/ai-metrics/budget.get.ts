@@ -1,6 +1,6 @@
 import { aiMetricsService } from '~/server/services/ai-metrics-service'
 
-export default defineEventHandler(async (_event) => {
+export default defineEventHandler(async _event => {
   try {
     const budget = await aiMetricsService.getBudgetAnalysis()
 
@@ -8,8 +8,7 @@ export default defineEventHandler(async (_event) => {
       success: true,
       data: budget,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error getting AI budget analysis:', error)
     return {
       success: false,

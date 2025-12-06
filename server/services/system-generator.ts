@@ -58,17 +58,19 @@ export class SystemGenerator {
     }
 
     // Apply covering code reduction
-    const keyRows = this.coveringCodeReduction(
-      fullSystem,
-      system.rows,
-      system.guarantee || 10,
-    )
+    const keyRows = this.coveringCodeReduction(fullSystem, system.rows, system.guarantee || 10)
 
     // Validate guarantee level (for R-systems)
     if (system.type === 'R' && system.guarantee) {
-      const isValid = this.validateGuarantee(keyRows, system.guarantee, system.helgarderingar + system.halvgarderingar)
+      const isValid = this.validateGuarantee(
+        keyRows,
+        system.guarantee,
+        system.helgarderingar + system.halvgarderingar
+      )
       if (!isValid) {
-        console.warn(`[SystemGenerator] Warning: ${system.id} may not satisfy guarantee level ${system.guarantee}`)
+        console.warn(
+          `[SystemGenerator] Warning: ${system.id} may not satisfy guarantee level ${system.guarantee}`
+        )
       }
     }
 
@@ -83,7 +85,7 @@ export class SystemGenerator {
     system: BettingSystem,
     hedgeAssignment: HedgeAssignment,
     utgangstecken?: Record<number, string>,
-    mgExtensions?: MGExtension[],
+    mgExtensions?: MGExtension[]
   ): CouponRow[] {
     // Generate key rows for this system
     const keyRows = this.generateKeyRows(system)
@@ -123,8 +125,7 @@ export class SystemGenerator {
             })
           }
         }
-      }
-      else if (mg.type === 'halv' && mg.outcomes) {
+      } else if (mg.type === 'halv' && mg.outcomes) {
         // MG-halv: multiply rows by 2 (add variants for 2 specified outcomes)
         for (const row of expandedRows) {
           for (const outcome of mg.outcomes) {
@@ -191,7 +192,11 @@ export class SystemGenerator {
    * - For 11-rätt (k=2): sphere packing with radius 2
    * - For 10-rätt (k=3): sphere packing with radius 3
    */
-  private coveringCodeReduction(fullSystem: number[][], targetRows: number, guarantee: number): number[][] {
+  private coveringCodeReduction(
+    fullSystem: number[][],
+    targetRows: number,
+    guarantee: number
+  ): number[][] {
     if (fullSystem.length <= targetRows) {
       return fullSystem
     }
@@ -243,7 +248,7 @@ export class SystemGenerator {
     row: number[],
     fullSystem: number[][],
     uncoveredIndices: Set<number>,
-    radius: number,
+    radius: number
   ): number {
     let count = 0
     for (const idx of uncoveredIndices) {
@@ -262,7 +267,7 @@ export class SystemGenerator {
     row: number[],
     fullSystem: number[][],
     uncoveredIndices: Set<number>,
-    radius: number,
+    radius: number
   ): number[] {
     const covered: number[] = []
     for (const idx of uncoveredIndices) {
@@ -293,7 +298,11 @@ export class SystemGenerator {
    * For a system to have a k-error tolerance guarantee, every possible outcome
    * in the hedged space must be within Hamming distance k of at least one key row.
    */
-  private validateGuarantee(keyRows: number[][], guarantee: number, _totalPositions: number): boolean {
+  private validateGuarantee(
+    keyRows: number[][],
+    guarantee: number,
+    _totalPositions: number
+  ): boolean {
     const _radius = 13 - guarantee
 
     // Sample validation: check that every key row has sufficient coverage
@@ -321,7 +330,7 @@ export class SystemGenerator {
   private mapPatternToOutcomes(
     pattern: number[],
     hedgeAssignment: HedgeAssignment,
-    utgangstecken?: Record<number, string>,
+    utgangstecken?: Record<number, string>
   ): string[] {
     const outcomes: string[] = new Array(13)
     let patternIdx = 0
@@ -331,13 +340,11 @@ export class SystemGenerator {
       if (hedgeAssignment.spiks.includes(matchNum)) {
         // Spik: use fixed outcome
         outcomes[matchNum - 1] = hedgeAssignment.spikOutcomes[matchNum] || '1'
-      }
-      else if (hedgeAssignment.helgarderingar.includes(matchNum)) {
+      } else if (hedgeAssignment.helgarderingar.includes(matchNum)) {
         // Helgarderad: map 0='1', 1='X', 2='2'
         const value = pattern[patternIdx++] || 0
         outcomes[matchNum - 1] = ['1', 'X', '2'][value] || '1'
-      }
-      else if (hedgeAssignment.halvgarderingar.includes(matchNum)) {
+      } else if (hedgeAssignment.halvgarderingar.includes(matchNum)) {
         // Halvgarderad: map based on utgångstecken or default
         const value = pattern[patternIdx++] || 0
         const utgangOutcome = utgangstecken?.[matchNum]
@@ -346,18 +353,15 @@ export class SystemGenerator {
           // For U-systems: weight toward utgångstecken
           if (value === 0) {
             outcomes[matchNum - 1] = utgangOutcome
-          }
-          else {
+          } else {
             // Choose complementary outcome
             outcomes[matchNum - 1] = this.getComplementaryOutcome(utgangOutcome)
           }
-        }
-        else {
+        } else {
           // For R-systems: default mapping
           outcomes[matchNum - 1] = value === 0 ? '1' : 'X'
         }
-      }
-      else {
+      } else {
         // Should not happen if hedge assignment is correct, but fallback to '1'
         outcomes[matchNum - 1] = '1'
       }
@@ -372,10 +376,14 @@ export class SystemGenerator {
   private getComplementaryOutcome(outcome: string): string {
     // Simple rotation through outcomes
     switch (outcome) {
-      case '1': return 'X'
-      case 'X': return '2'
-      case '2': return '1'
-      default: return 'X'
+      case '1':
+        return 'X'
+      case 'X':
+        return '2'
+      case '2':
+        return '1'
+      default:
+        return 'X'
     }
   }
 }

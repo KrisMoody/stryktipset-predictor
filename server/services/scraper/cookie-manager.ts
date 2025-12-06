@@ -20,8 +20,7 @@ export class CookieManager {
       const cookies = await context.cookies()
       await fs.writeFile(this.cookieFile, JSON.stringify(cookies, null, 2))
       console.log(`[Cookie Manager] Saved ${cookies.length} cookies to ${this.cookieFile}`)
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Cookie Manager] Error saving cookies:', error)
     }
   }
@@ -41,8 +40,7 @@ export class CookieManager {
       }
 
       return false
-    }
-    catch {
+    } catch {
       // File doesn't exist or is invalid - this is fine for first run
       console.log('[Cookie Manager] No existing cookies found, will create new session')
       return false
@@ -56,8 +54,7 @@ export class CookieManager {
     try {
       await fs.unlink(this.cookieFile)
       console.log('[Cookie Manager] Cleared saved cookies')
-    }
-    catch {
+    } catch {
       // File doesn't exist - this is fine
     }
   }
@@ -69,8 +66,7 @@ export class CookieManager {
     try {
       await fs.access(this.cookieFile)
       return true
-    }
-    catch {
+    } catch {
       return false
     }
   }

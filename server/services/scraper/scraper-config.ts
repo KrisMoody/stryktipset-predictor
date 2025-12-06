@@ -51,7 +51,8 @@ export const scraperConfig = {
    */
   rateLimit: {
     detectOnStatus: [429, 503], // HTTP status codes that indicate rate limiting
-    detectPatterns: [ // Text patterns that indicate rate limiting
+    detectPatterns: [
+      // Text patterns that indicate rate limiting
       /rate limit/i,
       /too many requests/i,
       /try again later/i,
@@ -133,7 +134,7 @@ export const scraperConfig = {
 /**
  * Get delay value with randomization
  */
-export function getRandomDelay(config: { min: number, max: number }): number {
+export function getRandomDelay(config: { min: number; max: number }): number {
   return Math.floor(Math.random() * (config.max - config.min + 1)) + config.min
 }
 
@@ -168,14 +169,14 @@ export function getRateLimitBackoff(attemptNumber: number): number {
 export function isRateLimitError(error: Error | string): boolean {
   const message = typeof error === 'string' ? error : error.message
 
-  return scraperConfig.rateLimit.detectPatterns.some(pattern =>
-    pattern.test(message),
-  )
+  return scraperConfig.rateLimit.detectPatterns.some(pattern => pattern.test(message))
 }
 
 /**
  * Get timeout for operation type
  */
-export function getTimeout(operationType: 'directUrl' | 'tabClick' | 'snapshot' | 'domQuery' | 'pageLoad'): number {
+export function getTimeout(
+  operationType: 'directUrl' | 'tabClick' | 'snapshot' | 'domQuery' | 'pageLoad'
+): number {
   return scraperConfig.timeouts[operationType]
 }

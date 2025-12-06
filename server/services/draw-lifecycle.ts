@@ -57,10 +57,8 @@ export class DrawLifecycleService {
       }
 
       // Check if all matches have results
-      const allMatchesHaveResults = draw.matches.every(match =>
-        match.result_home !== null
-        && match.result_away !== null
-        && match.outcome !== null,
+      const allMatchesHaveResults = draw.matches.every(
+        match => match.result_home !== null && match.result_away !== null && match.outcome !== null
       )
 
       if (!allMatchesHaveResults) {
@@ -81,8 +79,7 @@ export class DrawLifecycleService {
         should_archive: true,
         reason: 'Draw is completed with all results',
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Draw Lifecycle] Error checking if draw ${drawNumber} should archive:`, error)
       return {
         draw_number: drawNumber,
@@ -111,8 +108,7 @@ export class DrawLifecycleService {
 
       console.log(`[Draw Lifecycle] Draw ${drawNumber} archived successfully`)
       return true
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Draw Lifecycle] Error archiving draw ${drawNumber}:`, error)
       return false
     }
@@ -151,18 +147,18 @@ export class DrawLifecycleService {
           const success = await this.archiveDraw(draw.draw_number)
           if (success) {
             archived++
-          }
-          else {
+          } else {
             errors++
           }
         }
       }
 
-      console.log(`[Draw Lifecycle] Completed: ${checked} checked, ${archived} archived, ${errors} errors`)
+      console.log(
+        `[Draw Lifecycle] Completed: ${checked} checked, ${archived} archived, ${errors} errors`
+      )
 
       return { checked, archived, errors }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Draw Lifecycle] Error in checkAndArchiveCompletedDraws:', error)
       return { checked: 0, archived: 0, errors: 1 }
     }
@@ -176,8 +172,7 @@ export class DrawLifecycleService {
       return await prisma.draws.count({
         where: { is_current: true },
       })
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Draw Lifecycle] Error getting current draws count:', error)
       return 0
     }
@@ -191,8 +186,7 @@ export class DrawLifecycleService {
       return await prisma.draws.count({
         where: { is_current: false },
       })
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Draw Lifecycle] Error getting archived draws count:', error)
       return 0
     }

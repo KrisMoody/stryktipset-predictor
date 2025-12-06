@@ -64,7 +64,12 @@ export class MatchInfoScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, _matchId: number, drawNumber: number, matchNumber: number): Promise<MatchInfoData | null> {
+  async scrape(
+    page: Page,
+    _matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<MatchInfoData | null> {
     try {
       this.log('Starting matchinfo scraping')
 
@@ -90,8 +95,7 @@ export class MatchInfoScraper extends BaseScraper {
 
       this.log(`Matchinfo scraping complete: ${bettingOdds.length} odds sources`)
       return matchInfoData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping matchinfo: ${error}`)
       return null
     }
@@ -107,7 +111,9 @@ export class MatchInfoScraper extends BaseScraper {
 
     try {
       // Find all rows in the product odds table
-      const rows = await page.locator('.match-info-product-odds .match_info_table-body .match_info_table-row').all()
+      const rows = await page
+        .locator('.match-info-product-odds .match_info_table-body .match_info_table-row')
+        .all()
 
       for (const row of rows) {
         try {
@@ -132,15 +138,13 @@ export class MatchInfoScraper extends BaseScraper {
               two: cells[2]?.trim() || '',
             })
           }
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single odds row: ${innerError}`)
         }
       }
 
       this.log(`Extracted ${odds.length} betting odds entries`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting betting odds: ${error}`)
     }
 
@@ -154,7 +158,7 @@ export class MatchInfoScraper extends BaseScraper {
   private async extractOverUnderOdds(page: Page): Promise<OverUnderOdds | undefined> {
     try {
       const overUnderTable = page.locator('.match-info-over-under-odds')
-      const tableExists = await overUnderTable.count() > 0
+      const tableExists = (await overUnderTable.count()) > 0
 
       if (!tableExists) {
         this.log('Over/Under table not found')
@@ -173,7 +177,9 @@ export class MatchInfoScraper extends BaseScraper {
       }
 
       // Extract Over and Under values from content cells
-      const cells = await overUnderTable.locator('.match_info_table-body .match_info_table-content-cell').allTextContents()
+      const cells = await overUnderTable
+        .locator('.match_info_table-body .match_info_table-content-cell')
+        .allTextContents()
 
       if (cells.length >= 2) {
         return {
@@ -182,8 +188,7 @@ export class MatchInfoScraper extends BaseScraper {
           under: cells[1]?.trim() || '',
         }
       }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting over/under odds: ${error}`)
     }
 
@@ -197,7 +202,7 @@ export class MatchInfoScraper extends BaseScraper {
   private async extractFavorites(page: Page): Promise<FavoritesData | undefined> {
     try {
       const favoritesTable = page.locator('.match-info-favorites')
-      const tableExists = await favoritesTable.count() > 0
+      const tableExists = (await favoritesTable.count()) > 0
 
       if (!tableExists) {
         this.log('Favorites section not found')
@@ -216,8 +221,7 @@ export class MatchInfoScraper extends BaseScraper {
           awayPercentage: this.parsePercentage(bars[2] || ''),
         }
       }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting favorites: ${error}`)
     }
 
@@ -231,7 +235,7 @@ export class MatchInfoScraper extends BaseScraper {
   private async extractGeneralInfo(page: Page): Promise<GeneralMatchInfo | undefined> {
     try {
       const infoTable = page.locator('.general-match-info-table')
-      const tableExists = await infoTable.count() > 0
+      const tableExists = (await infoTable.count()) > 0
 
       if (!tableExists) {
         this.log('General info table not found')
@@ -253,15 +257,16 @@ export class MatchInfoScraper extends BaseScraper {
 
         if (labelLower.includes('datum') || labelLower.includes('date')) {
           info.date = content?.trim() || undefined
-        }
-        else if (labelLower.includes('tid') || labelLower.includes('time')) {
+        } else if (labelLower.includes('tid') || labelLower.includes('time')) {
           info.time = content?.trim() || undefined
-        }
-        else if (labelLower.includes('plats') || labelLower.includes('arena') || labelLower.includes('venue')) {
+        } else if (
+          labelLower.includes('plats') ||
+          labelLower.includes('arena') ||
+          labelLower.includes('venue')
+        ) {
           // Venue is sometimes just in the label cell without a content cell
           info.venue = content?.trim() || label.trim()
-        }
-        else if (!info.league && !content) {
+        } else if (!info.league && !content) {
           // League name often appears as just a label without content
           info.league = label.trim()
         }
@@ -269,15 +274,20 @@ export class MatchInfoScraper extends BaseScraper {
 
       // If venue wasn't found, check for standalone venue row
       if (!info.venue) {
-        const venueRow = await infoTable.locator('.general-match-info-table-row:last-child .general-match-info-table-row-label').textContent()
-        if (venueRow && !venueRow.toLowerCase().includes('datum') && !venueRow.toLowerCase().includes('tid')) {
+        const venueRow = await infoTable
+          .locator('.general-match-info-table-row:last-child .general-match-info-table-row-label')
+          .textContent()
+        if (
+          venueRow &&
+          !venueRow.toLowerCase().includes('datum') &&
+          !venueRow.toLowerCase().includes('tid')
+        ) {
           info.venue = venueRow.trim()
         }
       }
 
       return info
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting general info: ${error}`)
     }
 

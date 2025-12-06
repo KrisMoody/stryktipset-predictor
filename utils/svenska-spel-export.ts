@@ -50,7 +50,7 @@ const MATCH_COUNT = 13
 /**
  * Validate a single coupon row for Enkelrader export
  */
-export function validateCouponRow(row: CouponRow): { valid: boolean, error?: string } {
+export function validateCouponRow(row: CouponRow): { valid: boolean; error?: string } {
   if (row.picks.length !== MATCH_COUNT) {
     return {
       valid: false,
@@ -84,7 +84,9 @@ export function validateForEnkelraderExport(rows: CouponRow[]): ValidationResult
   }
 
   if (rows.length > MAX_ENKELRADER_ROWS) {
-    errors.push(`Too many rows (${rows.length}). Maximum is ${MAX_ENKELRADER_ROWS.toLocaleString()} for Enkelrader format.`)
+    errors.push(
+      `Too many rows (${rows.length}). Maximum is ${MAX_ENKELRADER_ROWS.toLocaleString()} for Enkelrader format.`
+    )
   }
 
   for (const row of rows) {
@@ -114,7 +116,10 @@ export function validateForEnkelraderExport(rows: CouponRow[]): ValidationResult
 /**
  * Validate a single selection for M-system export
  */
-export function validateSelection(selection: string, matchNumber: number): { valid: boolean, error?: string } {
+export function validateSelection(
+  selection: string,
+  matchNumber: number
+): { valid: boolean; error?: string } {
   const normalized = selection.toUpperCase()
   if (!VALID_SELECTIONS.includes(normalized)) {
     return {
@@ -153,11 +158,15 @@ export function validateForMSystemExport(selections: CouponSelection[]): Validat
   const rowCount = calculateMSystemRowCount(selections)
 
   if (rowCount < MIN_MSYSTEM_ROWS) {
-    errors.push(`Row count is ${rowCount}. M-system requires at least ${MIN_MSYSTEM_ROWS} rows. Use Enkelrader format instead.`)
+    errors.push(
+      `Row count is ${rowCount}. M-system requires at least ${MIN_MSYSTEM_ROWS} rows. Use Enkelrader format instead.`
+    )
   }
 
   if (rowCount > MAX_MSYSTEM_ROWS) {
-    errors.push(`Row count is ${rowCount.toLocaleString()}. Maximum for M-system is ${MAX_MSYSTEM_ROWS.toLocaleString()}.`)
+    errors.push(
+      `Row count is ${rowCount.toLocaleString()}. Maximum for M-system is ${MAX_MSYSTEM_ROWS.toLocaleString()}.`
+    )
   }
 
   return {
@@ -262,7 +271,7 @@ export function generateMSystemContent(selections: CouponSelection[]): string {
 export function generateExportFilename(
   drawNumber: number,
   systemId: string | undefined,
-  format: ExportFormat,
+  format: ExportFormat
 ): string {
   const systemPart = systemId || 'ai'
   return `stryktipset-${drawNumber}-${systemPart}-${format}.txt`

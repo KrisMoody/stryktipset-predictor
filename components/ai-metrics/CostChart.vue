@@ -5,10 +5,7 @@
         <h3 class="text-lg font-semibold">
           {{ title }}
         </h3>
-        <UButtonGroup
-          v-if="!hidePeriodSelector"
-          size="xs"
-        >
+        <UButtonGroup v-if="!hidePeriodSelector" size="xs">
           <UButton
             v-for="period in periods"
             :key="period.value"
@@ -21,24 +18,15 @@
       </div>
     </template>
 
-    <div
-      v-if="loading"
-      class="flex justify-center py-12"
-    >
+    <div v-if="loading" class="flex justify-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
     </div>
 
-    <div
-      v-else-if="chartData && chartData.length > 0"
-      class="h-64"
-    >
+    <div v-else-if="chartData && chartData.length > 0" class="h-64">
       <canvas ref="chartCanvas" />
     </div>
 
-    <div
-      v-else
-      class="text-center py-12 text-gray-500"
-    >
+    <div v-else class="text-center py-12 text-gray-500">
       No data available for the selected period
     </div>
   </UCard>
@@ -74,17 +62,21 @@ defineEmits<{
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
 let chartInstance: Chart | null = null
 
-const periods: Array<{ label: string, value: 'daily' | 'weekly' | 'monthly' }> = [
+const periods: Array<{ label: string; value: 'daily' | 'weekly' | 'monthly' }> = [
   { label: 'Daily', value: 'daily' },
   { label: 'Weekly', value: 'weekly' },
   { label: 'Monthly', value: 'monthly' },
 ]
 
-watch(() => props.chartData, () => {
-  nextTick(() => {
-    renderChart()
-  })
-}, { deep: true })
+watch(
+  () => props.chartData,
+  () => {
+    nextTick(() => {
+      renderChart()
+    })
+  },
+  { deep: true }
+)
 
 onMounted(() => {
   renderChart()
@@ -110,7 +102,7 @@ function renderChart() {
   if (!ctx) return
 
   const labels = props.chartData.map(d => d.date)
-  const data = props.chartData.map((d) => {
+  const data = props.chartData.map(d => {
     switch (props.dataKey) {
       case 'tokens':
         return d.tokens
@@ -126,14 +118,16 @@ function renderChart() {
     type: props.chartType,
     data: {
       labels,
-      datasets: [{
-        label: getDataLabel(),
-        data,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        fill: true,
-      }],
+      datasets: [
+        {
+          label: getDataLabel(),
+          data,
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.4,
+          fill: true,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -144,7 +138,7 @@ function renderChart() {
         },
         tooltip: {
           callbacks: {
-            label: (context) => {
+            label: context => {
               const value = context.parsed.y
               return `${getDataLabel()}: ${formatValue(value ?? 0)}`
             },

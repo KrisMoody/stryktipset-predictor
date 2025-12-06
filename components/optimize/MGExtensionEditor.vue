@@ -2,18 +2,12 @@
   <div class="space-y-4">
     <div class="flex items-center justify-between">
       <div>
-        <h3 class="text-lg font-semibold">
-          MG Extensions (Optional)
-        </h3>
+        <h3 class="text-lg font-semibold">MG Extensions (Optional)</h3>
         <p class="text-sm text-gray-600 dark:text-gray-400">
           Expand your coupon by adding extra hedges to specific matches
         </p>
       </div>
-      <UBadge
-        v-if="extensions.length > 0"
-        color="primary"
-        variant="soft"
-      >
+      <UBadge v-if="extensions.length > 0" color="primary" variant="soft">
         {{ extensions.length }} extension{{ extensions.length > 1 ? 's' : '' }}
       </UBadge>
     </div>
@@ -22,25 +16,17 @@
     <UCard v-if="extensions.length > 0">
       <div class="flex items-center justify-between">
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Row Multiplier
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Row Multiplier</div>
           <div class="text-2xl font-bold text-primary-600 dark:text-primary-400">
             × {{ totalMultiplier }}
           </div>
         </div>
         <div class="text-right">
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            New Total Rows
-          </div>
-          <div class="text-2xl font-bold">
-            {{ baseRows }} → {{ baseRows * totalMultiplier }}
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">New Total Rows</div>
+          <div class="text-2xl font-bold">{{ baseRows }} → {{ baseRows * totalMultiplier }}</div>
         </div>
         <div class="text-right">
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            New Cost
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">New Cost</div>
           <div class="text-2xl font-bold text-green-600 dark:text-green-400">
             {{ baseRows * totalMultiplier }} SEK
           </div>
@@ -147,11 +133,15 @@ const emit = defineEmits<{
 const extensions = ref<MGExtension[]>(props.extensions || [])
 
 // Watch for external updates
-watch(() => props.extensions, (newVal) => {
-  if (newVal) {
-    extensions.value = [...newVal]
-  }
-}, { deep: true })
+watch(
+  () => props.extensions,
+  newVal => {
+    if (newVal) {
+      extensions.value = [...newVal]
+    }
+  },
+  { deep: true }
+)
 
 // Computed
 const baseRows = computed(() => props.system.rows)
@@ -164,7 +154,7 @@ const totalMultiplier = computed(() => {
 
 // Matches that can have MG extensions (not already fully hedged)
 const availableMatches = computed(() => {
-  return props.aiPredictions.filter((match) => {
+  return props.aiPredictions.filter(match => {
     const coverage = props.currentCoverage[match.matchNumber] || []
     // Can apply MG if not already covering all 3 outcomes
     return coverage.length < 3
@@ -214,12 +204,12 @@ const setExtension = (matchNumber: number, type: 'hel' | 'halv') => {
   if (type === 'hel') {
     // MG-hel doesn't need specific outcomes
     filtered.push({ matchNumber, type: 'hel' })
-  }
-  else {
+  } else {
     // MG-halv needs outcomes to be selected
     const missingOutcomes = getMissingOutcomes(matchNumber)
     // Default to first missing outcome
-    const outcomes: string[] = missingOutcomes.length > 0 && missingOutcomes[0] ? [missingOutcomes[0]] : []
+    const outcomes: string[] =
+      missingOutcomes.length > 0 && missingOutcomes[0] ? [missingOutcomes[0]] : []
     filtered.push({
       matchNumber,
       type: 'halv',

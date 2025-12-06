@@ -27,46 +27,43 @@ class DrawCacheService {
    * Includes all relations: matches, teams, leagues, predictions, odds.
    */
   async getCachedCurrentDraws() {
-    return await cacheService.wrap(
-      this.CURRENT_DRAWS_KEY,
-      async () => {
-        console.log('[Draw Cache] Fetching current draws from database...')
+    return await cacheService.wrap(this.CURRENT_DRAWS_KEY, async () => {
+      console.log('[Draw Cache] Fetching current draws from database...')
 
-        const draws = await prisma.draws.findMany({
-          where: {
-            status: {
-              in: ['Open', 'Closed'],
-            },
+      const draws = await prisma.draws.findMany({
+        where: {
+          status: {
+            in: ['Open', 'Closed'],
           },
-          include: {
-            matches: {
-              orderBy: { match_number: 'asc' },
-              include: {
-                homeTeam: true,
-                awayTeam: true,
-                league: {
-                  include: {
-                    country: true,
-                  },
+        },
+        include: {
+          matches: {
+            orderBy: { match_number: 'asc' },
+            include: {
+              homeTeam: true,
+              awayTeam: true,
+              league: {
+                include: {
+                  country: true,
                 },
-                predictions: {
-                  orderBy: { created_at: 'desc' },
-                  take: 1,
-                },
-                match_odds: {
-                  orderBy: { collected_at: 'desc' },
-                },
+              },
+              predictions: {
+                orderBy: { created_at: 'desc' },
+                take: 1,
+              },
+              match_odds: {
+                orderBy: { collected_at: 'desc' },
               },
             },
           },
-          orderBy: { draw_number: 'desc' },
-          take: 5,
-        })
+        },
+        orderBy: { draw_number: 'desc' },
+        take: 5,
+      })
 
-        console.log(`[Draw Cache] Fetched ${draws.length} current draws from database`)
-        return draws
-      },
-    )
+      console.log(`[Draw Cache] Fetched ${draws.length} current draws from database`)
+      return draws
+    })
   }
 
   /**
@@ -76,47 +73,43 @@ class DrawCacheService {
    * Returns null if draw not found.
    */
   async getCachedDraw(drawNumber: number) {
-    return await cacheService.wrap(
-      this.getDrawKey(drawNumber),
-      async () => {
-        console.log(`[Draw Cache] Fetching draw ${drawNumber} from database...`)
+    return await cacheService.wrap(this.getDrawKey(drawNumber), async () => {
+      console.log(`[Draw Cache] Fetching draw ${drawNumber} from database...`)
 
-        const draw = await prisma.draws.findUnique({
-          where: { draw_number: drawNumber },
-          include: {
-            matches: {
-              orderBy: { match_number: 'asc' },
-              include: {
-                homeTeam: true,
-                awayTeam: true,
-                league: {
-                  include: {
-                    country: true,
-                  },
+      const draw = await prisma.draws.findUnique({
+        where: { draw_number: drawNumber },
+        include: {
+          matches: {
+            orderBy: { match_number: 'asc' },
+            include: {
+              homeTeam: true,
+              awayTeam: true,
+              league: {
+                include: {
+                  country: true,
                 },
-                predictions: {
-                  orderBy: { created_at: 'desc' },
-                  take: 1,
-                },
-                match_odds: {
-                  orderBy: { collected_at: 'desc' },
-                },
-                match_scraped_data: true,
               },
+              predictions: {
+                orderBy: { created_at: 'desc' },
+                take: 1,
+              },
+              match_odds: {
+                orderBy: { collected_at: 'desc' },
+              },
+              match_scraped_data: true,
             },
           },
-        })
+        },
+      })
 
-        if (draw) {
-          console.log(`[Draw Cache] Fetched draw ${drawNumber} from database`)
-        }
-        else {
-          console.log(`[Draw Cache] Draw ${drawNumber} not found in database`)
-        }
+      if (draw) {
+        console.log(`[Draw Cache] Fetched draw ${drawNumber} from database`)
+      } else {
+        console.log(`[Draw Cache] Draw ${drawNumber} not found in database`)
+      }
 
-        return draw
-      },
-    )
+      return draw
+    })
   }
 
   /**

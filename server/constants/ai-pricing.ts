@@ -38,11 +38,7 @@ export type AIModel = keyof typeof AI_PRICING
 /**
  * Calculate cost for AI usage
  */
-export function calculateAICost(
-  model: string,
-  inputTokens: number,
-  outputTokens: number,
-): number {
+export function calculateAICost(model: string, inputTokens: number, outputTokens: number): number {
   // Find matching model pricing
   const pricing = Object.values(AI_PRICING).find(p => p.model === model)
 

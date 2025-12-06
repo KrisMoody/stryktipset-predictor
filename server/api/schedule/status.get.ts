@@ -19,8 +19,7 @@ export default defineEventHandler(async () => {
         stockholmTime: status.stockholmTime,
       },
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Schedule Status] Error:', error)
     return {
       success: false,

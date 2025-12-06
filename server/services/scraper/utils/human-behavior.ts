@@ -17,8 +17,7 @@ export async function humanClick(page: Page, selector: string): Promise<void> {
     await element.hover()
     await humanDelay(100, 300)
     await element.click()
-  }
-  catch (error) {
+  } catch (error) {
     console.error(`[Human Behavior] Error clicking ${selector}:`, error)
     throw error
   }
@@ -27,10 +26,14 @@ export async function humanClick(page: Page, selector: string): Promise<void> {
 /**
  * Simulate human-like scrolling
  */
-export async function humanScroll(page: Page, direction: 'up' | 'down' = 'down', amount: number = 300): Promise<void> {
+export async function humanScroll(
+  page: Page,
+  direction: 'up' | 'down' = 'down',
+  amount: number = 300
+): Promise<void> {
   try {
     const scrollAmount = direction === 'down' ? amount : -amount
-    await page.evaluate((scroll) => {
+    await page.evaluate(scroll => {
       window.scrollBy({
         top: scroll,
         left: 0,
@@ -38,8 +41,7 @@ export async function humanScroll(page: Page, direction: 'up' | 'down' = 'down',
       })
     }, scrollAmount)
     await humanDelay(500, 1000)
-  }
-  catch (error) {
+  } catch (error) {
     console.error(`[Human Behavior] Error scrolling:`, error)
   }
 }
@@ -51,7 +53,8 @@ export async function randomPageInteraction(page: Page): Promise<void> {
   const actions = [
     async () => await humanScroll(page, 'down', Math.floor(Math.random() * 200) + 100),
     async () => await humanScroll(page, 'up', Math.floor(Math.random() * 100) + 50),
-    async () => await page.mouse.move(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500)),
+    async () =>
+      await page.mouse.move(Math.floor(Math.random() * 500), Math.floor(Math.random() * 500)),
   ]
 
   const randomAction = actions[Math.floor(Math.random() * actions.length)]
@@ -68,7 +71,7 @@ export async function performNaturalBehavior(page: Page): Promise<void> {
     // Random mouse movement
     await page.mouse.move(
       Math.floor(Math.random() * 800) + 100,
-      Math.floor(Math.random() * 400) + 100,
+      Math.floor(Math.random() * 400) + 100
     )
     await humanDelay(200, 500)
 
@@ -83,10 +86,9 @@ export async function performNaturalBehavior(page: Page): Promise<void> {
     // Final mouse movement
     await page.mouse.move(
       Math.floor(Math.random() * 600) + 200,
-      Math.floor(Math.random() * 300) + 150,
+      Math.floor(Math.random() * 300) + 150
     )
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Human Behavior] Error performing natural behavior:', error)
   }
 }
@@ -114,7 +116,9 @@ export async function humanReadingDelay(contentLength: number = 1000): Promise<v
 /**
  * Detect rate limiting or blocking
  */
-export async function detectRateLimit(page: Page): Promise<{ isRateLimited: boolean, responseCode?: number, reason?: string }> {
+export async function detectRateLimit(
+  page: Page
+): Promise<{ isRateLimited: boolean; responseCode?: number; reason?: string }> {
   try {
     // Check for common rate limit indicators
     const title = await page.title()
@@ -169,8 +173,7 @@ export async function detectRateLimit(page: Page): Promise<{ isRateLimited: bool
     }
 
     return { isRateLimited: false }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Human Behavior] Error detecting rate limit:', error)
     return { isRateLimited: false }
   }

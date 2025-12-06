@@ -1,6 +1,6 @@
 import { scraperService } from '~/server/services/scraper/scraper-service'
 
-export default defineEventHandler(async (_event) => {
+export default defineEventHandler(async _event => {
   try {
     const health = await scraperService.getHealthMetrics()
 
@@ -8,8 +8,7 @@ export default defineEventHandler(async (_event) => {
       success: true,
       health,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error getting scraper health:', error)
     return {
       success: false,

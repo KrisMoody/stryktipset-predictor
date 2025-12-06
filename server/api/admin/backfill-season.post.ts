@@ -1,5 +1,8 @@
 import { prisma } from '~/server/utils/prisma'
-import { seasonBackfillService, type SeasonBackfillOptions } from '~/server/services/season-backfill'
+import {
+  seasonBackfillService,
+  type SeasonBackfillOptions,
+} from '~/server/services/season-backfill'
 
 /**
  * Request body for backfill season endpoint
@@ -19,7 +22,7 @@ interface BackfillSeasonRequest {
  * API endpoint to trigger season backfill operation
  * POST /api/admin/backfill-season
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     // Parse and validate request body
     const body = await readBody<BackfillSeasonRequest>(event)
@@ -73,7 +76,7 @@ export default defineEventHandler(async (event) => {
       skipExisting: body.options?.skipExisting,
       archiveOnComplete: body.options?.archiveOnComplete,
       retryAttempts: body.options?.retryAttempts,
-      progressCallback: async (progress) => {
+      progressCallback: async progress => {
         // Update operation record with progress
         try {
           await prisma.backfill_operations.update({
@@ -84,19 +87,25 @@ export default defineEventHandler(async (event) => {
               successful_draws: progress.successfulDraws,
               failed_draws: progress.failedDraws,
               skipped_draws: progress.skippedDraws,
-              error_log: progress.errors.length > 0 ? JSON.parse(JSON.stringify(progress.errors)) : undefined,
+              error_log:
+                progress.errors.length > 0
+                  ? JSON.parse(JSON.stringify(progress.errors))
+                  : undefined,
             },
           })
-        }
-        catch (error) {
-          console.warn(`[Backfill API] Failed to update progress for operation ${operation.id}:`, error)
+        } catch (error) {
+          console.warn(
+            `[Backfill API] Failed to update progress for operation ${operation.id}:`,
+            error
+          )
         }
       },
     }
 
     // Run backfill asynchronously (don't block response)
-    seasonBackfillService.backfillSeason(backfillOptions)
-      .then(async (result) => {
+    seasonBackfillService
+      .backfillSeason(backfillOptions)
+      .then(async result => {
         console.log(`[Backfill API] Operation ${operation.id} completed successfully`)
         await prisma.backfill_operations.update({
           where: { id: operation.id },
@@ -107,20 +116,23 @@ export default defineEventHandler(async (event) => {
             successful_draws: result.successfulDraws,
             failed_draws: result.failedDraws,
             skipped_draws: result.skippedDraws,
-            error_log: result.errors.length > 0 ? JSON.parse(JSON.stringify(result.errors)) : undefined,
+            error_log:
+              result.errors.length > 0 ? JSON.parse(JSON.stringify(result.errors)) : undefined,
             completed_at: new Date(),
           },
         })
       })
-      .catch(async (error) => {
+      .catch(async error => {
         console.error(`[Backfill API] Operation ${operation.id} failed:`, error)
         await prisma.backfill_operations.update({
           where: { id: operation.id },
           data: {
             status: 'failed',
-            error_log: [{
-              error: error instanceof Error ? error.message : 'Unknown error',
-            }],
+            error_log: [
+              {
+                error: error instanceof Error ? error.message : 'Unknown error',
+              },
+            ],
             completed_at: new Date(),
           },
         })
@@ -133,8 +145,7 @@ export default defineEventHandler(async (event) => {
       message: 'Backfill operation started',
       trackingUrl: `/api/admin/backfill-status/${operation.id}`,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Backfill API] Error starting backfill:', error)
 
     if (error && typeof error === 'object' && 'statusCode' in error) {

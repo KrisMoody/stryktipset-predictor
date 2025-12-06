@@ -54,7 +54,8 @@ export class UrlManager {
    * Note: headToHead has no dedicated URL on svenskaspel.se - skip AI scraping for it
    */
   private historicPatterns = {
-    statistics: '/stryktipset/resultat/{date}/statistik?draw={drawNumber}&product=1&event={matchNumber}',
+    statistics:
+      '/stryktipset/resultat/{date}/statistik?draw={drawNumber}&product=1&event={matchNumber}',
     xStats: '/stryktipset/resultat/{date}/xstats?draw={drawNumber}&product=1&event={matchNumber}',
     news: '/stryktipset/resultat/{date}/nyheter?draw={drawNumber}&product=1&event={matchNumber}',
   }
@@ -82,8 +83,7 @@ export class UrlManager {
         this.workingDomain = this.domains.primary
         return this.domains.primary
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.log(`[URL Manager] Primary domain failed: ${error}`)
     }
 
@@ -100,8 +100,7 @@ export class UrlManager {
         this.workingDomain = this.domains.fallback
         return this.domains.fallback
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.log(`[URL Manager] Fallback domain failed: ${error}`)
     }
 
@@ -177,11 +176,7 @@ export class UrlManager {
    * 1. Try discovered URL from accessibility tree
    * 2. Fall back to constructed URL
    */
-  getUrl(
-    dataType: string,
-    context: UrlBuildContext,
-    matchId: number,
-  ): string {
+  getUrl(dataType: string, context: UrlBuildContext, matchId: number): string {
     // Try discovered URL first
     const cacheKey = String(matchId)
     const discovered = this.discoveredUrls.get(cacheKey)
@@ -215,8 +210,7 @@ export class UrlManager {
 
     try {
       return this.buildUrl(dataType, context)
-    }
-    finally {
+    } finally {
       this.workingDomain = originalDomain
     }
   }
@@ -257,10 +251,10 @@ export class UrlManager {
    */
   isErrorUrl(url: string): boolean {
     return (
-      !url.includes('svenskaspel.se')
-      || url.includes('error')
-      || url.includes('404')
-      || url.includes('503')
+      !url.includes('svenskaspel.se') ||
+      url.includes('error') ||
+      url.includes('404') ||
+      url.includes('503')
     )
   }
 }

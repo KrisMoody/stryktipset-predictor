@@ -11,33 +11,33 @@ export default defineNitroPlugin(() => {
   // Sync current draws daily at midnight - window-aware
   cron.schedule('0 0 * * *', async () => {
     const status = scheduleWindowService.getWindowStatus()
-    console.log(`[Scheduler] Running scheduled draw sync (window: ${status.isActive ? 'active' : 'closed'}, phase: ${status.currentPhase})`)
+    console.log(
+      `[Scheduler] Running scheduled draw sync (window: ${status.isActive ? 'active' : 'closed'}, phase: ${status.currentPhase})`
+    )
 
     try {
       if (status.isActive) {
         // Full sync during active window
         const result = await drawSyncService.syncCurrentDraws()
         if (result.success) {
-          console.log(`[Scheduler] Full sync completed: ${result.drawsProcessed} draws, ${result.matchesProcessed} matches`)
+          console.log(
+            `[Scheduler] Full sync completed: ${result.drawsProcessed} draws, ${result.matchesProcessed} matches`
+          )
           drawCacheService.invalidateAllDrawCache()
-        }
-        else {
+        } else {
           console.error(`[Scheduler] Full sync failed: ${result.error}`)
         }
-      }
-      else {
+      } else {
         // Metadata-only sync outside window
         const result = await drawSyncService.syncDrawMetadataOnly()
         if (result.success) {
           console.log(`[Scheduler] Metadata sync completed: ${result.drawsProcessed} draws`)
           drawCacheService.invalidateAllDrawCache()
-        }
-        else {
+        } else {
           console.error(`[Scheduler] Metadata sync failed: ${result.error}`)
         }
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Scheduler] Unexpected error in scheduled draw sync:', error)
     }
   })
@@ -50,12 +50,10 @@ export default defineNitroPlugin(() => {
       if (result.success) {
         console.log(`[Scheduler] Sunday metadata sync completed: ${result.drawsProcessed} draws`)
         drawCacheService.invalidateAllDrawCache()
-      }
-      else {
+      } else {
         console.error(`[Scheduler] Sunday metadata sync failed: ${result.error}`)
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Scheduler] Unexpected error in Sunday metadata sync:', error)
     }
   })
@@ -66,8 +64,7 @@ export default defineNitroPlugin(() => {
     try {
       await performanceTracker.updatePerformance()
       console.log('[Scheduler] Performance update completed successfully')
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Scheduler] Error in scheduled performance update:', error)
     }
   })
@@ -81,12 +78,15 @@ export default defineNitroPlugin(() => {
       return
     }
 
-    console.log(`[Scheduler] Running progressive scrape (phase: ${status.currentPhase}, threshold: ${status.dataRefreshThreshold}h)`)
+    console.log(
+      `[Scheduler] Running progressive scrape (phase: ${status.currentPhase}, threshold: ${status.dataRefreshThreshold}h)`
+    )
     try {
       const result = await progressiveScraper.queueStaleMatches(status.dataRefreshThreshold)
-      console.log(`[Scheduler] Progressive scrape complete: ${result.queued} queued, ${result.skipped} skipped`)
-    }
-    catch (error) {
+      console.log(
+        `[Scheduler] Progressive scrape complete: ${result.queued} queued, ${result.skipped} skipped`
+      )
+    } catch (error) {
       console.error('[Scheduler] Error in progressive scrape:', error)
     }
   })
@@ -100,12 +100,15 @@ export default defineNitroPlugin(() => {
       return
     }
 
-    console.log(`[Scheduler] Running Saturday aggressive scrape (phase: ${status.currentPhase}, threshold: ${status.dataRefreshThreshold}h)`)
+    console.log(
+      `[Scheduler] Running Saturday aggressive scrape (phase: ${status.currentPhase}, threshold: ${status.dataRefreshThreshold}h)`
+    )
     try {
       const result = await progressiveScraper.queueStaleMatches(status.dataRefreshThreshold)
-      console.log(`[Scheduler] Saturday scrape complete: ${result.queued} queued, ${result.skipped} skipped`)
-    }
-    catch (error) {
+      console.log(
+        `[Scheduler] Saturday scrape complete: ${result.queued} queued, ${result.skipped} skipped`
+      )
+    } catch (error) {
       console.error('[Scheduler] Error in Saturday scrape:', error)
     }
   })
@@ -116,9 +119,10 @@ export default defineNitroPlugin(() => {
     try {
       const result = await drawSyncService.syncCurrentDraws()
       if (result.success) {
-        console.log(`[Scheduler] Initial sync completed: ${result.drawsProcessed} draws, ${result.matchesProcessed} matches`)
-      }
-      else {
+        console.log(
+          `[Scheduler] Initial sync completed: ${result.drawsProcessed} draws, ${result.matchesProcessed} matches`
+        )
+      } else {
         console.warn(`[Scheduler] Initial sync had issues: ${result.error}`)
 
         // Retry if we haven't reached max attempts and got no draws
@@ -128,8 +132,7 @@ export default defineNitroPlugin(() => {
           setTimeout(() => runInitialSync(attempt + 1, maxAttempts), retryDelay)
         }
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Scheduler] Error in initial sync (attempt ${attempt}):`, error)
 
       // Retry if we haven't reached max attempts
@@ -137,9 +140,10 @@ export default defineNitroPlugin(() => {
         const retryDelay = attempt * 15000 // 15s, 30s
         console.log(`[Scheduler] Retrying initial sync in ${retryDelay / 1000} seconds...`)
         setTimeout(() => runInitialSync(attempt + 1, maxAttempts), retryDelay)
-      }
-      else {
-        console.error('[Scheduler] Initial sync failed after all retry attempts. Scheduled syncs will continue.')
+      } else {
+        console.error(
+          '[Scheduler] Initial sync failed after all retry attempts. Scheduled syncs will continue.'
+        )
       }
     }
   }
@@ -147,10 +151,14 @@ export default defineNitroPlugin(() => {
   setTimeout(() => runInitialSync(), 30000) // Start after 30 seconds
 
   console.log('[Scheduler] Scheduled tasks initialized:')
-  console.log('  - Draw sync: Daily at midnight (window-aware: full sync if active, metadata-only if closed)')
+  console.log(
+    '  - Draw sync: Daily at midnight (window-aware: full sync if active, metadata-only if closed)'
+  )
   console.log('  - Sunday sync: 6 AM (metadata-only to detect new coupon)')
   console.log('  - Performance update: Daily at 3 AM')
   console.log('  - Progressive scrape: Tue-Fri at 8:00, 12:00, 16:00, 20:00 (stale data refresh)')
-  console.log('  - Saturday scrape: 6:00, 8:00, 10:00, 12:00, 14:00 (aggressive refresh before spelstopp)')
+  console.log(
+    '  - Saturday scrape: 6:00, 8:00, 10:00, 12:00, 14:00 (aggressive refresh before spelstopp)'
+  )
   console.log('  - Initial sync: 30 seconds after startup (with retry logic)')
 })

@@ -9,9 +9,10 @@ export default defineNuxtPlugin(() => {
   let supabase: SupabaseClient | null = null
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('[Supabase Plugin] Missing Supabase configuration. Realtime features will not work.')
-  }
-  else {
+    console.warn(
+      '[Supabase Plugin] Missing Supabase configuration. Realtime features will not work.'
+    )
+  } else {
     supabase = createClient(supabaseUrl, supabaseAnonKey, {
       realtime: {
         params: {

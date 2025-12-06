@@ -1,7 +1,7 @@
 import { failedWritesQueue } from '../../utils/failed-writes-queue'
 import { retryFailedWrites } from '../../utils/ai-usage-recorder'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const query = getQuery(event)
     const action = query.action as string | undefined
@@ -34,8 +34,7 @@ export default defineEventHandler(async (event) => {
       queueStatus: failedWritesQueue.getStatus(),
       timestamp: new Date().toISOString(),
     }
-  }
-  catch (error) {
+  } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
 
     return {

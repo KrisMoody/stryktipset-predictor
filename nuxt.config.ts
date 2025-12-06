@@ -1,5 +1,4 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-// eslint-disable-next-line nuxt/nuxt-config-keys-order -- Custom key order preference
 export default defineNuxtConfig({
   app: {
     head: {
@@ -70,7 +69,7 @@ export default defineNuxtConfig({
   },
   eslint: {
     config: {
-      stylistic: true,
+      stylistic: false,
     },
   },
 })

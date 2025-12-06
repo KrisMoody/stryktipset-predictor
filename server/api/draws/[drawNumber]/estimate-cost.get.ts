@@ -47,10 +47,10 @@ export default defineEventHandler(async (event): Promise<CostEstimation> => {
 
   if (recentPredictions.length > 0) {
     avgInputTokens = Math.round(
-      recentPredictions.reduce((sum, p) => sum + p.input_tokens, 0) / recentPredictions.length,
+      recentPredictions.reduce((sum, p) => sum + p.input_tokens, 0) / recentPredictions.length
     )
     avgOutputTokens = Math.round(
-      recentPredictions.reduce((sum, p) => sum + p.output_tokens, 0) / recentPredictions.length,
+      recentPredictions.reduce((sum, p) => sum + p.output_tokens, 0) / recentPredictions.length
     )
   }
 
@@ -58,9 +58,9 @@ export default defineEventHandler(async (event): Promise<CostEstimation> => {
   const totalOutputTokens = avgOutputTokens * matchCount
 
   const sonnetPricing = AI_PRICING.CLAUDE_SONNET_4_5
-  const estimatedCost
-    = (totalInputTokens / 1_000_000) * sonnetPricing.inputPricePerMillion
-      + (totalOutputTokens / 1_000_000) * sonnetPricing.outputPricePerMillion
+  const estimatedCost =
+    (totalInputTokens / 1_000_000) * sonnetPricing.inputPricePerMillion +
+    (totalOutputTokens / 1_000_000) * sonnetPricing.outputPricePerMillion
 
   return {
     estimatedInputTokens: totalInputTokens,

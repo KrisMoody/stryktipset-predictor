@@ -3,43 +3,39 @@
     <!-- Summary Card -->
     <UCard>
       <template #header>
-        <h3 class="text-xl font-semibold">
-          Coupon Summary
-        </h3>
+        <h3 class="text-xl font-semibold">Coupon Summary</h3>
       </template>
 
       <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            System
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">System</div>
           <div class="text-2xl font-bold text-primary-600 dark:text-primary-400">
             {{ 'system' in coupon && coupon.system?.id ? coupon.system.id : 'AI-Based' }}
           </div>
         </div>
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Total Rows
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Total Rows</div>
           <div class="text-2xl font-bold">
-            {{ couponRows.length || ('totalCombinations' in coupon ? coupon.totalCombinations : 0) }}
+            {{
+              couponRows.length || ('totalCombinations' in coupon ? coupon.totalCombinations : 0)
+            }}
           </div>
         </div>
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Total Cost
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Total Cost</div>
           <div class="text-2xl font-bold text-green-600 dark:text-green-400">
             {{ coupon.totalCost }} SEK
           </div>
         </div>
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Expected Value
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Expected Value</div>
           <div
             class="text-2xl font-bold"
-            :class="coupon.expectedValue > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'"
+            :class="
+              coupon.expectedValue > 0
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-gray-600 dark:text-gray-400'
+            "
           >
             {{ coupon.expectedValue.toFixed(1) }}%
           </div>
@@ -50,11 +46,7 @@
         v-if="'system' in coupon && coupon.system?.guarantee"
         class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
       >
-        <UBadge
-          color="success"
-          variant="soft"
-          size="lg"
-        >
+        <UBadge color="success" variant="soft" size="lg">
           Guarantee: {{ coupon.system.guarantee }} rätt when frame is correct
         </UBadge>
       </div>
@@ -65,9 +57,7 @@
       <template #header>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <h3 class="text-xl font-semibold">
-              Match Coverage
-            </h3>
+            <h3 class="text-xl font-semibold">Match Coverage</h3>
             <UBadge
               v-if="couponId && couponStatus"
               :color="getStatusColor(couponStatus)"
@@ -93,10 +83,7 @@
             >
               Download CSV
             </UButton>
-            <UDropdown
-              :items="svenskaSpelExportItems"
-              :popper="{ placement: 'bottom-end' }"
-            >
+            <UDropdown :items="svenskaSpelExportItems" :popper="{ placement: 'bottom-end' }">
               <UButton
                 color="primary"
                 size="sm"
@@ -117,13 +104,8 @@
           class="flex items-center gap-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
         >
           <div class="w-24 flex-shrink-0">
-            <div class="font-semibold text-gray-900 dark:text-gray-100">
-              Match {{ matchNum }}
-            </div>
-            <div
-              v-if="getMatchInfo(matchNum)"
-              class="text-xs text-gray-600 dark:text-gray-400"
-            >
+            <div class="font-semibold text-gray-900 dark:text-gray-100">Match {{ matchNum }}</div>
+            <div v-if="getMatchInfo(matchNum)" class="text-xs text-gray-600 dark:text-gray-400">
               {{ getMatchInfo(matchNum)?.homeTeam }} - {{ getMatchInfo(matchNum)?.awayTeam }}
             </div>
           </div>
@@ -157,9 +139,7 @@
           aria-controls="advanced-view-panel"
           @click="showAdvancedView = !showAdvancedView"
         >
-          <h3 class="text-xl font-semibold">
-            Advanced View: All Rows
-          </h3>
+          <h3 class="text-xl font-semibold">Advanced View: All Rows</h3>
           <UIcon
             :name="showAdvancedView ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
             class="w-5 h-5"
@@ -168,10 +148,7 @@
         </button>
       </template>
 
-      <div
-        v-if="showAdvancedView"
-        id="advanced-view-panel"
-      >
+      <div v-if="showAdvancedView" id="advanced-view-panel">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <caption class="sr-only">
@@ -179,12 +156,7 @@
             </caption>
             <thead class="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th
-                  scope="col"
-                  class="px-3 py-2 text-left font-semibold"
-                >
-                  Row
-                </th>
+                <th scope="col" class="px-3 py-2 text-left font-semibold">Row</th>
                 <th
                   v-for="i in 13"
                   :key="i"
@@ -201,10 +173,7 @@
                 :key="row.rowNumber"
                 :class="idx % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800'"
               >
-                <th
-                  scope="row"
-                  class="px-3 py-2 font-medium text-gray-700 dark:text-gray-300"
-                >
+                <th scope="row" class="px-3 py-2 font-medium text-gray-700 dark:text-gray-300">
                   {{ row.rowNumber }}
                 </th>
                 <td
@@ -221,12 +190,11 @@
         </div>
 
         <!-- Pagination for large coupons -->
-        <div
-          v-if="couponRows.length > rowsPerPage"
-          class="mt-4 flex items-center justify-between"
-        >
+        <div v-if="couponRows.length > rowsPerPage" class="mt-4 flex items-center justify-between">
           <div class="text-sm text-gray-600 dark:text-gray-400">
-            Showing {{ (currentPage - 1) * rowsPerPage + 1 }} - {{ Math.min(currentPage * rowsPerPage, couponRows.length) }} of {{ couponRows.length }} rows
+            Showing {{ (currentPage - 1) * rowsPerPage + 1 }} -
+            {{ Math.min(currentPage * rowsPerPage, couponRows.length) }} of
+            {{ couponRows.length }} rows
           </div>
           <div class="flex gap-2">
             <UButton
@@ -255,9 +223,7 @@
     <!-- Selections Summary (for AI-based coupons) -->
     <UCard v-if="couponRows.length === 0 && coupon.selections">
       <template #header>
-        <h3 class="text-xl font-semibold">
-          Match Selections
-        </h3>
+        <h3 class="text-xl font-semibold">Match Selections</h3>
       </template>
 
       <div class="space-y-2">
@@ -278,13 +244,7 @@
             <div class="text-2xl font-bold text-primary-600 dark:text-primary-400">
               {{ selection.selection }}
             </div>
-            <UBadge
-              v-if="selection.is_spik"
-              color="warning"
-              variant="soft"
-            >
-              Spik
-            </UBadge>
+            <UBadge v-if="selection.is_spik" color="warning" variant="soft"> Spik </UBadge>
           </div>
         </div>
       </div>
@@ -356,7 +316,7 @@ const getMatchOutcomes = (matchNum: number): string[] => {
   if (couponRows.value.length === 0) return []
 
   const outcomes = new Set<string>()
-  couponRows.value.forEach((row) => {
+  couponRows.value.forEach(row => {
     const pick = row.picks[matchNum - 1]
     if (pick) outcomes.add(pick)
   })
@@ -368,7 +328,10 @@ const getMatchInfo = (matchNum: number) => {
   return props.coupon.selections?.find(s => s.matchNumber === matchNum)
 }
 
-const getOutcomeBadgeColor = (matchNum: number, outcome: string): 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' => {
+const getOutcomeBadgeColor = (
+  matchNum: number,
+  outcome: string
+): 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' => {
   const matchInfo = getMatchInfo(matchNum)
   if (matchInfo?.is_spik) {
     return 'warning'
@@ -424,7 +387,9 @@ const getPickClass = (pick: string, matchNumber: number) => {
 
   return [
     'font-semibold',
-    isSpik ? 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30' : 'text-gray-900 dark:text-gray-100',
+    isSpik
+      ? 'text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30'
+      : 'text-gray-900 dark:text-gray-100',
   ]
 }
 
@@ -440,8 +405,7 @@ const copyToClipboard = async () => {
       pendingAction.value = 'copy'
       showMarkPlayedModal.value = true
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.error('Failed to copy:', err)
   }
 }
@@ -452,7 +416,8 @@ const downloadCSV = () => {
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  const systemId = 'system' in props.coupon && props.coupon.system?.id ? props.coupon.system.id : 'ai'
+  const systemId =
+    'system' in props.coupon && props.coupon.system?.id ? props.coupon.system.id : 'ai'
   a.download = `coupon-${props.coupon.drawNumber}-${systemId}.csv`
   a.click()
   window.URL.revokeObjectURL(url)
@@ -472,13 +437,20 @@ const handleMarkPlayedCompleted = (markedPlayed: boolean) => {
 }
 
 // Status display helpers
-const getStatusColor = (status: CouponStatus): 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' => {
+const getStatusColor = (
+  status: CouponStatus
+): 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' => {
   switch (status) {
-    case 'generated': return 'neutral'
-    case 'saved': return 'info'
-    case 'played': return 'success'
-    case 'analyzed': return 'primary'
-    default: return 'neutral'
+    case 'generated':
+      return 'neutral'
+    case 'saved':
+      return 'info'
+    case 'played':
+      return 'success'
+    case 'analyzed':
+      return 'primary'
+    default:
+      return 'neutral'
   }
 }
 
@@ -489,7 +461,8 @@ const formatStatus = (status: CouponStatus): string => {
 const generateCouponText = (): string => {
   if (couponRows.value.length === 0) return ''
 
-  const systemId = 'system' in props.coupon && props.coupon.system?.id ? props.coupon.system.id : 'AI-Based'
+  const systemId =
+    'system' in props.coupon && props.coupon.system?.id ? props.coupon.system.id : 'AI-Based'
   let text = `Coupon for Draw #${props.coupon.drawNumber}\n`
   text += `System: ${systemId}\n`
   text += `Total Rows: ${couponRows.value.length}\n`
@@ -498,7 +471,7 @@ const generateCouponText = (): string => {
   text += 'Row | ' + Array.from({ length: 13 }, (_, i) => i + 1).join(' | ') + '\n'
   text += '-'.repeat(60) + '\n'
 
-  couponRows.value.forEach((row) => {
+  couponRows.value.forEach(row => {
     text += `${row.rowNumber.toString().padStart(3)} | ${row.picks.join(' | ')}\n`
   })
 
@@ -510,7 +483,7 @@ const generateCSV = (): string => {
 
   let csv = 'Row,' + Array.from({ length: 13 }, (_, i) => i + 1).join(',') + '\n'
 
-  couponRows.value.forEach((row) => {
+  couponRows.value.forEach(row => {
     csv += `${row.rowNumber},${row.picks.join(',')}\n`
   })
 
@@ -525,9 +498,7 @@ const toast = useToast()
 
 // Get system ID helper
 const getSystemId = () => {
-  return 'system' in props.coupon && props.coupon.system?.id
-    ? props.coupon.system.id
-    : undefined
+  return 'system' in props.coupon && props.coupon.system?.id ? props.coupon.system.id : undefined
 }
 
 // Check if Enkelrader export is available
@@ -552,18 +523,22 @@ const mSystemRowCount = computed(() => {
 
 // Dropdown menu items for Svenska Spel export
 const svenskaSpelExportItems = computed(() => [
-  [{
-    label: `Enkelrader (${couponRows.value.length} rows)`,
-    icon: 'i-heroicons-list-bullet',
-    click: downloadEnkelrader,
-    disabled: !canExportEnkelrader.value,
-  }],
-  [{
-    label: `M-system (${mSystemRowCount.value} rows)`,
-    icon: 'i-heroicons-square-3-stack-3d',
-    click: downloadMSystem,
-    disabled: !canExportMSystem.value,
-  }],
+  [
+    {
+      label: `Enkelrader (${couponRows.value.length} rows)`,
+      icon: 'i-heroicons-list-bullet',
+      click: downloadEnkelrader,
+      disabled: !canExportEnkelrader.value,
+    },
+  ],
+  [
+    {
+      label: `M-system (${mSystemRowCount.value} rows)`,
+      icon: 'i-heroicons-square-3-stack-3d',
+      click: downloadMSystem,
+      disabled: !canExportMSystem.value,
+    },
+  ],
 ])
 
 // Download as Enkelrader format

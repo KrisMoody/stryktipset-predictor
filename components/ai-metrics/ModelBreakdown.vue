@@ -6,17 +6,11 @@
       </h3>
     </template>
 
-    <div
-      v-if="loading"
-      class="flex justify-center py-8"
-    >
+    <div v-if="loading" class="flex justify-center py-8">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
     </div>
 
-    <div
-      v-else-if="data && data.length > 0"
-      class="space-y-4"
-    >
+    <div v-else-if="data && data.length > 0" class="space-y-4">
       <div
         v-for="item in data"
         :key="'model' in item ? item.model : item.dataType"
@@ -38,37 +32,24 @@
             <p class="font-semibold text-gray-900 dark:text-gray-100">
               ${{ item.totalCost.toFixed(4) }}
             </p>
-            <p class="text-xs text-gray-500">
-              {{ item.requests }} requests
-            </p>
+            <p class="text-xs text-gray-500">{{ item.requests }} requests</p>
           </div>
         </div>
 
         <div class="grid grid-cols-3 gap-4 mt-2 text-sm">
           <div>
-            <p class="text-gray-500 dark:text-gray-400 text-xs">
-              Tokens
-            </p>
+            <p class="text-gray-500 dark:text-gray-400 text-xs">Tokens</p>
             <p class="font-medium">
               {{ formatNumber(item.totalTokens) }}
             </p>
           </div>
           <div>
-            <p class="text-gray-500 dark:text-gray-400 text-xs">
-              Avg Cost
-            </p>
-            <p class="font-medium">
-              ${{ item.averageCostPerRequest.toFixed(6) }}
-            </p>
+            <p class="text-gray-500 dark:text-gray-400 text-xs">Avg Cost</p>
+            <p class="font-medium">${{ item.averageCostPerRequest.toFixed(6) }}</p>
           </div>
           <div>
-            <p class="text-gray-500 dark:text-gray-400 text-xs">
-              Success Rate
-            </p>
-            <p
-              class="font-medium"
-              :class="getSuccessRateClass(item.successRate)"
-            >
+            <p class="text-gray-500 dark:text-gray-400 text-xs">Success Rate</p>
+            <p class="font-medium" :class="getSuccessRateClass(item.successRate)">
               {{ item.successRate.toFixed(1) }}%
             </p>
           </div>
@@ -76,12 +57,7 @@
       </div>
     </div>
 
-    <div
-      v-else
-      class="text-center py-8 text-gray-500"
-    >
-      No data available
-    </div>
+    <div v-else class="text-center py-8 text-gray-500">No data available</div>
   </UCard>
 </template>
 

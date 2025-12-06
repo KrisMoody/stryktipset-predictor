@@ -1,24 +1,14 @@
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <h3 class="text-lg font-semibold">
-        Set Utgångstecken
-      </h3>
-      <UButton
-        variant="outline"
-        size="sm"
-        icon="i-heroicons-sparkles"
-        @click="autoFillFromAI"
-      >
+      <h3 class="text-lg font-semibold">Set Utgångstecken</h3>
+      <UButton variant="outline" size="sm" icon="i-heroicons-sparkles" @click="autoFillFromAI">
         Auto-fill from AI
       </UButton>
     </div>
 
     <div class="space-y-3">
-      <UCard
-        v-for="match in hedgedMatches"
-        :key="match.matchNumber"
-      >
+      <UCard v-for="match in hedgedMatches" :key="match.matchNumber">
         <div class="flex items-center gap-4 flex-wrap">
           <div class="flex-1 min-w-[200px]">
             <div class="font-semibold text-sm">
@@ -34,20 +24,19 @@
               <UButton
                 v-for="outcome in ['1', 'X', '2']"
                 :key="outcome"
-                :variant="selectedUtgangstecken[match.matchNumber] === outcome ? 'solid' : 'outline'"
-                :color="selectedUtgangstecken[match.matchNumber] === outcome ? 'primary' : 'neutral'"
+                :variant="
+                  selectedUtgangstecken[match.matchNumber] === outcome ? 'solid' : 'outline'
+                "
+                :color="
+                  selectedUtgangstecken[match.matchNumber] === outcome ? 'primary' : 'neutral'
+                "
                 @click="setUtgangstecken(match.matchNumber, outcome)"
               >
                 {{ outcome }}
               </UButton>
             </UButtonGroup>
 
-            <UBadge
-              v-if="aiSuggestion(match)"
-              variant="soft"
-              color="info"
-              size="sm"
-            >
+            <UBadge v-if="aiSuggestion(match)" variant="soft" color="info" size="sm">
               AI: {{ aiSuggestion(match) }}
             </UBadge>
           </div>
@@ -55,10 +44,7 @@
       </UCard>
     </div>
 
-    <div
-      v-if="Object.keys(selectedUtgangstecken).length < requiredCount"
-      class="mt-4"
-    >
+    <div v-if="Object.keys(selectedUtgangstecken).length < requiredCount" class="mt-4">
       <UAlert
         color="warning"
         variant="soft"
@@ -87,11 +73,15 @@ const emit = defineEmits<{
 const selectedUtgangstecken = ref<Record<number, string>>(props.utgangstecken || {})
 
 // Watch for external updates
-watch(() => props.utgangstecken, (newVal) => {
-  if (newVal) {
-    selectedUtgangstecken.value = { ...newVal }
-  }
-}, { deep: true })
+watch(
+  () => props.utgangstecken,
+  newVal => {
+    if (newVal) {
+      selectedUtgangstecken.value = { ...newVal }
+    }
+  },
+  { deep: true }
+)
 
 // Computed
 const requiredCount = computed(() => {
@@ -118,7 +108,7 @@ const aiSuggestion = (match: CouponSelection): string => {
 
 const autoFillFromAI = () => {
   const newUtgangstecken: Record<number, string> = {}
-  hedgedMatches.value.forEach((match) => {
+  hedgedMatches.value.forEach(match => {
     newUtgangstecken[match.matchNumber] = aiSuggestion(match)
   })
   selectedUtgangstecken.value = newUtgangstecken

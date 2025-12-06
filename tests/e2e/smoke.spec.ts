@@ -125,9 +125,11 @@ test.describe('Smoke Tests - Mobile Responsiveness', () => {
     await expect(page.locator('body')).toBeVisible()
 
     // Check for mobile menu or navigation
-    const mobileMenu = page.locator('[data-testid="mobile-menu"], [class*="mobile"], button[aria-label*="menu" i]')
+    const mobileMenu = page.locator(
+      '[data-testid="mobile-menu"], [class*="mobile"], button[aria-label*="menu" i]'
+    )
     // Either mobile menu exists or regular nav is visible
     const nav = page.getByRole('navigation')
-    expect(await mobileMenu.isVisible() || await nav.isVisible()).toBeTruthy()
+    expect((await mobileMenu.isVisible()) || (await nav.isVisible())).toBeTruthy()
   })
 })

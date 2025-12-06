@@ -11,7 +11,7 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
   const scrapedDataTypes = ref<string[]>([])
   const isAnyScraping = computed(() => {
     return Object.values(scrapingStatus.value).some(
-      status => status.status === 'started' || status.status === 'in_progress',
+      status => status.status === 'started' || status.status === 'in_progress'
     )
   })
   const latestOperation = ref<ScrapingOperationEvent | null>(null)
@@ -24,7 +24,7 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
     const dataTypes = ['xStats', 'statistics', 'headToHead', 'news']
     const newStatus: Record<string, RealtimeScrapingStatus> = {}
 
-    dataTypes.forEach((dataType) => {
+    dataTypes.forEach(dataType => {
       newStatus[dataType] = {
         dataType,
         status: 'idle',
@@ -66,14 +66,11 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
           let status: RealtimeScrapingStatus['status'] = 'idle'
           if (operation.status === 'started' || operation.status === 'in_progress') {
             status = 'in_progress'
-          }
-          else if (operation.status === 'success') {
+          } else if (operation.status === 'success') {
             status = 'success'
-          }
-          else if (operation.status === 'failed') {
+          } else if (operation.status === 'failed') {
             status = 'failed'
-          }
-          else if (operation.status === 'rate_limited') {
+          } else if (operation.status === 'rate_limited') {
             status = 'rate_limited'
           }
 
@@ -87,7 +84,7 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
             durationMs: operation.duration_ms || undefined,
             retryCount: operation.retry_count,
           }
-        },
+        }
       )
       .on(
         'postgres_changes',
@@ -111,14 +108,11 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
           let status: RealtimeScrapingStatus['status'] = 'idle'
           if (operation.status === 'started' || operation.status === 'in_progress') {
             status = 'in_progress'
-          }
-          else if (operation.status === 'success') {
+          } else if (operation.status === 'success') {
             status = 'success'
-          }
-          else if (operation.status === 'failed') {
+          } else if (operation.status === 'failed') {
             status = 'failed'
-          }
-          else if (operation.status === 'rate_limited') {
+          } else if (operation.status === 'rate_limited') {
             status = 'rate_limited'
           }
 
@@ -131,7 +125,7 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
             durationMs: operation.duration_ms || undefined,
             retryCount: operation.retry_count,
           }
-        },
+        }
       )
       .subscribe()
   }
@@ -172,7 +166,7 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
             message: getStatusMessage(data.data_type, 'success'),
             completedAt: new Date(data.scraped_at),
           }
-        },
+        }
       )
       .on(
         'postgres_changes',
@@ -201,7 +195,7 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
             message: getStatusMessage(data.data_type, 'success'),
             completedAt: new Date(data.scraped_at),
           }
-        },
+        }
       )
       .subscribe()
   }
@@ -268,10 +262,11 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
     onUnmounted(() => {
       cleanup()
     })
-  }
-  else {
+  } else {
     // If not in component context, initialize immediately and warn
-    console.warn('[useScrapingUpdates] Called outside component setup, initializing immediately. Remember to call cleanup() manually.')
+    console.warn(
+      '[useScrapingUpdates] Called outside component setup, initializing immediately. Remember to call cleanup() manually.'
+    )
     initialize()
   }
 

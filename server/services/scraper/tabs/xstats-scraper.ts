@@ -84,7 +84,12 @@ export class XStatsScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, _matchId: number, drawNumber: number, matchNumber: number): Promise<ExtendedXStatsData | null> {
+  async scrape(
+    page: Page,
+    _matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<ExtendedXStatsData | null> {
     try {
       this.log('Starting xStats scraping')
 
@@ -93,13 +98,16 @@ export class XStatsScraper extends BaseScraper {
       await this.navigateTo(page, url)
 
       // Click on xStats tab - use the data-test-id attribute
-      const xStatsTabSelector = '[data-test-id="statistic-menu-xstat"], a[href*="/xstats"], a:has-text("xStats")'
+      const xStatsTabSelector =
+        '[data-test-id="statistic-menu-xstat"], a[href*="/xstats"], a:has-text("xStats")'
       if (await this.elementExists(page, xStatsTabSelector)) {
         await this.clickTab(page, xStatsTabSelector)
-      }
-      else {
+      } else {
         this.log('xStats tab not found, trying direct navigation')
-        await this.navigateTo(page, `https://www.svenskaspel.se/stryktipset/xstats?event=${matchNumber}`)
+        await this.navigateTo(
+          page,
+          `https://www.svenskaspel.se/stryktipset/xstats?event=${matchNumber}`
+        )
       }
 
       // Wait for playmaker widget to load
@@ -130,8 +138,7 @@ export class XStatsScraper extends BaseScraper {
 
       this.log('xStats scraping complete')
       return xStatsData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping xStats: ${error}`)
       return null
     }
@@ -140,18 +147,23 @@ export class XStatsScraper extends BaseScraper {
   /**
    * Extract team names from the widget headers
    */
-  private async extractTeamNames(page: Page): Promise<{ home?: string, away?: string }> {
+  private async extractTeamNames(page: Page): Promise<{ home?: string; away?: string }> {
     try {
       // Team names appear in .pm-x-row-team-name or .pm-spider-home-team/.pm-spider-away-team
-      const homeTeam = await page.locator('.pm-spider-home-team, .pm-x-row-home.pm-x-row-team-name').first().textContent()
-      const awayTeam = await page.locator('.pm-spider-away-team, .pm-x-row-away.pm-x-row-team-name').first().textContent()
+      const homeTeam = await page
+        .locator('.pm-spider-home-team, .pm-x-row-home.pm-x-row-team-name')
+        .first()
+        .textContent()
+      const awayTeam = await page
+        .locator('.pm-spider-away-team, .pm-x-row-away.pm-x-row-team-name')
+        .first()
+        .textContent()
 
       return {
         home: homeTeam?.trim(),
         away: awayTeam?.trim(),
       }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting team names: ${error}`)
       return {}
     }
@@ -164,14 +176,15 @@ export class XStatsScraper extends BaseScraper {
     try {
       // The dropdown is a <select> element with options
       const selectElement = page.locator('.playmaker_widget_xstat__drop_down select')
-      if (await selectElement.count() > 0) {
+      if ((await selectElement.count()) > 0) {
         const selectedValue = await selectElement.inputValue()
         // Also get the display text
-        const selectedOption = await selectElement.locator(`option[value="${selectedValue}"]`).textContent()
+        const selectedOption = await selectElement
+          .locator(`option[value="${selectedValue}"]`)
+          .textContent()
         return selectedOption?.trim() || selectedValue
       }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting selected period: ${error}`)
     }
     return undefined
@@ -182,10 +195,12 @@ export class XStatsScraper extends BaseScraper {
    * Widget: .playmaker_widget_xstat__goal_stat_widget
    * Table structure: [Home Value] [Metric Name] [Away Value]
    */
-  private async extractGoalStats(page: Page): Promise<{ home: TeamGoalStats, away: TeamGoalStats } | undefined> {
+  private async extractGoalStats(
+    page: Page
+  ): Promise<{ home: TeamGoalStats; away: TeamGoalStats } | undefined> {
     try {
       const widget = page.locator('.playmaker_widget_xstat__goal_stat_widget .pm-x-container')
-      if (await widget.count() === 0) {
+      if ((await widget.count()) === 0) {
         this.log('Goal stats widget not found')
         return undefined
       }
@@ -207,35 +222,33 @@ export class XStatsScraper extends BaseScraper {
         const hVal = homeValue?.trim()
         const aVal = awayValue?.trim()
 
-        if (metric.includes('förväntade mål') && metric.includes('xg') && !metric.includes('insläppta')) {
+        if (
+          metric.includes('förväntade mål') &&
+          metric.includes('xg') &&
+          !metric.includes('insläppta')
+        ) {
           home.xg = hVal
           away.xg = aVal
-        }
-        else if (metric.includes('insläppta') && metric.includes('xgc')) {
+        } else if (metric.includes('insläppta') && metric.includes('xgc')) {
           home.xgc = hVal
           away.xgc = aVal
-        }
-        else if (metric.includes('genomsnitt gjorda mål') && metric.includes('hela säsongen')) {
+        } else if (metric.includes('genomsnitt gjorda mål') && metric.includes('hela säsongen')) {
           home.avgGoalsScored = hVal
           away.avgGoalsScored = aVal
-        }
-        else if (metric.includes('genomsnitt insläppta mål')) {
+        } else if (metric.includes('genomsnitt insläppta mål')) {
           home.avgGoalsConceded = hVal
           away.avgGoalsConceded = aVal
-        }
-        else if (metric.includes('inbördes')) {
+        } else if (metric.includes('inbördes')) {
           home.avgGoalsH2H = hVal
           away.avgGoalsH2H = aVal
-        }
-        else if (metric.includes('hemma') && metric.includes('borta')) {
+        } else if (metric.includes('hemma') && metric.includes('borta')) {
           home.avgGoalsHomeAway = hVal
           away.avgGoalsHomeAway = aVal
         }
       }
 
       return { home, away }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting goal stats: ${error}`)
       return undefined
     }
@@ -245,10 +258,12 @@ export class XStatsScraper extends BaseScraper {
    * Extract expected points from the xP widget
    * Widget: .playmaker_widget_xstat__expected_points_widget
    */
-  private async extractExpectedPoints(page: Page): Promise<{ home: TeamExpectedPoints, away: TeamExpectedPoints } | undefined> {
+  private async extractExpectedPoints(
+    page: Page
+  ): Promise<{ home: TeamExpectedPoints; away: TeamExpectedPoints } | undefined> {
     try {
       const widget = page.locator('.playmaker_widget_xstat__expected_points_widget .pm-x-container')
-      if (await widget.count() === 0) {
+      if ((await widget.count()) === 0) {
         this.log('Expected points widget not found')
         return undefined
       }
@@ -273,28 +288,23 @@ export class XStatsScraper extends BaseScraper {
         if (metric.includes('förväntade poäng') && metric.includes('xp')) {
           home.xp = hVal
           away.xp = aVal
-        }
-        else if (metric === 'poäng') {
+        } else if (metric === 'poäng') {
           home.points = hVal
           away.points = aVal
-        }
-        else if (metric.includes('skillnad')) {
+        } else if (metric.includes('skillnad')) {
           home.xpDiff = hVal
           away.xpDiff = aVal
-        }
-        else if (metric.includes('förväntad tabellplacering')) {
+        } else if (metric.includes('förväntad tabellplacering')) {
           home.expectedPosition = hVal
           away.expectedPosition = aVal
-        }
-        else if (metric === 'tabellplacering') {
+        } else if (metric === 'tabellplacering') {
           home.position = hVal
           away.position = aVal
         }
       }
 
       return { home, away }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting expected points: ${error}`)
       return undefined
     }
@@ -307,7 +317,7 @@ export class XStatsScraper extends BaseScraper {
   private buildTeamXStats(
     goalStats: TeamGoalStats | undefined,
     expectedPoints: TeamExpectedPoints | undefined,
-    _side: 'home' | 'away',
+    _side: 'home' | 'away'
   ): XStatsData['homeTeam'] {
     const values: XStatsValues = {}
 

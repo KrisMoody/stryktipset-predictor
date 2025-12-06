@@ -15,7 +15,11 @@
       "Bash(npm run typecheck:*)",
       "Bash(yarn lint:*)",
       "Bash(yarn vitest run:*)",
-      "Bash(npx nuxt typecheck:*)"
+      "Bash(npx nuxt typecheck:*)",
+      "Bash(test:*)",
+      "Bash(yarn format:check:*)",
+      "Bash(yarn format:*)",
+      "Bash(yarn test:all:*)"
     ],
     "deny": [],
     "ask": []

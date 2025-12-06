@@ -2,7 +2,7 @@ import { couponOptimizer } from '~/server/services/coupon-optimizer'
 import { couponOptimizerV2 } from '~/server/services/coupon-optimizer-v2'
 import { couponPersistenceService } from '~/server/services/coupon-persistence'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const drawNumber = parseInt(event.context.params?.drawNumber || '0')
     const body = await readBody(event)
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
         drawNumber,
         systemId,
         utgangstecken,
-        mgExtensions,
+        mgExtensions
       )
 
       if (!coupon) {
@@ -81,8 +81,7 @@ export default defineEventHandler(async (event) => {
       },
       mode: 'ai',
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error optimizing coupon:', error)
     throw error
   }

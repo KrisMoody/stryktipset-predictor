@@ -1,6 +1,6 @@
 import { testAIUsageWrite } from '../../utils/test-ai-usage-write'
 
-export default defineEventHandler(async (_event) => {
+export default defineEventHandler(async _event => {
   try {
     const result = await testAIUsageWrite()
 
@@ -11,8 +11,7 @@ export default defineEventHandler(async (_event) => {
       details: result.details,
       timestamp: new Date().toISOString(),
     }
-  }
-  catch (error) {
+  } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
 
     return {

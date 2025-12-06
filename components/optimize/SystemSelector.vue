@@ -3,9 +3,7 @@
     <!-- Filter Controls -->
     <UCard>
       <template #header>
-        <h3 class="text-lg font-semibold">
-          Filter Systems
-        </h3>
+        <h3 class="text-lg font-semibold">Filter Systems</h3>
       </template>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -13,43 +11,26 @@
           <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
             Guarantee
           </label>
-          <USelect
-            v-model="filters.guaranteeStr"
-            :items="guaranteeOptions"
-          />
+          <USelect v-model="filters.guaranteeStr" :items="guaranteeOptions" />
         </div>
 
         <div>
           <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
             Max Cost (SEK)
           </label>
-          <UInput
-            v-model.number="filters.maxCost"
-            type="number"
-            placeholder="No limit"
-          />
+          <UInput v-model.number="filters.maxCost" type="number" placeholder="No limit" />
         </div>
 
         <div>
           <label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
             Sort By
           </label>
-          <USelect
-            v-model="filters.sortByStr"
-            :items="sortOptions"
-          />
+          <USelect v-model="filters.sortByStr" :items="sortOptions" />
         </div>
       </div>
 
-      <div
-        v-if="systemType !== 'all'"
-        class="mt-4"
-      >
-        <UBadge
-          color="primary"
-          variant="soft"
-          size="lg"
-        >
+      <div v-if="systemType !== 'all'" class="mt-4">
+        <UBadge color="primary" variant="soft" size="lg">
           Showing {{ systemType }}-systems only
         </UBadge>
       </div>
@@ -76,57 +57,38 @@
             <h4 class="text-lg font-bold text-gray-900 dark:text-gray-100">
               {{ system.id }}
             </h4>
-            <UBadge
-              :color="system.type === 'R' ? 'info' : 'secondary'"
-              variant="soft"
-            >
+            <UBadge :color="system.type === 'R' ? 'info' : 'secondary'" variant="soft">
               {{ system.type }}-system
             </UBadge>
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <div class="text-gray-500 dark:text-gray-400">
-                Helgarderingar
-              </div>
+              <div class="text-gray-500 dark:text-gray-400">Helgarderingar</div>
               <div class="font-semibold">
                 {{ system.helgarderingar }}
               </div>
             </div>
             <div>
-              <div class="text-gray-500 dark:text-gray-400">
-                Halvgarderingar
-              </div>
+              <div class="text-gray-500 dark:text-gray-400">Halvgarderingar</div>
               <div class="font-semibold">
                 {{ system.halvgarderingar }}
               </div>
             </div>
             <div>
-              <div class="text-gray-500 dark:text-gray-400">
-                Rows
-              </div>
+              <div class="text-gray-500 dark:text-gray-400">Rows</div>
               <div class="font-semibold text-primary-600 dark:text-primary-400">
                 {{ system.rows }}
               </div>
             </div>
             <div>
-              <div class="text-gray-500 dark:text-gray-400">
-                Cost
-              </div>
-              <div class="font-semibold">
-                {{ system.rows }} SEK
-              </div>
+              <div class="text-gray-500 dark:text-gray-400">Cost</div>
+              <div class="font-semibold">{{ system.rows }} SEK</div>
             </div>
           </div>
 
-          <div
-            v-if="system.guarantee"
-            class="pt-2 border-t border-gray-200 dark:border-gray-700"
-          >
-            <UBadge
-              :color="getGuaranteeColor(system.guarantee)"
-              variant="subtle"
-            >
+          <div v-if="system.guarantee" class="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <UBadge :color="getGuaranteeColor(system.guarantee)" variant="subtle">
               Guarantee: {{ system.guarantee }} rätt
             </UBadge>
           </div>
@@ -138,13 +100,8 @@
       </UCard>
     </div>
 
-    <div
-      v-else
-      class="text-center py-12"
-    >
-      <div class="text-gray-500 dark:text-gray-400">
-        No systems match your filters
-      </div>
+    <div v-else class="text-center py-12">
+      <div class="text-gray-500 dark:text-gray-400">No systems match your filters</div>
     </div>
   </div>
 </template>
@@ -166,10 +123,7 @@ const { data: systemsData } = await useFetch('/api/betting-systems')
 
 const allSystems = computed(() => {
   if (!systemsData.value?.success) return []
-  return [
-    ...(systemsData.value.systems.R || []),
-    ...(systemsData.value.systems.U || []),
-  ]
+  return [...(systemsData.value.systems.R || []), ...(systemsData.value.systems.U || [])]
 })
 
 // Filters
@@ -183,26 +137,37 @@ const filters = ref({
 // Map string selections to actual values
 const guarantee = computed(() => {
   switch (filters.value.guaranteeStr) {
-    case '10 rätt': return 10
-    case '11 rätt': return 11
-    case '12 rätt': return 12
-    default: return null
+    case '10 rätt':
+      return 10
+    case '11 rätt':
+      return 11
+    case '12 rätt':
+      return 12
+    default:
+      return null
   }
 })
 
 const sortBy = computed(() => {
   switch (filters.value.sortByStr) {
-    case 'Cost (High to Low)': return 'cost-desc'
-    case 'Coverage (High to Low)': return 'coverage-desc'
-    case 'Guarantee (High to Low)': return 'guarantee-desc'
-    default: return 'cost-asc'
+    case 'Cost (High to Low)':
+      return 'cost-desc'
+    case 'Coverage (High to Low)':
+      return 'coverage-desc'
+    case 'Guarantee (High to Low)':
+      return 'guarantee-desc'
+    default:
+      return 'cost-asc'
   }
 })
 
 // Watch for systemType prop changes
-watch(() => props.systemType, (newType) => {
-  filters.value.type = newType === 'all' ? null : newType
-})
+watch(
+  () => props.systemType,
+  newType => {
+    filters.value.type = newType === 'all' ? null : newType
+  }
+)
 
 const _typeOptions = [
   { label: 'All Types', value: null },
@@ -210,12 +175,7 @@ const _typeOptions = [
   { label: 'U-systems', value: 'U' },
 ]
 
-const guaranteeOptions = [
-  'All Guarantees',
-  '10 rätt',
-  '11 rätt',
-  '12 rätt',
-]
+const guaranteeOptions = ['All Guarantees', '10 rätt', '11 rätt', '12 rätt']
 
 const sortOptions = [
   'Cost (Low to High)',
@@ -279,7 +239,7 @@ const getGuaranteeColor = (guarantee: number) => {
 
 const getReductionRatio = (system: BettingSystem) => {
   const fullRows = Math.pow(3, system.helgarderingar) * Math.pow(2, system.halvgarderingar)
-  const ratio = (system.rows / fullRows * 100).toFixed(1)
+  const ratio = ((system.rows / fullRows) * 100).toFixed(1)
   return `${ratio}%`
 }
 </script>

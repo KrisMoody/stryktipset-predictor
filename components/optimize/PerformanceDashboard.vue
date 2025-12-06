@@ -3,88 +3,61 @@
     <!-- Overall Stats -->
     <UCard>
       <template #header>
-        <h3 class="text-xl font-semibold">
-          Performance Overview
-        </h3>
+        <h3 class="text-xl font-semibold">Performance Overview</h3>
       </template>
 
-      <div
-        v-if="pending"
-        class="flex justify-center py-8"
-      >
-        <UIcon
-          name="i-heroicons-arrow-path"
-          class="w-8 h-8 animate-spin text-primary-500"
-        />
+      <div v-if="pending" class="flex justify-center py-8">
+        <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-primary-500" />
       </div>
 
-      <div
-        v-else-if="stats"
-        class="grid grid-cols-2 md:grid-cols-4 gap-6"
-      >
+      <div v-else-if="stats" class="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Draws Analyzed
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Draws Analyzed</div>
           <div class="text-2xl font-bold">
             {{ stats.totalDrawsAnalyzed }}
           </div>
         </div>
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Total Cost
-          </div>
-          <div class="text-2xl font-bold">
-            {{ stats.totalCost }} SEK
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Total Cost</div>
+          <div class="text-2xl font-bold">{{ stats.totalCost }} SEK</div>
         </div>
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Total Payout
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Total Payout</div>
           <div class="text-2xl font-bold text-green-600 dark:text-green-400">
             {{ formatNumber(stats.totalPayout) }} SEK
           </div>
         </div>
         <div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">
-            Overall ROI
-          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-400">Overall ROI</div>
           <div
             class="text-2xl font-bold"
-            :class="stats.overallRoi >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
+            :class="
+              stats.overallRoi >= 0
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-red-600 dark:text-red-400'
+            "
           >
             {{ stats.overallRoi.toFixed(1) }}%
           </div>
         </div>
       </div>
 
-      <div
-        v-else
-        class="text-center py-8 text-gray-500 dark:text-gray-400"
-      >
-        No performance data available yet. Generate coupons and analyze completed draws to see stats.
+      <div v-else class="text-center py-8 text-gray-500 dark:text-gray-400">
+        No performance data available yet. Generate coupons and analyze completed draws to see
+        stats.
       </div>
     </UCard>
 
     <!-- System Type Comparison -->
     <UCard v-if="stats && stats.totalDrawsAnalyzed > 0">
       <template #header>
-        <h3 class="text-xl font-semibold">
-          R vs U System Comparison
-        </h3>
+        <h3 class="text-xl font-semibold">R vs U System Comparison</h3>
       </template>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
           <div class="flex items-center gap-2 mb-4">
-            <UBadge
-              color="info"
-              variant="solid"
-              size="lg"
-            >
-              R-Systems
-            </UBadge>
+            <UBadge color="info" variant="solid" size="lg"> R-Systems </UBadge>
           </div>
           <div class="space-y-2">
             <div class="flex justify-between">
@@ -93,7 +66,9 @@
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600 dark:text-gray-400">Avg Score:</span>
-              <span class="font-semibold">{{ stats.systemTypeComparison.R.avgScore.toFixed(1) }}</span>
+              <span class="font-semibold">{{
+                stats.systemTypeComparison.R.avgScore.toFixed(1)
+              }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600 dark:text-gray-400">ROI:</span>
@@ -109,13 +84,7 @@
 
         <div class="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
           <div class="flex items-center gap-2 mb-4">
-            <UBadge
-              color="secondary"
-              variant="solid"
-              size="lg"
-            >
-              U-Systems
-            </UBadge>
+            <UBadge color="secondary" variant="solid" size="lg"> U-Systems </UBadge>
           </div>
           <div class="space-y-2">
             <div class="flex justify-between">
@@ -124,7 +93,9 @@
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600 dark:text-gray-400">Avg Score:</span>
-              <span class="font-semibold">{{ stats.systemTypeComparison.U.avgScore.toFixed(1) }}</span>
+              <span class="font-semibold">{{
+                stats.systemTypeComparison.U.avgScore.toFixed(1)
+              }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-600 dark:text-gray-400">ROI:</span>
@@ -143,33 +114,19 @@
     <!-- Leaderboard -->
     <UCard v-if="leaderboard && leaderboard.length > 0">
       <template #header>
-        <h3 class="text-xl font-semibold">
-          System Leaderboard
-        </h3>
+        <h3 class="text-xl font-semibold">System Leaderboard</h3>
       </template>
 
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="bg-gray-50 dark:bg-gray-800">
             <tr>
-              <th class="px-4 py-3 text-left font-semibold">
-                Rank
-              </th>
-              <th class="px-4 py-3 text-left font-semibold">
-                System
-              </th>
-              <th class="px-4 py-3 text-left font-semibold">
-                Type
-              </th>
-              <th class="px-4 py-3 text-right font-semibold">
-                Draws
-              </th>
-              <th class="px-4 py-3 text-right font-semibold">
-                Avg Score
-              </th>
-              <th class="px-4 py-3 text-right font-semibold">
-                ROI
-              </th>
+              <th class="px-4 py-3 text-left font-semibold">Rank</th>
+              <th class="px-4 py-3 text-left font-semibold">System</th>
+              <th class="px-4 py-3 text-left font-semibold">Type</th>
+              <th class="px-4 py-3 text-right font-semibold">Draws</th>
+              <th class="px-4 py-3 text-right font-semibold">Avg Score</th>
+              <th class="px-4 py-3 text-right font-semibold">ROI</th>
             </tr>
           </thead>
           <tbody>
@@ -190,10 +147,7 @@
                 >
                   {{ idx + 1 }}
                 </span>
-                <span
-                  v-else
-                  class="text-gray-500"
-                >{{ idx + 1 }}</span>
+                <span v-else class="text-gray-500">{{ idx + 1 }}</span>
               </td>
               <td class="px-4 py-3 font-medium">
                 {{ system.systemId }}
@@ -215,7 +169,11 @@
               </td>
               <td
                 class="px-4 py-3 text-right font-semibold"
-                :class="system.roi >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
+                :class="
+                  system.roi >= 0
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400'
+                "
               >
                 {{ system.roi.toFixed(1) }}%
               </td>
@@ -228,9 +186,7 @@
     <!-- Recent Trend -->
     <UCard v-if="recentTrend && recentTrend.length > 0">
       <template #header>
-        <h3 class="text-xl font-semibold">
-          Recent Performance
-        </h3>
+        <h3 class="text-xl font-semibold">Recent Performance</h3>
       </template>
 
       <div class="space-y-3">
@@ -240,32 +196,27 @@
           class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
         >
           <div>
-            <div class="font-semibold">
-              Draw #{{ perf.drawNumber }}
-            </div>
+            <div class="font-semibold">Draw #{{ perf.drawNumber }}</div>
             <div class="text-sm text-gray-500 dark:text-gray-400">
               {{ perf.systemId }}
             </div>
           </div>
           <div class="flex items-center gap-4">
             <div class="text-right">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                Best Score
-              </div>
-              <div
-                class="font-bold text-lg"
-                :class="getScoreColor(perf.bestScore)"
-              >
+              <div class="text-sm text-gray-500 dark:text-gray-400">Best Score</div>
+              <div class="font-bold text-lg" :class="getScoreColor(perf.bestScore)">
                 {{ perf.bestScore }}/13
               </div>
             </div>
             <div class="text-right">
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                ROI
-              </div>
+              <div class="text-sm text-gray-500 dark:text-gray-400">ROI</div>
               <div
                 class="font-bold"
-                :class="perf.roi >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
+                :class="
+                  perf.roi >= 0
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400'
+                "
               >
                 {{ perf.roi.toFixed(0) }}%
               </div>
@@ -278,22 +229,13 @@
     <!-- Empty State -->
     <UCard v-if="!pending && (!stats || stats.totalDrawsAnalyzed === 0)">
       <div class="text-center py-12">
-        <div class="text-6xl mb-4">
-          📊
-        </div>
-        <h3 class="text-xl font-semibold mb-2">
-          No Performance Data Yet
-        </h3>
+        <div class="text-6xl mb-4">📊</div>
+        <h3 class="text-xl font-semibold mb-2">No Performance Data Yet</h3>
         <p class="text-gray-600 dark:text-gray-400 mb-6">
-          Generate coupons using R or U-systems and wait for draws to complete.
-          Then analyze them to see performance statistics.
+          Generate coupons using R or U-systems and wait for draws to complete. Then analyze them to
+          see performance statistics.
         </p>
-        <UButton
-          to="/draws"
-          variant="outline"
-        >
-          View Draws
-        </UButton>
+        <UButton to="/draws" variant="outline"> View Draws </UButton>
       </div>
     </UCard>
   </div>
@@ -309,8 +251,8 @@ interface OverallStats {
   worstPerformingSystem: string | null
   avgBestScore: number
   systemTypeComparison: {
-    R: { count: number, roi: number, avgScore: number }
-    U: { count: number, roi: number, avgScore: number }
+    R: { count: number; roi: number; avgScore: number }
+    U: { count: number; roi: number; avgScore: number }
   }
 }
 

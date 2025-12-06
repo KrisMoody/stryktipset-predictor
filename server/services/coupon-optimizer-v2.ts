@@ -1,6 +1,12 @@
 import { CouponOptimizer } from './coupon-optimizer'
 import { systemGenerator } from './system-generator'
-import type { SystemCoupon, BettingSystem, HedgeAssignment, CouponSelection, MGExtension } from '~/types'
+import type {
+  SystemCoupon,
+  BettingSystem,
+  HedgeAssignment,
+  CouponSelection,
+  MGExtension,
+} from '~/types'
 
 /**
  * Enhanced coupon optimizer with R/U-system support
@@ -13,10 +19,12 @@ export class CouponOptimizerV2 extends CouponOptimizer {
     drawNumber: number,
     systemId: string,
     utgangstecken?: Record<number, string>,
-    mgExtensions?: MGExtension[],
+    mgExtensions?: MGExtension[]
   ): Promise<SystemCoupon | null> {
     try {
-      console.log(`[CouponOptimizerV2] Generating system coupon for draw ${drawNumber} with system ${systemId}`)
+      console.log(
+        `[CouponOptimizerV2] Generating system coupon for draw ${drawNumber} with system ${systemId}`
+      )
 
       // Get system definition
       const system = systemGenerator.getSystem(systemId)
@@ -46,7 +54,7 @@ export class CouponOptimizerV2 extends CouponOptimizer {
         system,
         hedgeAssignment,
         finalUtgangstecken,
-        mgExtensions,
+        mgExtensions
       )
 
       // Calculate total cost (1 SEK per row)
@@ -64,8 +72,7 @@ export class CouponOptimizerV2 extends CouponOptimizer {
         totalCost,
         expectedValue,
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[CouponOptimizerV2] Error generating system coupon:`, error)
       return null
     }
@@ -83,7 +90,7 @@ export class CouponOptimizerV2 extends CouponOptimizer {
    */
   private determineHedgeAssignment(
     selections: CouponSelection[],
-    system: BettingSystem,
+    system: BettingSystem
   ): HedgeAssignment {
     const totalHedges = system.helgarderingar + system.halvgarderingar
     const totalSpiks = 13 - totalHedges
@@ -104,9 +111,7 @@ export class CouponOptimizerV2 extends CouponOptimizer {
     for (let i = 0; i < totalSpiks && i < sorted.length; i++) {
       const sel = sorted[i]!
       spiks.push(sel.matchNumber)
-      spikOutcomes[sel.matchNumber] = sel.selection.length === 1
-        ? sel.selection
-        : sel.selection[0]! // Take first character if multiple outcomes
+      spikOutcomes[sel.matchNumber] = sel.selection.length === 1 ? sel.selection : sel.selection[0]! // Take first character if multiple outcomes
     }
 
     // Assign helgarderingar and halvgarderingar to remaining matches
@@ -125,7 +130,9 @@ export class CouponOptimizerV2 extends CouponOptimizer {
       halvgarderingar.push(sortedByUncertainty[i]!.matchNumber)
     }
 
-    console.log(`[CouponOptimizerV2] Hedge assignment: ${spiks.length} spiks, ${helgarderingar.length} helg, ${halvgarderingar.length} halvg`)
+    console.log(
+      `[CouponOptimizerV2] Hedge assignment: ${spiks.length} spiks, ${helgarderingar.length} helg, ${halvgarderingar.length} halvg`
+    )
 
     return {
       spiks,
@@ -142,27 +149,25 @@ export class CouponOptimizerV2 extends CouponOptimizer {
    */
   private autoGenerateUtgangstecken(
     selections: CouponSelection[],
-    hedgeAssignment: HedgeAssignment,
+    hedgeAssignment: HedgeAssignment
   ): Record<number, string> {
     const utgangstecken: Record<number, string> = {}
 
     // Get hedged match numbers
-    const hedgedMatches = [
-      ...hedgeAssignment.helgarderingar,
-      ...hedgeAssignment.halvgarderingar,
-    ]
+    const hedgedMatches = [...hedgeAssignment.helgarderingar, ...hedgeAssignment.halvgarderingar]
 
     for (const matchNum of hedgedMatches) {
       const selection = selections.find(s => s.matchNumber === matchNum)
       if (selection) {
         // Use the first character of the selection (highest probability outcome)
-        utgangstecken[matchNum] = selection.selection.length === 1
-          ? selection.selection
-          : selection.selection[0]!
+        utgangstecken[matchNum] =
+          selection.selection.length === 1 ? selection.selection : selection.selection[0]!
       }
     }
 
-    console.log(`[CouponOptimizerV2] Auto-generated utgångstecken for ${Object.keys(utgangstecken).length} matches`)
+    console.log(
+      `[CouponOptimizerV2] Auto-generated utgångstecken for ${Object.keys(utgangstecken).length} matches`
+    )
 
     return utgangstecken
   }

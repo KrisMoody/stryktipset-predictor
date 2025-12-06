@@ -1,7 +1,7 @@
 import { aiMetricsService } from '~/server/services/ai-metrics-service'
 import type { DateRangeFilter } from '~/types'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const query = getQuery(event)
 
@@ -26,8 +26,7 @@ export default defineEventHandler(async (event) => {
         byOperation: operationBreakdown,
       },
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error getting AI cost breakdowns:', error)
     return {
       success: false,

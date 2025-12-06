@@ -68,7 +68,12 @@ export class LineupScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, _matchId: number, drawNumber: number, matchNumber: number): Promise<LineupData | null> {
+  async scrape(
+    page: Page,
+    _matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<LineupData | null> {
     try {
       this.log('Starting lineup scraping')
 
@@ -77,7 +82,10 @@ export class LineupScraper extends BaseScraper {
       await this.navigateTo(page, url)
 
       // Wait for the Enetpulse formation widget to load
-      await page.waitForSelector('#enetpulse-container .wff_formation_generic_root, .wff_formation_generic', { timeout: 15000 })
+      await page.waitForSelector(
+        '#enetpulse-container .wff_formation_generic_root, .wff_formation_generic',
+        { timeout: 15000 }
+      )
 
       // Give the widget extra time to fully render
       await this.humanDelay(1500, 2500)
@@ -96,8 +104,7 @@ export class LineupScraper extends BaseScraper {
         await page.locator(awayTabSelector).click()
         await this.humanDelay(500, 1000) // Wait for content to update
         awayTeam = await this.extractTeamLineup(page, teamNames[1] || 'Away')
-      }
-      else {
+      } else {
         // Away team tab might already be selected or not exist
         awayTeam = {
           teamName: teamNames[1] || 'Away',
@@ -116,10 +123,11 @@ export class LineupScraper extends BaseScraper {
         selectedTeam,
       }
 
-      this.log(`Lineup scraping complete: ${homeTeam.teamName} (${homeTeam.formation}), ${awayTeam.teamName} (${awayTeam.formation})`)
+      this.log(
+        `Lineup scraping complete: ${homeTeam.teamName} (${homeTeam.formation}), ${awayTeam.teamName} (${awayTeam.formation})`
+      )
       return lineupData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping lineup: ${error}`)
       return null
     }
@@ -130,10 +138,11 @@ export class LineupScraper extends BaseScraper {
    */
   private async getTeamNames(page: Page): Promise<string[]> {
     try {
-      const tabs = await page.locator('.wff_team_tabs_container .wff_team_tab .wff_participant_name').allTextContents()
+      const tabs = await page
+        .locator('.wff_team_tabs_container .wff_team_tab .wff_participant_name')
+        .allTextContents()
       return tabs.map(name => name.trim())
-    }
-    catch {
+    } catch {
       return []
     }
   }
@@ -144,13 +153,16 @@ export class LineupScraper extends BaseScraper {
   private async getSelectedTeam(page: Page, teamNames: string[]): Promise<'home' | 'away'> {
     try {
       // The selected tab does NOT have .wff_not_selected class
-      const selectedTab = await page.locator('.wff_team_tabs_container .wff_team_tab:not(.wff_not_selected) .wff_participant_name').textContent()
+      const selectedTab = await page
+        .locator(
+          '.wff_team_tabs_container .wff_team_tab:not(.wff_not_selected) .wff_participant_name'
+        )
+        .textContent()
       if (selectedTab && teamNames[1] && selectedTab.trim() === teamNames[1].trim()) {
         return 'away'
       }
       return 'home'
-    }
-    catch {
+    } catch {
       return 'home'
     }
   }
@@ -184,12 +196,13 @@ export class LineupScraper extends BaseScraper {
       lineup.unavailable = await this.extractUnavailablePlayers(page)
 
       // Extract coach
-      const coachName = await page.locator('.wff_lineup_coach .wff_formation_lineup_type_participant_name').textContent()
+      const coachName = await page
+        .locator('.wff_lineup_coach .wff_formation_lineup_type_participant_name')
+        .textContent()
       if (coachName) {
         lineup.coach = coachName.trim()
       }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting team lineup: ${error}`)
     }
 
@@ -218,9 +231,9 @@ export class LineupScraper extends BaseScraper {
           const number = parseInt(numberText?.trim() || '0') || 0
 
           // Check if goalkeeper (has .wff_goalkeeper class)
-          const isGoalkeeper = await nameElement.evaluate((el: Element) =>
-            el.classList.contains('wff_goalkeeper'),
-          ).catch(() => false)
+          const isGoalkeeper = await nameElement
+            .evaluate((el: Element) => el.classList.contains('wff_goalkeeper'))
+            .catch(() => false)
 
           if (name) {
             players.push({
@@ -229,15 +242,13 @@ export class LineupScraper extends BaseScraper {
               position: isGoalkeeper ? 'goalkeeper' : undefined,
             })
           }
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single player: ${innerError}`)
         }
       }
 
       this.log(`Extracted ${players.length} starting XI players`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting starting XI: ${error}`)
     }
 
@@ -254,20 +265,24 @@ export class LineupScraper extends BaseScraper {
       // Find unavailable players section
       const unavailableSection = page.locator('.wff_lineup_unavailable')
 
-      if (await unavailableSection.count() > 0) {
-        const playerElements = await unavailableSection.locator('.wff_formation_lineup_type_participant').all()
+      if ((await unavailableSection.count()) > 0) {
+        const playerElements = await unavailableSection
+          .locator('.wff_formation_lineup_type_participant')
+          .all()
 
         for (const element of playerElements) {
           try {
             // Get player name
-            const name = await element.locator('.wff_formation_lineup_type_participant_name').textContent()
+            const name = await element
+              .locator('.wff_formation_lineup_type_participant_name')
+              .textContent()
 
             // Get jersey number
             const numberText = await element.locator('.wff_participant_shirt_number').textContent()
             const number = parseInt(numberText?.trim() || '0') || 0
 
             // Check reason (injured indicator)
-            const hasInjuredIcon = await element.locator('.icon-injured').count() > 0
+            const hasInjuredIcon = (await element.locator('.icon-injured').count()) > 0
             const reason = hasInjuredIcon ? 'injured' : 'unknown'
 
             if (name) {
@@ -277,16 +292,14 @@ export class LineupScraper extends BaseScraper {
                 reason,
               })
             }
-          }
-          catch (innerError) {
+          } catch (innerError) {
             this.log(`Error extracting unavailable player: ${innerError}`)
           }
         }
       }
 
       this.log(`Extracted ${players.length} unavailable players`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting unavailable players: ${error}`)
     }
 

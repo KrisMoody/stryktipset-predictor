@@ -5,31 +5,17 @@
         <p class="text-sm text-gray-600 dark:text-gray-400">
           {{ title }}
         </p>
-        <UIcon
-          v-if="icon"
-          :name="icon"
-          class="w-5 h-5 text-gray-400"
-        />
+        <UIcon v-if="icon" :name="icon" class="w-5 h-5 text-gray-400" />
       </div>
       <div class="flex items-baseline gap-2">
-        <p
-          class="text-3xl font-bold"
-          :class="valueClass"
-        >
+        <p class="text-3xl font-bold" :class="valueClass">
           {{ formattedValue }}
         </p>
-        <p
-          v-if="change !== undefined"
-          class="text-sm font-medium"
-          :class="changeClass"
-        >
+        <p v-if="change !== undefined" class="text-sm font-medium" :class="changeClass">
           {{ changePrefix }}{{ Math.abs(change).toFixed(1) }}%
         </p>
       </div>
-      <p
-        v-if="subtitle"
-        class="text-xs text-gray-500 dark:text-gray-400"
-      >
+      <p v-if="subtitle" class="text-xs text-gray-500 dark:text-gray-400">
         {{ subtitle }}
       </p>
     </div>

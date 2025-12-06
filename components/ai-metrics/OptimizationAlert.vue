@@ -2,11 +2,7 @@
   <UCard :ui="cardUI">
     <div class="flex gap-4">
       <div class="flex-shrink-0">
-        <UIcon
-          :name="iconName"
-          :class="iconClass"
-          class="w-6 h-6"
-        />
+        <UIcon :name="iconName" :class="iconClass" class="w-6 h-6" />
       </div>
       <div class="flex-1 min-w-0">
         <h4 class="font-semibold text-gray-900 dark:text-gray-100 mb-1">
@@ -21,10 +17,7 @@
         >
           Potential savings: ${{ recommendation.potentialSavings.toFixed(4) }}
         </p>
-        <p
-          v-if="recommendation.action"
-          class="text-sm text-gray-700 dark:text-gray-300"
-        >
+        <p v-if="recommendation.action" class="text-sm text-gray-700 dark:text-gray-300">
           <strong>Action:</strong> {{ recommendation.action }}
         </p>
       </div>

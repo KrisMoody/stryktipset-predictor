@@ -4,7 +4,7 @@ import { prisma } from '~/server/utils/prisma'
  * API endpoint to check backfill operation status
  * GET /api/admin/backfill-status/:id
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const id = getRouterParam(event, 'id')
 
@@ -37,9 +37,10 @@ export default defineEventHandler(async (event) => {
     }
 
     // Calculate progress percentage
-    const progressPercentage = operation.total_draws > 0
-      ? Math.round((operation.processed_draws / operation.total_draws) * 100)
-      : 0
+    const progressPercentage =
+      operation.total_draws > 0
+        ? Math.round((operation.processed_draws / operation.total_draws) * 100)
+        : 0
 
     // Calculate estimated time remaining (if still running)
     let estimatedTimeRemaining: number | null = null
@@ -79,8 +80,7 @@ export default defineEventHandler(async (event) => {
         duration,
       },
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Backfill Status API] Error fetching status:', error)
 
     if (error && typeof error === 'object' && 'statusCode' in error) {

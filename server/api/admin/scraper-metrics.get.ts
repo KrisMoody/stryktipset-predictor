@@ -4,7 +4,7 @@
 
 import { prisma } from '~/server/utils/prisma'
 
-export default defineEventHandler(async (_event) => {
+export default defineEventHandler(async _event => {
   try {
     // Get AI usage statistics
     const aiUsageStats = await prisma.ai_usage.groupBy({
@@ -31,7 +31,7 @@ export default defineEventHandler(async (_event) => {
 
     // Get success rate by data type
     const successRates = await Promise.all(
-      ['xStats', 'statistics', 'headToHead', 'news'].map(async (dataType) => {
+      ['xStats', 'statistics', 'headToHead', 'news'].map(async dataType => {
         const total = await prisma.ai_usage.count({
           where: {
             data_type: dataType,
@@ -57,7 +57,7 @@ export default defineEventHandler(async (_event) => {
           successful,
           successRate: total > 0 ? (successful / total) * 100 : 0,
         }
-      }),
+      })
     )
 
     // Get total costs
@@ -74,7 +74,7 @@ export default defineEventHandler(async (_event) => {
 
     // Get daily costs for the last 7 days
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    const dailyCosts = await prisma.$queryRaw<Array<{ date: Date, cost: number, count: number }>>`
+    const dailyCosts = await prisma.$queryRaw<Array<{ date: Date; cost: number; count: number }>>`
       SELECT 
         DATE(timestamp) as date,
         SUM(cost_usd)::float as cost,
@@ -100,7 +100,7 @@ export default defineEventHandler(async (_event) => {
 
     // Calculate AI vs DOM comparison
     const aiVsDomComparison = await Promise.all(
-      ['xStats', 'statistics', 'headToHead', 'news'].map(async (dataType) => {
+      ['xStats', 'statistics', 'headToHead', 'news'].map(async dataType => {
         // AI stats
         const aiTotal = await prisma.ai_usage.count({
           where: {
@@ -154,7 +154,7 @@ export default defineEventHandler(async (_event) => {
             successRate: domTotal > 0 ? (domSuccess / domTotal) * 100 : 0,
           },
         }
-      }),
+      })
     )
 
     return {
@@ -172,8 +172,7 @@ export default defineEventHandler(async (_event) => {
       },
       timestamp: new Date(),
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Scraper Metrics] Error fetching metrics:', error)
     return {
       success: false,

@@ -46,7 +46,9 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
   const matchIds = body?.matchIds || draw.matches.map(m => m.id)
   const contexts = body?.contexts || {}
 
-  console.log(`[Re-evaluate All] Starting re-evaluation for ${matchIds.length} matches in draw ${drawNumber}`)
+  console.log(
+    `[Re-evaluate All] Starting re-evaluation for ${matchIds.length} matches in draw ${drawNumber}`
+  )
 
   // Execute predictions in parallel
   const results = await Promise.all(
@@ -57,8 +59,7 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
           isReevaluation: true,
         })
         return { matchId, success: true }
-      }
-      catch (error) {
+      } catch (error) {
         console.error(`[Re-evaluate All] Failed for match ${matchId}:`, error)
         return {
           matchId,
@@ -66,7 +67,7 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
           error: error instanceof Error ? error.message : 'Unknown error',
         }
       }
-    }),
+    })
   )
 
   // Calculate total cost from recent AI usage
@@ -78,15 +79,14 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
     select: { cost_usd: true },
   })
 
-  const totalCost = recentUsage.reduce(
-    (sum, u) => sum + Number(u.cost_usd),
-    0,
-  )
+  const totalCost = recentUsage.reduce((sum, u) => sum + Number(u.cost_usd), 0)
 
   const duration = Date.now() - startTime
   const successCount = results.filter((r: ReEvaluateResult) => r.success).length
 
-  console.log(`[Re-evaluate All] Completed: ${successCount}/${matchIds.length} successful, $${totalCost.toFixed(4)} cost, ${duration}ms`)
+  console.log(
+    `[Re-evaluate All] Completed: ${successCount}/${matchIds.length} successful, $${totalCost.toFixed(4)} cost, ${duration}ms`
+  )
 
   // Invalidate draw cache so refresh() returns fresh data
   drawCacheService.invalidateDrawCache(drawNumber)

@@ -22,9 +22,7 @@ export function useNavigation() {
   ]
 
   const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
-    const items: BreadcrumbItem[] = [
-      { label: 'Dashboard', to: '/', icon: 'i-heroicons-home' },
-    ]
+    const items: BreadcrumbItem[] = [{ label: 'Dashboard', to: '/', icon: 'i-heroicons-home' }]
 
     const path = route.path
 
@@ -36,22 +34,18 @@ export function useNavigation() {
     // Static pages
     if (path === '/analytics') {
       items.push({ label: 'Analytics' })
-    }
-    else if (path === '/ai-dashboard') {
+    } else if (path === '/ai-dashboard') {
       items.push({ label: 'AI Metrics' })
-    }
-    else if (path === '/performance') {
+    } else if (path === '/performance') {
       items.push({ label: 'Performance' })
-    }
-    else if (path === '/admin') {
+    } else if (path === '/admin') {
       items.push({ label: 'Admin' })
     }
     // Dynamic draw pages
     else if (path.match(/^\/draw\/\d+$/)) {
       const drawId = route.params.id
       items.push({ label: `Draw #${drawId}` })
-    }
-    else if (path.match(/^\/draw\/\d+\/optimize$/)) {
+    } else if (path.match(/^\/draw\/\d+\/optimize$/)) {
       const drawId = route.params.id
       items.push({ label: `Draw #${drawId}`, to: `/draw/${drawId}` })
       items.push({ label: 'Optimize Coupon' })

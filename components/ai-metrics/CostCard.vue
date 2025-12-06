@@ -60,7 +60,7 @@ const valueClass = computed(() => {
 
 const changeClass = computed(() => {
   if (props.change === undefined) return ''
-  if (props.change > 0) return 'text-red-500'
+  if (props.change > 0) return 'text-red-600'
   if (props.change < 0) return 'text-green-500'
   return 'text-gray-500'
 })

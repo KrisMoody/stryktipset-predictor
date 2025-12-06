@@ -19,11 +19,12 @@
       "Bash(test:*)",
       "Bash(yarn format:check:*)",
       "Bash(yarn format:*)",
-      "Bash(yarn test:all:*)"
+      "Bash(yarn test:all:*)",
+      "Bash(yarn test:a11y:*)"
     ],
     "deny": [],
     "ask": []
   },
-  "enabledMcpjsonServers": ["supabase"],
-  "enableAllProjectMcpServers": true
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["supabase"]
 }

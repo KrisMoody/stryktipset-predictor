@@ -9,6 +9,7 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient; pool: pg.Po
 if (!globalForPrisma.pool) {
   globalForPrisma.pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
+    max: 10,
   })
 }
 

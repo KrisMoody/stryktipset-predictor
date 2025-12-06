@@ -42,10 +42,10 @@
       v-if="scheduleStatus && !scheduleStatus.isActive"
       class="flex items-center gap-3 mb-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
     >
-      <USwitch v-model="adminOverride" />
-      <span class="text-sm text-gray-600 dark:text-gray-400">
+      <USwitch id="admin-override" v-model="adminOverride" aria-label="Admin Override" />
+      <label for="admin-override" class="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
         Admin Override (enable actions outside betting window)
-      </span>
+      </label>
     </div>
 
     <!-- Health Status Cards -->
@@ -71,7 +71,7 @@
               Processed: {{ scraperHealth.health?.totalProcessed || 0 }}
             </p>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ scraperHealth?.error || 'Failed to fetch' }}
           </div>
           <UButton
@@ -105,7 +105,7 @@
               Draws available: {{ svenskaSpelHealth.drawsAvailable }}
             </p>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ svenskaSpelHealth?.error || 'Failed to fetch' }}
           </div>
           <UButton
@@ -298,6 +298,7 @@
                 size="xs"
                 variant="ghost"
                 icon="i-heroicons-arrow-path"
+                aria-label="Refresh backfill status"
                 @click="refreshBackfillStatus(op.id)"
               />
             </div>
@@ -311,7 +312,13 @@
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-2xl font-semibold">AI Metrics</h2>
         <div class="flex gap-2">
-          <USelect v-model="aiMetricsPreset" :items="datePresetOptions" size="sm" class="w-36" />
+          <USelect
+            v-model="aiMetricsPreset"
+            :items="datePresetOptions"
+            size="sm"
+            class="w-36"
+            aria-label="Select date range"
+          />
           <UButton
             size="xs"
             variant="ghost"
@@ -353,7 +360,7 @@
               {{ formatTokens(aiMetricsOverview.data?.totalTokens || 0) }} tokens
             </p>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ aiMetricsOverview?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -386,7 +393,7 @@
               Remaining: ${{ aiMetricsBudget.data?.remaining?.toFixed(2) || '0.00' }}
             </p>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ aiMetricsBudget?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -413,7 +420,7 @@
               Success rate: {{ aiMetricsEfficiency.data?.successRate?.toFixed(1) || 0 }}%
             </p>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ aiMetricsEfficiency?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -439,7 +446,7 @@
               No data available
             </p>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ aiMetricsCosts?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -552,7 +559,7 @@
               }}
             </p>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ scraperMetrics?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -580,7 +587,7 @@
               </UBadge>
             </div>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ scraperMetrics?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -608,7 +615,7 @@
               </div>
             </div>
           </div>
-          <div v-else class="text-sm text-red-500">
+          <div v-else class="text-sm text-red-600">
             {{ scraperMetrics?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -660,7 +667,7 @@
             </p>
           </div>
         </div>
-        <div v-else class="text-sm text-red-500 py-4 text-center">
+        <div v-else class="text-sm text-red-600 py-4 text-center">
           {{ aiUsageMetrics?.error || 'Failed to load metrics' }}
         </div>
       </UCard>
@@ -1048,7 +1055,7 @@ function getRecommendationIcon(type: string): string {
 function getRecommendationColor(priority: string): string {
   switch (priority) {
     case 'high':
-      return 'text-red-500'
+      return 'text-red-600'
     case 'medium':
       return 'text-yellow-500'
     case 'low':

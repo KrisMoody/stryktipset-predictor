@@ -142,20 +142,18 @@ test.describe('Accessibility - Color Contrast', () => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    // Run axe specifically for color contrast
-    const results = await new AxeBuilder({ page }).withTags(['cat.color']).analyze()
+    // Run axe specifically for WCAG 2 AA color contrast (4.5:1 ratio)
+    // Note: We exclude 'color-contrast-enhanced' (WCAG AAA - 7:1 ratio) as it's a stricter optional standard
+    const results = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze()
 
-    // Filter for contrast-specific violations
-    const contrastViolations = results.violations.filter(v => v.id.includes('contrast'))
-
-    if (contrastViolations.length > 0) {
+    if (results.violations.length > 0) {
       console.log('Color contrast violations:')
-      contrastViolations.forEach(v => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.id}: ${v.nodes.length} elements`)
       })
     }
 
-    expect(contrastViolations).toEqual([])
+    expect(results.violations).toEqual([])
   })
 })
 

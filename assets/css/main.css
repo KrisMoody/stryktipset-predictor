@@ -1,6 +1,20 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
+/* Override primary color for better contrast (WCAG 2 AA compliance) */
+:root {
+  --ui-primary: var(--ui-color-blue-700);
+}
+
+.dark {
+  --ui-primary: var(--ui-color-blue-400);
+}
+
+/* Ensure solid buttons have accessible contrast with white text */
+.bg-primary.text-inverted {
+  background-color: #1d4ed8 !important;
+}
+
 /* Skip link - visually hidden but visible on focus for keyboard users */
 .skip-link {
   position: absolute;

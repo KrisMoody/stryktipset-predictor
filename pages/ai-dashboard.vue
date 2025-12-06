@@ -431,7 +431,7 @@ function getSuccessRateColor(rate: number): string {
 function getTrendClass(trend: string): string {
   switch (trend) {
     case 'increasing':
-      return 'text-red-500'
+      return 'text-red-600'
     case 'decreasing':
       return 'text-green-500'
     default:

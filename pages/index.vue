@@ -196,7 +196,7 @@
     <UCard v-else>
       <div class="text-center py-12">
         <UIcon name="i-heroicons-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
-        <h3 class="text-lg font-semibold mb-2">No Active Draws</h3>
+        <h2 class="text-lg font-semibold mb-2">No Active Draws</h2>
         <p class="text-gray-600 dark:text-gray-400 mb-4">
           There are no active Stryktipset draws at the moment.
         </p>

@@ -10,7 +10,8 @@
       "Bash(npm run test:unit:*)",
       "Bash(npm test:*)",
       "Bash(cat:*)",
-      "Bash(npm run test:components:*)"
+      "Bash(npm run test:components:*)",
+      "Bash(npm run test:api:*)"
     ],
     "deny": [],
     "ask": []

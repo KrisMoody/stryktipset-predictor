@@ -72,6 +72,9 @@ jobs:
       - name: Run component tests
         run: npm run test:components
 
+      - name: Run API tests
+        run: npm run test:api
+
       - name: Run tests with coverage
         run: npm run test:coverage
 

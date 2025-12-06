@@ -1,27 +1,30 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 /**
  * API Tests for /api/schedule/status endpoint
  *
  * These tests verify the API response format and data transformation
  * by simulating the service response.
+ *
+ * Types match server/services/schedule-window-service.ts
  */
 
-// Types matching the service
+// Types matching the actual ScheduleWindowStatus interface
 interface WindowStatus {
   isActive: boolean
-  currentPhase: 'active' | 'pre-close' | 'closed' | 'pre-open'
+  currentPhase: 'early' | 'mid' | 'late' | 'closed'
   closeTime: Date | null
   openTime: Date | null
   minutesUntilClose: number | null
   minutesUntilOpen: number | null
-  scrapingIntensity: 'high' | 'medium' | 'low' | 'minimal'
-  dataRefreshThreshold: number
+  scrapingIntensity: 'normal' | 'aggressive' | 'very_aggressive'
+  dataRefreshThreshold: number // Hours (4, 12, or 24)
   reason: string
   stockholmTime: string
 }
 
 // Simulate the API handler logic (extracted for testing)
+// Matches server/api/schedule/status.get.ts
 const handleGetScheduleStatus = (status: WindowStatus) => {
   return {
     success: true,
@@ -51,45 +54,63 @@ const handleScheduleStatusError = (error: Error) => {
 // Test Data Factories
 // ============================================================================
 
-const createActiveWindowStatus = (overrides: Partial<WindowStatus> = {}): WindowStatus => ({
+// Early phase: Tuesday-Thursday, normal intensity, 24h refresh threshold
+const createEarlyPhaseStatus = (overrides: Partial<WindowStatus> = {}): WindowStatus => ({
   isActive: true,
-  currentPhase: 'active',
-  closeTime: new Date('2024-11-02T15:59:00+01:00'),
-  openTime: new Date('2024-11-05T00:00:00+01:00'),
-  minutesUntilClose: 120,
+  currentPhase: 'early',
+  closeTime: new Date('2024-11-02T15:59:00+01:00'), // Saturday
+  openTime: null,
+  minutesUntilClose: 4320, // ~3 days
   minutesUntilOpen: null,
-  scrapingIntensity: 'high',
-  dataRefreshThreshold: 15,
-  reason: 'Active betting window',
+  scrapingIntensity: 'normal',
+  dataRefreshThreshold: 24, // Hours
+  reason: 'Wednesday - match list published. Normal operations.',
+  stockholmTime: '2024-10-30T14:00:00+01:00',
+  ...overrides,
+})
+
+// Mid phase: Friday, aggressive intensity, 12h refresh threshold
+const createMidPhaseStatus = (overrides: Partial<WindowStatus> = {}): WindowStatus => ({
+  isActive: true,
+  currentPhase: 'mid',
+  closeTime: new Date('2024-11-02T15:59:00+01:00'),
+  openTime: null,
+  minutesUntilClose: 1440, // ~24 hours (Friday)
+  minutesUntilOpen: null,
+  scrapingIntensity: 'aggressive',
+  dataRefreshThreshold: 12, // Hours
+  reason: 'Friday - betting tips being published. Moderate refresh rate.',
+  stockholmTime: '2024-11-01T14:00:00+01:00',
+  ...overrides,
+})
+
+// Late phase: Saturday morning, very aggressive intensity, 4h refresh threshold
+const createLatePhaseStatus = (overrides: Partial<WindowStatus> = {}): WindowStatus => ({
+  isActive: true,
+  currentPhase: 'late',
+  closeTime: new Date('2024-11-02T15:59:00+01:00'),
+  openTime: null,
+  minutesUntilClose: 120, // 2 hours until spelstopp
+  minutesUntilOpen: null,
+  scrapingIntensity: 'very_aggressive',
+  dataRefreshThreshold: 4, // Hours
+  reason: 'Saturday - 2h until spelstopp. Aggressive data refresh.',
   stockholmTime: '2024-11-02T14:00:00+01:00',
   ...overrides,
 })
 
-const createClosedWindowStatus = (overrides: Partial<WindowStatus> = {}): WindowStatus => ({
+// Closed phase: Sunday/Monday or Saturday after 16:00
+const createClosedPhaseStatus = (overrides: Partial<WindowStatus> = {}): WindowStatus => ({
   isActive: false,
   currentPhase: 'closed',
   closeTime: null,
-  openTime: new Date('2024-11-05T00:00:00+01:00'),
+  openTime: new Date('2024-11-05T00:00:00+01:00'), // Next Tuesday
   minutesUntilClose: null,
   minutesUntilOpen: 2880, // 2 days
-  scrapingIntensity: 'minimal',
-  dataRefreshThreshold: 360,
-  reason: 'Window closed until Tuesday',
+  scrapingIntensity: 'normal', // Default when closed
+  dataRefreshThreshold: 24, // Default when closed
+  reason: 'Sunday - new coupon may be opening. Light sync only.',
   stockholmTime: '2024-11-03T14:00:00+01:00',
-  ...overrides,
-})
-
-const createPreCloseWindowStatus = (overrides: Partial<WindowStatus> = {}): WindowStatus => ({
-  isActive: true,
-  currentPhase: 'pre-close',
-  closeTime: new Date('2024-11-02T15:59:00+01:00'),
-  openTime: new Date('2024-11-05T00:00:00+01:00'),
-  minutesUntilClose: 30,
-  minutesUntilOpen: null,
-  scrapingIntensity: 'high',
-  dataRefreshThreshold: 5,
-  reason: 'Window closing soon',
-  stockholmTime: '2024-11-02T15:30:00+01:00',
   ...overrides,
 })
 
@@ -100,13 +121,13 @@ const createPreCloseWindowStatus = (overrides: Partial<WindowStatus> = {}): Wind
 describe('GET /api/schedule/status', () => {
   describe('response structure', () => {
     it('returns success: true on valid response', () => {
-      const status = createActiveWindowStatus()
+      const status = createEarlyPhaseStatus()
       const response = handleGetScheduleStatus(status)
       expect(response.success).toBe(true)
     })
 
     it('returns all required status fields', () => {
-      const status = createActiveWindowStatus()
+      const status = createEarlyPhaseStatus()
       const response = handleGetScheduleStatus(status)
 
       expect(response.status).toHaveProperty('isActive')
@@ -122,122 +143,168 @@ describe('GET /api/schedule/status', () => {
     })
   })
 
-  describe('active window', () => {
+  describe('early phase (Tuesday-Thursday)', () => {
     it('returns isActive: true during betting window', () => {
-      const status = createActiveWindowStatus()
+      const status = createEarlyPhaseStatus()
       const response = handleGetScheduleStatus(status)
       expect(response.status.isActive).toBe(true)
     })
 
-    it('returns currentPhase: "active" during normal active window', () => {
-      const status = createActiveWindowStatus()
+    it('returns currentPhase: "early" during Tuesday-Thursday', () => {
+      const status = createEarlyPhaseStatus()
       const response = handleGetScheduleStatus(status)
-      expect(response.status.currentPhase).toBe('active')
+      expect(response.status.currentPhase).toBe('early')
+    })
+
+    it('returns normal scraping intensity', () => {
+      const status = createEarlyPhaseStatus()
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.scrapingIntensity).toBe('normal')
+    })
+
+    it('returns 24 hour refresh threshold', () => {
+      const status = createEarlyPhaseStatus()
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.dataRefreshThreshold).toBe(24)
     })
 
     it('returns closeTime as ISO string', () => {
-      const status = createActiveWindowStatus()
+      const status = createEarlyPhaseStatus()
       const response = handleGetScheduleStatus(status)
       expect(response.status.closeTime).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     })
 
     it('returns minutesUntilClose as number', () => {
-      const status = createActiveWindowStatus({ minutesUntilClose: 120 })
+      const status = createEarlyPhaseStatus({ minutesUntilClose: 4320 })
       const response = handleGetScheduleStatus(status)
-      expect(response.status.minutesUntilClose).toBe(120)
+      expect(response.status.minutesUntilClose).toBe(4320)
     })
 
     it('returns minutesUntilOpen as null during active window', () => {
-      const status = createActiveWindowStatus()
+      const status = createEarlyPhaseStatus()
       const response = handleGetScheduleStatus(status)
       expect(response.status.minutesUntilOpen).toBeNull()
     })
   })
 
-  describe('closed window', () => {
+  describe('mid phase (Friday)', () => {
+    it('returns currentPhase: "mid" on Friday', () => {
+      const status = createMidPhaseStatus()
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.currentPhase).toBe('mid')
+    })
+
+    it('returns aggressive scraping intensity', () => {
+      const status = createMidPhaseStatus()
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.scrapingIntensity).toBe('aggressive')
+    })
+
+    it('returns 12 hour refresh threshold', () => {
+      const status = createMidPhaseStatus()
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.dataRefreshThreshold).toBe(12)
+    })
+  })
+
+  describe('late phase (Saturday morning)', () => {
+    it('returns currentPhase: "late" on Saturday morning', () => {
+      const status = createLatePhaseStatus()
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.currentPhase).toBe('late')
+    })
+
+    it('returns very_aggressive scraping intensity', () => {
+      const status = createLatePhaseStatus()
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.scrapingIntensity).toBe('very_aggressive')
+    })
+
+    it('returns 4 hour refresh threshold', () => {
+      const status = createLatePhaseStatus()
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.dataRefreshThreshold).toBe(4)
+    })
+
+    it('returns short minutesUntilClose', () => {
+      const status = createLatePhaseStatus({ minutesUntilClose: 120 })
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.minutesUntilClose).toBe(120)
+    })
+  })
+
+  describe('closed phase', () => {
     it('returns isActive: false when window is closed', () => {
-      const status = createClosedWindowStatus()
+      const status = createClosedPhaseStatus()
       const response = handleGetScheduleStatus(status)
       expect(response.status.isActive).toBe(false)
     })
 
     it('returns currentPhase: "closed" when window is closed', () => {
-      const status = createClosedWindowStatus()
+      const status = createClosedPhaseStatus()
       const response = handleGetScheduleStatus(status)
       expect(response.status.currentPhase).toBe('closed')
     })
 
     it('returns closeTime as null when window is closed', () => {
-      const status = createClosedWindowStatus()
+      const status = createClosedPhaseStatus()
       const response = handleGetScheduleStatus(status)
       expect(response.status.closeTime).toBeNull()
     })
 
     it('returns minutesUntilClose as null when window is closed', () => {
-      const status = createClosedWindowStatus()
+      const status = createClosedPhaseStatus()
       const response = handleGetScheduleStatus(status)
       expect(response.status.minutesUntilClose).toBeNull()
     })
 
     it('returns minutesUntilOpen as number when window is closed', () => {
-      const status = createClosedWindowStatus({ minutesUntilOpen: 2880 })
+      const status = createClosedPhaseStatus({ minutesUntilOpen: 2880 })
       const response = handleGetScheduleStatus(status)
       expect(response.status.minutesUntilOpen).toBe(2880)
     })
-  })
 
-  describe('pre-close phase', () => {
-    it('returns currentPhase: "pre-close" when window is closing soon', () => {
-      const status = createPreCloseWindowStatus()
+    it('returns openTime as ISO string when window is closed', () => {
+      const status = createClosedPhaseStatus()
       const response = handleGetScheduleStatus(status)
-      expect(response.status.currentPhase).toBe('pre-close')
-    })
-
-    it('returns high scraping intensity during pre-close', () => {
-      const status = createPreCloseWindowStatus()
-      const response = handleGetScheduleStatus(status)
-      expect(response.status.scrapingIntensity).toBe('high')
-    })
-
-    it('returns short refresh threshold during pre-close', () => {
-      const status = createPreCloseWindowStatus({ dataRefreshThreshold: 5 })
-      const response = handleGetScheduleStatus(status)
-      expect(response.status.dataRefreshThreshold).toBe(5)
+      expect(response.status.openTime).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     })
   })
 
-  describe('scraping intensity', () => {
+  describe('scraping intensity values', () => {
     it.each([
-      ['high', 'high'],
-      ['medium', 'medium'],
-      ['low', 'low'],
-      ['minimal', 'minimal'],
-    ])('returns scrapingIntensity: "%s"', (intensity, expected) => {
-      const status = createActiveWindowStatus({
-        scrapingIntensity: intensity as 'high' | 'medium' | 'low' | 'minimal',
+      ['normal', 'normal'],
+      ['aggressive', 'aggressive'],
+      ['very_aggressive', 'very_aggressive'],
+    ] as const)('returns scrapingIntensity: "%s"', (intensity, expected) => {
+      const status = createEarlyPhaseStatus({
+        scrapingIntensity: intensity,
       })
       const response = handleGetScheduleStatus(status)
       expect(response.status.scrapingIntensity).toBe(expected)
     })
   })
 
-  describe('data refresh threshold', () => {
-    it('returns shorter threshold during active window', () => {
-      const status = createActiveWindowStatus({ dataRefreshThreshold: 15 })
+  describe('data refresh threshold values', () => {
+    it.each([
+      ['early', 24],
+      ['mid', 12],
+      ['late', 4],
+    ] as const)('returns %d hours threshold for %s phase', (phase, threshold) => {
+      const factories = {
+        early: createEarlyPhaseStatus,
+        mid: createMidPhaseStatus,
+        late: createLatePhaseStatus,
+      }
+      const status = factories[phase]()
       const response = handleGetScheduleStatus(status)
-      expect(response.status.dataRefreshThreshold).toBeLessThanOrEqual(30)
-    })
-
-    it('returns longer threshold during closed window', () => {
-      const status = createClosedWindowStatus({ dataRefreshThreshold: 360 })
-      const response = handleGetScheduleStatus(status)
-      expect(response.status.dataRefreshThreshold).toBeGreaterThanOrEqual(60)
+      expect(response.status.dataRefreshThreshold).toBe(threshold)
     })
   })
 
   describe('stockholm time', () => {
     it('returns stockholmTime in ISO format', () => {
-      const status = createActiveWindowStatus({
+      const status = createEarlyPhaseStatus({
         stockholmTime: '2024-11-02T14:00:00+01:00',
       })
       const response = handleGetScheduleStatus(status)
@@ -261,22 +328,27 @@ describe('GET /api/schedule/status', () => {
 
   describe('date serialization', () => {
     it('converts Date objects to ISO strings', () => {
-      const status = createActiveWindowStatus({
+      const status = createEarlyPhaseStatus({
         closeTime: new Date('2024-11-02T15:59:00.000Z'),
-        openTime: new Date('2024-11-05T00:00:00.000Z'),
       })
       const response = handleGetScheduleStatus(status)
-
       expect(typeof response.status.closeTime).toBe('string')
-      expect(typeof response.status.openTime).toBe('string')
     })
 
     it('handles null dates correctly', () => {
-      const status = createClosedWindowStatus({
+      const status = createClosedPhaseStatus({
         closeTime: null,
       })
       const response = handleGetScheduleStatus(status)
       expect(response.status.closeTime).toBeNull()
+    })
+
+    it('preserves null for openTime during active window', () => {
+      const status = createEarlyPhaseStatus({
+        openTime: null,
+      })
+      const response = handleGetScheduleStatus(status)
+      expect(response.status.openTime).toBeNull()
     })
   })
 })

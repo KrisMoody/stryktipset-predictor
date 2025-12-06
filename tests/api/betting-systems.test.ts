@@ -42,18 +42,18 @@ const handleGetBettingSystemById = (systems: BettingSystem[], systemId: string) 
     return { success: false, error: 'System not found' }
   }
 
-  // Calculate full system size and reduction ratio
-  const fullSystemSize = Math.pow(3, system.helgarderingar) * Math.pow(2, system.halvgarderingar)
-  const reductionRatio = (system.rows / fullSystemSize * 100).toFixed(1)
+  // Calculate additional metadata (matches actual API at server/api/betting-systems/[systemId].get.ts)
+  const fullSystemRows = Math.pow(3, system.helgarderingar) * Math.pow(2, system.halvgarderingar)
+  const reductionRatio = (system.rows / fullSystemRows * 100).toFixed(1)
+  const estimatedCost = `${system.rows} SEK`
 
   return {
     success: true,
-    system,
-    analysis: {
-      fullSystemSize,
+    system: {
+      ...system,
+      fullSystemRows,
       reductionRatio: `${reductionRatio}%`,
-      cost: system.rows,
-      spikCount: 13 - system.helgarderingar - system.halvgarderingar,
+      estimatedCost,
     },
   }
 }
@@ -164,63 +164,65 @@ describe('GET /api/betting-systems/[systemId]', () => {
       }
     })
 
-    it('includes analysis data', () => {
+    it('includes computed metadata in system object', () => {
       const response = handleGetBettingSystemById(mockSystems, 'R-4-0-9-12')
       expect(response.success).toBe(true)
-      if (response.success && 'analysis' in response) {
-        expect(response.analysis).toHaveProperty('fullSystemSize')
-        expect(response.analysis).toHaveProperty('reductionRatio')
-        expect(response.analysis).toHaveProperty('cost')
-        expect(response.analysis).toHaveProperty('spikCount')
+      if (response.success && 'system' in response) {
+        expect(response.system).toHaveProperty('fullSystemRows')
+        expect(response.system).toHaveProperty('reductionRatio')
+        expect(response.system).toHaveProperty('estimatedCost')
       }
     })
   })
 
-  describe('analysis calculations', () => {
-    it('calculates correct full system size for R-4-0-9-12', () => {
+  describe('computed metadata calculations', () => {
+    it('calculates correct fullSystemRows for R-4-0-9-12', () => {
       const response = handleGetBettingSystemById(mockSystems, 'R-4-0-9-12')
-      if (response.success && 'analysis' in response) {
+      if (response.success && 'system' in response) {
         // 3^4 * 2^0 = 81
-        expect(response.analysis.fullSystemSize).toBe(81)
+        expect(response.system.fullSystemRows).toBe(81)
       }
     })
 
-    it('calculates correct full system size for U-4-4-16', () => {
+    it('calculates correct fullSystemRows for U-4-4-16', () => {
       const response = handleGetBettingSystemById(mockSystems, 'U-4-4-16')
-      if (response.success && 'analysis' in response) {
+      if (response.success && 'system' in response) {
         // 3^4 * 2^4 = 81 * 16 = 1296
-        expect(response.analysis.fullSystemSize).toBe(1296)
+        expect(response.system.fullSystemRows).toBe(1296)
       }
     })
 
     it('calculates correct reduction ratio', () => {
       const response = handleGetBettingSystemById(mockSystems, 'R-4-0-9-12')
-      if (response.success && 'analysis' in response) {
+      if (response.success && 'system' in response) {
         // 9/81 = 11.1%
-        expect(response.analysis.reductionRatio).toBe('11.1%')
+        expect(response.system.reductionRatio).toBe('11.1%')
       }
     })
 
-    it('calculates correct spik count', () => {
+    it('formats estimatedCost with SEK suffix', () => {
       const response = handleGetBettingSystemById(mockSystems, 'R-4-0-9-12')
-      if (response.success && 'analysis' in response) {
-        // 13 - 4 - 0 = 9 spiks
-        expect(response.analysis.spikCount).toBe(9)
+      if (response.success && 'system' in response) {
+        expect(response.system.estimatedCost).toBe('9 SEK')
       }
     })
 
-    it('calculates correct spik count for U-system', () => {
-      const response = handleGetBettingSystemById(mockSystems, 'U-4-4-16')
-      if (response.success && 'analysis' in response) {
-        // 13 - 4 - 4 = 5 spiks
-        expect(response.analysis.spikCount).toBe(5)
-      }
-    })
-
-    it('cost equals rows', () => {
+    it('estimatedCost matches rows for R-5-0-18-11', () => {
       const response = handleGetBettingSystemById(mockSystems, 'R-5-0-18-11')
-      if (response.success && 'analysis' in response) {
-        expect(response.analysis.cost).toBe(18)
+      if (response.success && 'system' in response) {
+        expect(response.system.estimatedCost).toBe('18 SEK')
+      }
+    })
+
+    it('preserves original system properties', () => {
+      const response = handleGetBettingSystemById(mockSystems, 'R-4-0-9-12')
+      if (response.success && 'system' in response) {
+        expect(response.system.id).toBe('R-4-0-9-12')
+        expect(response.system.type).toBe('R')
+        expect(response.system.helgarderingar).toBe(4)
+        expect(response.system.halvgarderingar).toBe(0)
+        expect(response.system.rows).toBe(9)
+        expect(response.system.guarantee).toBe(12)
       }
     })
   })

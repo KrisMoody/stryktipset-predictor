@@ -28,6 +28,7 @@
     "test:ui": "vitest --ui",
     "test:unit": "vitest run tests/unit/",
     "test:components": "vitest run tests/components/",
+    "test:api": "vitest run tests/api/",
     "test:integration": "vitest run tests/integration/",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",

@@ -11,6 +11,7 @@ export default defineConfig({
     include: [
       'tests/unit/**/*.test.ts',
       'tests/components/**/*.test.ts',
+      'tests/api/**/*.test.ts',
     ],
     exclude: [
       'node_modules',

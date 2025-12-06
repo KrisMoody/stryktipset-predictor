@@ -12,6 +12,8 @@ import type {
 } from '~/types'
 import { AI_PRICING } from '~/server/constants/ai-pricing'
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- Raw SQL queries return dynamic types */
+
 /**
  * Service for analyzing AI usage and costs
  */
@@ -57,7 +59,8 @@ export class AIMetricsService {
       totalOutputTokens: stats._sum.output_tokens || 0,
       totalRequests,
       successRate: totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0,
-      averageCostPerRequest: totalRequests > 0 ? Number(stats._sum.cost_usd || 0) / totalRequests : 0,
+      averageCostPerRequest:
+        totalRequests > 0 ? Number(stats._sum.cost_usd || 0) / totalRequests : 0,
       averageDuration: totalRequests > 0 ? (stats._sum.duration_ms || 0) / totalRequests : 0,
       dateRange: this.getDateRangeValues(dateRange),
     }
@@ -93,30 +96,30 @@ export class AIMetricsService {
       },
     })
 
-    const successMap = new Map(
-      modelSuccessStats.map(s => [s.model, s._count.id]),
-    )
+    const successMap = new Map(modelSuccessStats.map(s => [s.model, s._count.id]))
 
-    return modelStats.map((stat) => {
-      const inputTokens = stat._sum.input_tokens || 0
-      const outputTokens = stat._sum.output_tokens || 0
-      const totalTokens = inputTokens + outputTokens
-      const requests = stat._count.id
-      const successfulRequests = successMap.get(stat.model) || 0
-      const pricing = Object.values(AI_PRICING).find(p => p.model === stat.model)
+    return modelStats
+      .map(stat => {
+        const inputTokens = stat._sum.input_tokens || 0
+        const outputTokens = stat._sum.output_tokens || 0
+        const totalTokens = inputTokens + outputTokens
+        const requests = stat._count.id
+        const successfulRequests = successMap.get(stat.model) || 0
+        const pricing = Object.values(AI_PRICING).find(p => p.model === stat.model)
 
-      return {
-        model: stat.model,
-        requests,
-        inputTokens,
-        outputTokens,
-        totalTokens,
-        totalCost: Number(stat._sum.cost_usd || 0),
-        averageCostPerRequest: requests > 0 ? Number(stat._sum.cost_usd || 0) / requests : 0,
-        successRate: requests > 0 ? (successfulRequests / requests) * 100 : 0,
-        description: pricing?.description,
-      }
-    }).sort((a, b) => b.totalCost - a.totalCost)
+        return {
+          model: stat.model,
+          requests,
+          inputTokens,
+          outputTokens,
+          totalTokens,
+          totalCost: Number(stat._sum.cost_usd || 0),
+          averageCostPerRequest: requests > 0 ? Number(stat._sum.cost_usd || 0) / requests : 0,
+          successRate: requests > 0 ? (successfulRequests / requests) * 100 : 0,
+          description: pricing?.description,
+        }
+      })
+      .sort((a, b) => b.totalCost - a.totalCost)
   }
 
   /**
@@ -153,13 +156,11 @@ export class AIMetricsService {
       },
     })
 
-    const successMap = new Map(
-      typeSuccessStats.map(s => [s.data_type, s._count.id]),
-    )
+    const successMap = new Map(typeSuccessStats.map(s => [s.data_type, s._count.id]))
 
     return typeStats
       .filter(stat => stat.data_type !== null)
-      .map((stat) => {
+      .map(stat => {
         const inputTokens = stat._sum.input_tokens || 0
         const outputTokens = stat._sum.output_tokens || 0
         const totalTokens = inputTokens + outputTokens
@@ -333,9 +334,12 @@ export class AIMetricsService {
     ])
 
     return {
-      averageTokensPerPrediction: (predictionStats._avg.input_tokens || 0) + (predictionStats._avg.output_tokens || 0),
-      averageTokensPerScrape: (scrapeStats._avg.input_tokens || 0) + (scrapeStats._avg.output_tokens || 0),
-      averageTokensPerEmbedding: (embeddingStats._avg.input_tokens || 0) + (embeddingStats._avg.output_tokens || 0),
+      averageTokensPerPrediction:
+        (predictionStats._avg.input_tokens || 0) + (predictionStats._avg.output_tokens || 0),
+      averageTokensPerScrape:
+        (scrapeStats._avg.input_tokens || 0) + (scrapeStats._avg.output_tokens || 0),
+      averageTokensPerEmbedding:
+        (embeddingStats._avg.input_tokens || 0) + (embeddingStats._avg.output_tokens || 0),
       costPerPrediction: Number(predictionStats._avg.cost_usd || 0),
       costPerScrape: Number(scrapeStats._avg.cost_usd || 0),
       costPerEmbedding: Number(embeddingStats._avg.cost_usd || 0),
@@ -387,16 +391,18 @@ export class AIMetricsService {
     const lastMonthSpending = Number(lastMonth._sum.cost_usd || 0)
 
     // Calculate daily average and projection
-    const daysElapsed = Math.floor((now.getTime() - startOfMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    const daysElapsed =
+      Math.floor((now.getTime() - startOfMonth.getTime()) / (1000 * 60 * 60 * 24)) + 1
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
     const remainingDays = daysInMonth - daysElapsed
     const dailyAverage = currentMonthSpending / daysElapsed
     const projectedMonthlySpending = dailyAverage * daysInMonth
 
     // Calculate trend
-    const percentageChange = lastMonthSpending > 0
-      ? ((currentMonthSpending - lastMonthSpending) / lastMonthSpending) * 100
-      : 0
+    const percentageChange =
+      lastMonthSpending > 0
+        ? ((currentMonthSpending - lastMonthSpending) / lastMonthSpending) * 100
+        : 0
 
     let trend: 'increasing' | 'decreasing' | 'stable' = 'stable'
     if (Math.abs(percentageChange) > 10) {
@@ -417,7 +423,9 @@ export class AIMetricsService {
   /**
    * Get optimization recommendations
    */
-  async getOptimizationRecommendations(dateRange?: DateRangeFilter): Promise<OptimizationRecommendation[]> {
+  async getOptimizationRecommendations(
+    dateRange?: DateRangeFilter
+  ): Promise<OptimizationRecommendation[]> {
     const recommendations: OptimizationRecommendation[] = []
     const whereClause = this.buildDateWhereClause(dateRange)
 
@@ -478,8 +486,9 @@ export class AIMetricsService {
         type: 'efficiency',
         severity: 'low',
         title: 'Consider Embedding Caching',
-        description: 'You have generated many embeddings. Consider caching frequently accessed embeddings to reduce costs.',
-        action: 'Implement a caching layer for match embeddings that haven\'t changed.',
+        description:
+          'You have generated many embeddings. Consider caching frequently accessed embeddings to reduce costs.',
+        action: "Implement a caching layer for match embeddings that haven't changed.",
       })
     }
 
@@ -503,7 +512,8 @@ export class AIMetricsService {
         type: 'info',
         severity: 'low',
         title: 'AI Operations Running Efficiently',
-        description: 'Your AI operations have a low failure rate and reasonable costs. Keep up the good work!',
+        description:
+          'Your AI operations have a low failure rate and reasonable costs. Keep up the good work!',
         action: 'Continue monitoring for any changes in usage patterns.',
       })
     }
@@ -530,7 +540,7 @@ export class AIMetricsService {
   /**
    * Get date range values from filter
    */
-  private getDateRangeValues(dateRange?: DateRangeFilter): { start: Date, end: Date } {
+  private getDateRangeValues(dateRange?: DateRangeFilter): { start: Date; end: Date } {
     if (!dateRange) {
       // Default to all time - find earliest record
       const now = new Date()

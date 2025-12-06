@@ -46,7 +46,9 @@ export class CouponPersistenceService {
         mode: params.mode,
         status: 'generated',
         version: nextVersion,
-        utgangstecken: params.utgangstecken ? JSON.parse(JSON.stringify(params.utgangstecken)) : null,
+        utgangstecken: params.utgangstecken
+          ? JSON.parse(JSON.stringify(params.utgangstecken))
+          : null,
         mg_extensions: params.mgExtensions ? JSON.parse(JSON.stringify(params.mgExtensions)) : null,
         selections: JSON.parse(JSON.stringify(params.selections)),
         rows: JSON.parse(JSON.stringify(params.rows)),
@@ -129,13 +131,18 @@ export class CouponPersistenceService {
 
   private getTimestampFieldForStatus(status: CouponStatus): string | null {
     switch (status) {
-      case 'saved': return 'saved_at'
-      case 'played': return 'played_at'
-      case 'analyzed': return 'analyzed_at'
-      default: return null
+      case 'saved':
+        return 'saved_at'
+      case 'played':
+        return 'played_at'
+      case 'analyzed':
+        return 'analyzed_at'
+      default:
+        return null
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma record has dynamic JSON fields
   private mapToPersistedCoupon(record: any): PersistedCoupon {
     return {
       id: record.id,

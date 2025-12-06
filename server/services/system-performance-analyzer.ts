@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Raw SQL queries return dynamic types */
 import { prisma } from '~/server/utils/prisma'
 import type { MGExtension, CouponRow } from '~/types'
 
@@ -46,8 +47,8 @@ interface OverallStats {
   worstPerformingSystem: string | null
   avgBestScore: number
   systemTypeComparison: {
-    R: { count: number, roi: number, avgScore: number }
-    U: { count: number, roi: number, avgScore: number }
+    R: { count: number; roi: number; avgScore: number }
+    U: { count: number; roi: number; avgScore: number }
   }
 }
 
@@ -63,7 +64,9 @@ export class SystemPerformanceAnalyzer {
         system_type: record.systemType,
         rows_count: record.rowsCount,
         cost: record.cost,
-        mg_extensions: record.mgExtensions ? JSON.parse(JSON.stringify(record.mgExtensions)) : undefined,
+        mg_extensions: record.mgExtensions
+          ? JSON.parse(JSON.stringify(record.mgExtensions))
+          : undefined,
         final_row_count: record.finalRowCount,
         final_cost: record.finalCost,
       },
@@ -75,7 +78,9 @@ export class SystemPerformanceAnalyzer {
         draw_number: record.drawNumber,
         system_id: record.systemId,
         mode: record.systemType === 'R' ? 'r-system' : 'u-system',
-        mg_extensions: record.mgExtensions ? JSON.parse(JSON.stringify(record.mgExtensions)) : undefined,
+        mg_extensions: record.mgExtensions
+          ? JSON.parse(JSON.stringify(record.mgExtensions))
+          : undefined,
         selections: [], // Populated separately if needed
         rows: JSON.parse(JSON.stringify(record.rows)),
         total_cost: record.finalCost,
@@ -306,7 +311,8 @@ export class SystemPerformanceAnalyzer {
     const totalDraws = new Set(performances.map(p => p.draw_number)).size
     const totalCost = performances.reduce((sum, p) => sum + p.final_cost, 0)
     const totalPayout = performances.reduce((sum, p) => sum + Number(p.payout || 0), 0)
-    const avgBestScore = performances.reduce((sum, p) => sum + (p.best_score || 0), 0) / performances.length
+    const avgBestScore =
+      performances.reduce((sum, p) => sum + (p.best_score || 0), 0) / performances.length
 
     // Group by system for comparison
     const bySystem: Record<string, typeof performances> = {}
@@ -357,12 +363,18 @@ export class SystemPerformanceAnalyzer {
         R: {
           count: rPerfs.length,
           roi: rCost > 0 ? ((rPayout - rCost) / rCost) * 100 : 0,
-          avgScore: rPerfs.length > 0 ? rPerfs.reduce((s, p) => s + (p.best_score || 0), 0) / rPerfs.length : 0,
+          avgScore:
+            rPerfs.length > 0
+              ? rPerfs.reduce((s, p) => s + (p.best_score || 0), 0) / rPerfs.length
+              : 0,
         },
         U: {
           count: uPerfs.length,
           roi: uCost > 0 ? ((uPayout - uCost) / uCost) * 100 : 0,
-          avgScore: uPerfs.length > 0 ? uPerfs.reduce((s, p) => s + (p.best_score || 0), 0) / uPerfs.length : 0,
+          avgScore:
+            uPerfs.length > 0
+              ? uPerfs.reduce((s, p) => s + (p.best_score || 0), 0) / uPerfs.length
+              : 0,
         },
       },
     }
@@ -371,13 +383,18 @@ export class SystemPerformanceAnalyzer {
   /**
    * Get performance trend over time
    */
-  async getPerformanceTrend(systemId?: string, limit: number = 20): Promise<Array<{
-    drawNumber: number
-    systemId: string
-    bestScore: number
-    roi: number
-    createdAt: Date
-  }>> {
+  async getPerformanceTrend(
+    systemId?: string,
+    limit: number = 20
+  ): Promise<
+    Array<{
+      drawNumber: number
+      systemId: string
+      bestScore: number
+      roi: number
+      createdAt: Date
+    }>
+  > {
     const where: any = { analyzed_at: { not: null } }
     if (systemId) where.system_id = systemId
 
@@ -415,13 +432,15 @@ export class SystemPerformanceAnalyzer {
   /**
    * Get leaderboard of best performing systems
    */
-  async getLeaderboard(limit: number = 10): Promise<Array<{
-    systemId: string
-    systemType: 'R' | 'U'
-    drawsPlayed: number
-    roi: number
-    avgBestScore: number
-  }>> {
+  async getLeaderboard(limit: number = 10): Promise<
+    Array<{
+      systemId: string
+      systemType: 'R' | 'U'
+      drawsPlayed: number
+      roi: number
+      avgBestScore: number
+    }>
+  > {
     const performances = await prisma.system_performance.findMany({
       where: { analyzed_at: { not: null } },
     })

@@ -5,6 +5,8 @@ import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
 import type { PredictionData } from '~/types'
 import { calculateAICost } from '~/server/constants/ai-pricing'
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- Complex Prisma and AI API data */
+
 /**
  * Options for generating a prediction
  */
@@ -36,11 +38,16 @@ export class PredictionService {
   /**
    * Generate prediction for a match
    */
-  async predictMatch(matchId: number, options: PredictMatchOptions = {}): Promise<PredictionData | null> {
+  async predictMatch(
+    matchId: number,
+    options: PredictMatchOptions = {}
+  ): Promise<PredictionData | null> {
     const { userContext, isReevaluation = false } = options
 
     try {
-      console.log(`[Prediction Service] ${isReevaluation ? 'Re-evaluating' : 'Generating prediction for'} match ${matchId}`)
+      console.log(
+        `[Prediction Service] ${isReevaluation ? 'Re-evaluating' : 'Generating prediction for'} match ${matchId}`
+      )
 
       // Fetch match data
       const match = await prisma.matches.findUnique({
@@ -70,14 +77,17 @@ export class PredictionService {
       // Generate embedding first (if not exists)
       try {
         await embeddingsService.generateMatchEmbedding(matchId)
-      }
-      catch (error) {
+      } catch (error) {
         console.warn('[Prediction Service] Could not generate embedding:', error)
       }
 
       // Find similar historical matches
       const similarMatches = await embeddingsService.findSimilarMatches(matchId, 10)
-      const teamMatchups = await embeddingsService.findSimilarTeamMatchups(match.home_team_id, match.away_team_id, 5)
+      const teamMatchups = await embeddingsService.findSimilarTeamMatchups(
+        match.home_team_id,
+        match.away_team_id,
+        5
+      )
 
       // Prepare context for Claude
       const context = this.prepareMatchContext(match, similarMatches, teamMatchups, userContext)
@@ -92,10 +102,11 @@ export class PredictionService {
       // Save prediction to database
       await this.savePrediction(matchId, prediction, { userContext, isReevaluation })
 
-      console.log(`[Prediction Service] Successfully ${isReevaluation ? 're-evaluated' : 'generated prediction for'} match ${matchId}`)
+      console.log(
+        `[Prediction Service] Successfully ${isReevaluation ? 're-evaluated' : 'generated prediction for'} match ${matchId}`
+      )
       return prediction
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Prediction Service] Error predicting match ${matchId}:`, error)
       return null
     }
@@ -104,7 +115,12 @@ export class PredictionService {
   /**
    * Prepare context for Claude
    */
-  private prepareMatchContext(match: any, similarMatches: any[], teamMatchups: any[], userContext?: string): string {
+  private prepareMatchContext(
+    match: any,
+    similarMatches: any[],
+    teamMatchups: any[],
+    userContext?: string
+  ): string {
     const parts: string[] = []
 
     // User-provided context (placed first for emphasis)
@@ -125,11 +141,19 @@ export class PredictionService {
     // Data interpretation guide
     parts.push('DATA INTERPRETATION GUIDE')
     parts.push('=========================')
-    parts.push('- ODDS: Lower odds = higher probability (e.g., 1.50 = ~67%, 5.00 = ~20%). Formula: probability = 1/odds')
-    parts.push('- TIO TIDNINGARS TIPS: Count out of 10 newspaper experts picking each outcome (not percentages). If 8/10 pick "1", that outcome is strongly favored by experts.')
+    parts.push(
+      '- ODDS: Lower odds = higher probability (e.g., 1.50 = ~67%, 5.00 = ~20%). Formula: probability = 1/odds'
+    )
+    parts.push(
+      '- TIO TIDNINGARS TIPS: Count out of 10 newspaper experts picking each outcome (not percentages). If 8/10 pick "1", that outcome is strongly favored by experts.'
+    )
     parts.push('- SVENSKA FOLKET: Percentages showing current public betting distribution')
-    parts.push('- HOME TEAM is always listed first (1 = home win, X = draw, 2 = away win). Lower home odds = home team favored')
-    parts.push('- DATA QUALITY: If odds and expert consensus strongly conflict (e.g., odds suggest 1% chance but 10/10 experts pick that outcome), treat the expert consensus as more reliable - odds data may be corrupted or from a different source.')
+    parts.push(
+      '- HOME TEAM is always listed first (1 = home win, X = draw, 2 = away win). Lower home odds = home team favored'
+    )
+    parts.push(
+      '- DATA QUALITY: If odds and expert consensus strongly conflict (e.g., odds suggest 1% chance but 10/10 experts pick that outcome), treat the expert consensus as more reliable - odds data may be corrupted or from a different source.'
+    )
     parts.push('')
 
     // Match information
@@ -196,8 +220,12 @@ export class PredictionService {
       if (xStats.goalStats?.home) {
         parts.push('')
         parts.push('Goal Statistics:')
-        parts.push(`  ${match.homeTeam.name}: Avg scored ${xStats.goalStats.home.avgGoalsScored || 'N/A'}, Avg conceded ${xStats.goalStats.home.avgGoalsConceded || 'N/A'}`)
-        parts.push(`  ${match.awayTeam.name}: Avg scored ${xStats.goalStats.away?.avgGoalsScored || 'N/A'}, Avg conceded ${xStats.goalStats.away?.avgGoalsConceded || 'N/A'}`)
+        parts.push(
+          `  ${match.homeTeam.name}: Avg scored ${xStats.goalStats.home.avgGoalsScored || 'N/A'}, Avg conceded ${xStats.goalStats.home.avgGoalsConceded || 'N/A'}`
+        )
+        parts.push(
+          `  ${match.awayTeam.name}: Avg scored ${xStats.goalStats.away?.avgGoalsScored || 'N/A'}, Avg conceded ${xStats.goalStats.away?.avgGoalsConceded || 'N/A'}`
+        )
       }
 
       // Last 5 games xStats for recent form context
@@ -205,10 +233,14 @@ export class PredictionService {
         parts.push('')
         parts.push('Recent Form (Last 5 Games):')
         if (xStats.homeTeam?.last5Games) {
-          parts.push(`  ${match.homeTeam.name}: xG ${xStats.homeTeam.last5Games.xg || 'N/A'}, xGA ${xStats.homeTeam.last5Games.xga || 'N/A'}`)
+          parts.push(
+            `  ${match.homeTeam.name}: xG ${xStats.homeTeam.last5Games.xg || 'N/A'}, xGA ${xStats.homeTeam.last5Games.xga || 'N/A'}`
+          )
         }
         if (xStats.awayTeam?.last5Games) {
-          parts.push(`  ${match.awayTeam.name}: xG ${xStats.awayTeam.last5Games.xg || 'N/A'}, xGA ${xStats.awayTeam.last5Games.xga || 'N/A'}`)
+          parts.push(
+            `  ${match.awayTeam.name}: xG ${xStats.awayTeam.last5Games.xg || 'N/A'}, xGA ${xStats.awayTeam.last5Games.xga || 'N/A'}`
+          )
         }
       }
       parts.push('')
@@ -264,9 +296,13 @@ export class PredictionService {
         parts.push(`  Points: ${stats.homeTeam.points || 'N/A'}`)
         parts.push(`  Form: ${stats.homeTeam.form?.join('') || 'N/A'}`)
         parts.push(`  Played: ${stats.homeTeam.played || 'N/A'}`)
-        parts.push(`  W-D-L: ${stats.homeTeam.won || 0}-${stats.homeTeam.drawn || 0}-${stats.homeTeam.lost || 0}`)
+        parts.push(
+          `  W-D-L: ${stats.homeTeam.won || 0}-${stats.homeTeam.drawn || 0}-${stats.homeTeam.lost || 0}`
+        )
         if (stats.homeTeam.goalsFor !== undefined || stats.homeTeam.goalsAgainst !== undefined) {
-          parts.push(`  Goals: ${stats.homeTeam.goalsFor ?? 'N/A'} scored, ${stats.homeTeam.goalsAgainst ?? 'N/A'} conceded`)
+          parts.push(
+            `  Goals: ${stats.homeTeam.goalsFor ?? 'N/A'} scored, ${stats.homeTeam.goalsAgainst ?? 'N/A'} conceded`
+          )
         }
       }
 
@@ -276,9 +312,13 @@ export class PredictionService {
         parts.push(`  Points: ${stats.awayTeam.points || 'N/A'}`)
         parts.push(`  Form: ${stats.awayTeam.form?.join('') || 'N/A'}`)
         parts.push(`  Played: ${stats.awayTeam.played || 'N/A'}`)
-        parts.push(`  W-D-L: ${stats.awayTeam.won || 0}-${stats.awayTeam.drawn || 0}-${stats.awayTeam.lost || 0}`)
+        parts.push(
+          `  W-D-L: ${stats.awayTeam.won || 0}-${stats.awayTeam.drawn || 0}-${stats.awayTeam.lost || 0}`
+        )
         if (stats.awayTeam.goalsFor !== undefined || stats.awayTeam.goalsAgainst !== undefined) {
-          parts.push(`  Goals: ${stats.awayTeam.goalsFor ?? 'N/A'} scored, ${stats.awayTeam.goalsAgainst ?? 'N/A'} conceded`)
+          parts.push(
+            `  Goals: ${stats.awayTeam.goalsFor ?? 'N/A'} scored, ${stats.awayTeam.goalsAgainst ?? 'N/A'} conceded`
+          )
         }
       }
       parts.push('')
@@ -289,9 +329,14 @@ export class PredictionService {
       parts.push('HEAD-TO-HEAD HISTORY')
       parts.push('====================')
       for (const matchup of teamMatchups) {
-        const result = matchup.result_home !== null ? `${matchup.result_home}-${matchup.result_away}` : 'Not played'
+        const result =
+          matchup.result_home !== null
+            ? `${matchup.result_home}-${matchup.result_away}`
+            : 'Not played'
         const outcome = matchup.outcome || 'N/A'
-        parts.push(`${matchup.draw_date?.toISOString().split('T')[0] || 'Unknown'}: ${matchup.home_team} vs ${matchup.away_team} - ${result} (${outcome})`)
+        parts.push(
+          `${matchup.draw_date?.toISOString().split('T')[0] || 'Unknown'}: ${matchup.home_team} vs ${matchup.away_team} - ${result} (${outcome})`
+        )
       }
       parts.push('')
     }
@@ -301,9 +346,14 @@ export class PredictionService {
       parts.push('SIMILAR HISTORICAL MATCHES')
       parts.push('=========================')
       for (const similar of similarMatches.slice(0, 5)) {
-        const result = similar.result_home !== null ? `${similar.result_home}-${similar.result_away}` : 'Not played'
+        const result =
+          similar.result_home !== null
+            ? `${similar.result_home}-${similar.result_away}`
+            : 'Not played'
         const similarity = Math.round((similar.similarity || 0) * 100)
-        parts.push(`[${similarity}% similar] ${similar.home_team} vs ${similar.away_team} - ${result} (${similar.outcome || 'N/A'})`)
+        parts.push(
+          `[${similarity}% similar] ${similar.home_team} vs ${similar.away_team} - ${result} (${similar.outcome || 'N/A'})`
+        )
       }
       parts.push('')
     }
@@ -314,7 +364,10 @@ export class PredictionService {
   /**
    * Generate prediction using Claude
    */
-  private async generatePrediction(context: string, matchId: number): Promise<PredictionData | null> {
+  private async generatePrediction(
+    context: string,
+    matchId: number
+  ): Promise<PredictionData | null> {
     const startTime = Date.now()
     try {
       const anthropic = this.getAnthropicClient()
@@ -363,7 +416,8 @@ Important:
       }
 
       // Extract JSON from response
-      const jsonMatch = content.text.match(/```json\n?([\s\S]*?)\n?```/) || content.text.match(/({[\s\S]*})/)
+      const jsonMatch =
+        content.text.match(/```json\n?([\s\S]*?)\n?```/) || content.text.match(/({[\s\S]*})/)
 
       if (!jsonMatch || !jsonMatch[1]) {
         throw new Error('Could not extract JSON from Claude response')
@@ -393,15 +447,16 @@ Important:
         endpoint: 'messages.create',
         duration,
         success: true,
-      }).catch((recordError) => {
+      }).catch(recordError => {
         console.error('[Prediction Service] Failed to record AI usage:', recordError)
       })
 
-      console.log(`[Prediction Service] AI usage: ${inputTokens} in, ${outputTokens} out, $${cost.toFixed(6)}, ${duration}ms`)
+      console.log(
+        `[Prediction Service] AI usage: ${inputTokens} in, ${outputTokens} out, $${cost.toFixed(6)}, ${duration}ms`
+      )
 
       return prediction
-    }
-    catch (error) {
+    } catch (error) {
       const duration = Date.now() - startTime
       // Record failed attempt
       await recordAIUsage({
@@ -414,7 +469,7 @@ Important:
         endpoint: 'messages.create',
         duration,
         success: false,
-      }).catch((recordError) => {
+      }).catch(recordError => {
         console.error('[Prediction Service] Failed to record AI usage error:', recordError)
       })
 
@@ -429,7 +484,7 @@ Important:
   private async savePrediction(
     matchId: number,
     prediction: PredictionData,
-    options: { userContext?: string, isReevaluation?: boolean } = {},
+    options: { userContext?: string; isReevaluation?: boolean } = {}
   ): Promise<void> {
     const { userContext, isReevaluation = false } = options
 
@@ -452,8 +507,7 @@ Important:
           is_reevaluation: isReevaluation,
         },
       })
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Prediction Service] Error saving prediction:', error)
       throw error
     }
@@ -462,7 +516,11 @@ Important:
   /**
    * Get predicted outcome from probabilities
    */
-  private getPredictedOutcome(probabilities: { home_win: number, draw: number, away_win: number }): string {
+  private getPredictedOutcome(probabilities: {
+    home_win: number
+    draw: number
+    away_win: number
+  }): string {
     const max = Math.max(probabilities.home_win, probabilities.draw, probabilities.away_win)
 
     if (probabilities.home_win === max) return '1'

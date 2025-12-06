@@ -12,13 +12,13 @@ export default defineEventHandler(async () => {
       leaderboard,
       recentTrend,
     }
-  }
-  catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { message?: string }
     console.error('Failed to get system performance summary:', error)
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to get system performance summary',
-      data: { error: error.message },
+      data: { error: err.message },
     })
   }
 })

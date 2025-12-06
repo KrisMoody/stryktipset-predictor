@@ -10,7 +10,7 @@ interface TokenUsage {
 
 interface AIScraperResult {
   success: boolean
-  data: any | null
+  data: unknown
   tokens: TokenUsage | null
   error: string | null
 }
@@ -53,8 +53,7 @@ export class AIScraperClient {
 
       const result = await response.json()
       return result as AIScraperResult
-    }
-    catch (error) {
+    } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         return {
           success: false,
@@ -93,8 +92,7 @@ export class AIScraperClient {
 
       const health = await response.json()
       return health.status === 'ok'
-    }
-    catch {
+    } catch {
       return false
     }
   }

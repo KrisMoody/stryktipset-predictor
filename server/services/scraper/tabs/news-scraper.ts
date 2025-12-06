@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
 import type { Page } from 'playwright'
 import { BaseScraper } from './base-scraper'
 import type { NewsData, NewsArticle } from '~/types'
@@ -28,7 +29,12 @@ export class NewsScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, matchId: number, drawNumber: number, matchNumber: number): Promise<ExtendedNewsData | null> {
+  async scrape(
+    page: Page,
+    matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<ExtendedNewsData | null> {
     try {
       this.log('Starting news and expert analysis scraping')
 
@@ -40,16 +46,18 @@ export class NewsScraper extends BaseScraper {
       const expertAnalyses = await this.extractExpertAnalyses(page)
 
       // Then try to navigate to News tab for additional news
-      const newsTabSelector = '[data-test-id="statistic-menu-tt-news"], a[href*="/nyheter"], a:has-text("Nyheter")'
+      const newsTabSelector =
+        '[data-test-id="statistic-menu-tt-news"], a[href*="/nyheter"], a:has-text("Nyheter")'
       let articles: NewsArticle[] = []
 
       if (await this.elementExists(page, newsTabSelector)) {
         await this.clickTab(page, newsTabSelector)
         // Wait for news content to load - look for the actual news article container
-        await page.waitForSelector('.route-statistics-news-article, [class*="news-article"]', { timeout: 10000 })
+        await page.waitForSelector('.route-statistics-news-article, [class*="news-article"]', {
+          timeout: 10000,
+        })
         articles = await this.extractArticles(page)
-      }
-      else {
+      } else {
         this.log('News tab not found, continuing with expert analyses only')
       }
 
@@ -58,10 +66,11 @@ export class NewsScraper extends BaseScraper {
         expertAnalyses,
       }
 
-      this.log(`News scraping complete: ${articles.length} articles, ${expertAnalyses.length} expert analyses`)
+      this.log(
+        `News scraping complete: ${articles.length} articles, ${expertAnalyses.length} expert analyses`
+      )
       return newsData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping news: ${error}`)
       return null
     }
@@ -102,15 +111,13 @@ export class NewsScraper extends BaseScraper {
               source: 'Svenska Spel',
             })
           }
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single expert analysis: ${innerError}`)
         }
       }
 
       this.log(`Extracted ${analyses.length} expert analyses`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting expert analyses: ${error}`)
     }
 
@@ -128,7 +135,7 @@ export class NewsScraper extends BaseScraper {
 
       for (const button of betButtons) {
         const isSelected = await button.evaluate((el: Element) =>
-          el.classList.contains('btn-bet-selected'),
+          el.classList.contains('btn-bet-selected')
         )
 
         if (isSelected) {
@@ -156,8 +163,7 @@ export class NewsScraper extends BaseScraper {
       if (selectedOutcomes.length === 3) return '1X2'
 
       return null
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting recommendation: ${error}`)
       return null
     }
@@ -183,7 +189,9 @@ export class NewsScraper extends BaseScraper {
       for (const element of articleElements) {
         try {
           // Extract title from .news-article-headline (h2)
-          const title = await element.locator('.news-article-headline, h2.news-article-headline').textContent()
+          const title = await element
+            .locator('.news-article-headline, h2.news-article-headline')
+            .textContent()
 
           // Extract author/source from .news-article-header-author
           const author = await element.locator('.news-article-header-author').textContent()
@@ -206,15 +214,13 @@ export class NewsScraper extends BaseScraper {
               source: author?.trim() || 'Svenska Spel / TT',
             })
           }
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single article: ${innerError}`)
         }
       }
 
       this.log(`Found ${articles.length} news articles`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting articles: ${error}`)
     }
 

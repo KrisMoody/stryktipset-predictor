@@ -6,9 +6,7 @@
     <div class="mb-8">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h1 class="text-4xl font-bold mb-2">
-            AI Metrics Dashboard
-          </h1>
+          <h1 class="text-4xl font-bold mb-2">AI Metrics Dashboard</h1>
           <p class="text-gray-600 dark:text-gray-400">
             Monitor AI usage, costs, and optimization opportunities
           </p>
@@ -49,23 +47,17 @@
     </div>
 
     <!-- Loading State -->
-    <div
-      v-if="loading"
-      class="flex justify-center py-12"
-    >
+    <div v-if="loading" class="flex justify-center py-12">
       <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4" />
-        <p class="text-gray-600 dark:text-gray-400">
-          Loading AI metrics...
-        </p>
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"
+        />
+        <p class="text-gray-600 dark:text-gray-400">Loading AI metrics...</p>
       </div>
     </div>
 
     <!-- Dashboard Content -->
-    <div
-      v-else
-      class="space-y-6"
-    >
+    <div v-else class="space-y-6">
       <!-- Summary Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <AiMetricsCostCard
@@ -103,45 +95,29 @@
       <!-- Budget Analysis -->
       <UCard v-if="budget">
         <template #header>
-          <h2 class="text-2xl font-semibold">
-            Budget & Forecasting
-          </h2>
+          <h2 class="text-2xl font-semibold">Budget & Forecasting</h2>
         </template>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Current Month
-            </p>
-            <p class="text-3xl font-bold">
-              ${{ budget.currentMonthSpending.toFixed(2) }}
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Current Month</p>
+            <p class="text-3xl font-bold">${{ budget.currentMonthSpending.toFixed(2) }}</p>
             <p class="text-xs text-gray-500 mt-1">
               Daily avg: ${{ budget.dailyAverageSpending.toFixed(2) }}
             </p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Projected Monthly
-            </p>
-            <p class="text-3xl font-bold">
-              ${{ budget.projectedMonthlySpending.toFixed(2) }}
-            </p>
-            <p
-              class="text-xs"
-              :class="getTrendClass(budget.trend)"
-            >
+            <p class="text-sm text-gray-600 dark:text-gray-400">Projected Monthly</p>
+            <p class="text-3xl font-bold">${{ budget.projectedMonthlySpending.toFixed(2) }}</p>
+            <p class="text-xs" :class="getTrendClass(budget.trend)">
               {{ getTrendLabel(budget.trend) }}
-              ({{ budget.percentageChange > 0 ? '+' : '' }}{{ budget.percentageChange.toFixed(1) }}%)
+              ({{ budget.percentageChange > 0 ? '+' : ''
+              }}{{ budget.percentageChange.toFixed(1) }}%)
             </p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Last Month
-            </p>
-            <p class="text-3xl font-bold">
-              ${{ budget.lastMonthSpending.toFixed(2) }}
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Last Month</p>
+            <p class="text-3xl font-bold">${{ budget.lastMonthSpending.toFixed(2) }}</p>
             <p class="text-xs text-gray-500 mt-1">
               {{ budget.remainingDaysInMonth }} days remaining
             </p>
@@ -175,16 +151,12 @@
       <!-- Token Efficiency -->
       <UCard v-if="efficiency">
         <template #header>
-          <h2 class="text-2xl font-semibold">
-            Token Efficiency
-          </h2>
+          <h2 class="text-2xl font-semibold">Token Efficiency</h2>
         </template>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Avg Tokens/Prediction
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Prediction</p>
             <p class="text-2xl font-bold">
               {{ formatNumber(efficiency.averageTokensPerPrediction) }}
             </p>
@@ -193,9 +165,7 @@
             </p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Avg Tokens/Scrape
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Scrape</p>
             <p class="text-2xl font-bold">
               {{ formatNumber(efficiency.averageTokensPerScrape) }}
             </p>
@@ -204,9 +174,7 @@
             </p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Avg Tokens/Embedding
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Embedding</p>
             <p class="text-2xl font-bold">
               {{ formatNumber(efficiency.averageTokensPerEmbedding) }}
             </p>
@@ -218,9 +186,7 @@
 
         <!-- Most Expensive Operations -->
         <div v-if="efficiency.mostExpensiveOperations.length > 0">
-          <h3 class="text-lg font-semibold mb-4">
-            Most Expensive Operations
-          </h3>
+          <h3 class="text-lg font-semibold mb-4">Most Expensive Operations</h3>
           <div class="space-y-2">
             <div
               v-for="op in efficiency.mostExpensiveOperations.slice(0, 5)"
@@ -231,17 +197,11 @@
                 <p class="font-medium">
                   {{ op.operationId }}
                 </p>
-                <p class="text-xs text-gray-500">
-                  {{ op.dataType }} • {{ op.model }}
-                </p>
+                <p class="text-xs text-gray-500">{{ op.dataType }} • {{ op.model }}</p>
               </div>
               <div class="text-right">
-                <p class="font-semibold">
-                  ${{ op.cost.toFixed(4) }}
-                </p>
-                <p class="text-xs text-gray-500">
-                  {{ formatNumber(op.tokens) }} tokens
-                </p>
+                <p class="font-semibold">${{ op.cost.toFixed(4) }}</p>
+                <p class="text-xs text-gray-500">{{ formatNumber(op.tokens) }} tokens</p>
               </div>
             </div>
           </div>
@@ -250,9 +210,7 @@
 
       <!-- Optimization Recommendations -->
       <div v-if="recommendations && recommendations.length > 0">
-        <h2 class="text-2xl font-semibold mb-4">
-          Optimization Recommendations
-        </h2>
+        <h2 class="text-2xl font-semibold mb-4">Optimization Recommendations</h2>
         <div class="grid grid-cols-1 gap-4">
           <AiMetricsOptimizationAlert
             v-for="rec in recommendations"
@@ -284,7 +242,7 @@ interface AIMetricsOverviewResponse {
   successRate: number
   averageCostPerRequest: number
   averageDuration: number
-  dateRange: { start: string, end: string }
+  dateRange: { start: string; end: string }
 }
 
 interface TokenEfficiencyMetricsResponse {
@@ -331,7 +289,9 @@ const loadingCosts = ref(false)
 
 // Data
 const overview = ref<AIMetricsOverviewResponse | null>(null)
-const costs = ref<{ byModel: ModelCostBreakdown[], byOperation: OperationCostBreakdown[] } | null>(null)
+const costs = ref<{ byModel: ModelCostBreakdown[]; byOperation: OperationCostBreakdown[] } | null>(
+  null
+)
 const trends = ref<CostTrends | null>(null)
 const efficiency = ref<TokenEfficiencyMetricsResponse | null>(null)
 const budget = ref<BudgetAnalysis | null>(null)
@@ -370,26 +330,31 @@ async function loadAllData() {
   try {
     const queryParams = `?preset=${selectedPreset.value}`
 
-    const [overviewRes, costsRes, trendsRes, efficiencyRes, budgetRes, recsRes] = await Promise.all([
-      $fetch(`/api/admin/ai-metrics/overview${queryParams}`),
-      $fetch(`/api/admin/ai-metrics/costs${queryParams}`),
-      $fetch(`/api/admin/ai-metrics/trends${queryParams}`),
-      $fetch(`/api/admin/ai-metrics/efficiency${queryParams}`),
-      $fetch('/api/admin/ai-metrics/budget'),
-      $fetch(`/api/admin/ai-metrics/recommendations${queryParams}`),
-    ])
+    const [overviewRes, costsRes, trendsRes, efficiencyRes, budgetRes, recsRes] = await Promise.all(
+      [
+        $fetch(`/api/admin/ai-metrics/overview${queryParams}`),
+        $fetch(`/api/admin/ai-metrics/costs${queryParams}`),
+        $fetch(`/api/admin/ai-metrics/trends${queryParams}`),
+        $fetch(`/api/admin/ai-metrics/efficiency${queryParams}`),
+        $fetch('/api/admin/ai-metrics/budget'),
+        $fetch(`/api/admin/ai-metrics/recommendations${queryParams}`),
+      ]
+    )
 
-    if ('success' in overviewRes && overviewRes.success && 'data' in overviewRes) overview.value = overviewRes.data
+    if ('success' in overviewRes && overviewRes.success && 'data' in overviewRes)
+      overview.value = overviewRes.data
     if ('success' in costsRes && costsRes.success && 'data' in costsRes) costs.value = costsRes.data
-    if ('success' in trendsRes && trendsRes.success && 'data' in trendsRes) trends.value = trendsRes.data
-    if ('success' in efficiencyRes && efficiencyRes.success && 'data' in efficiencyRes) efficiency.value = efficiencyRes.data
-    if ('success' in budgetRes && budgetRes.success && 'data' in budgetRes) budget.value = budgetRes.data
-    if ('success' in recsRes && recsRes.success && 'data' in recsRes) recommendations.value = recsRes.data
-  }
-  catch (error) {
+    if ('success' in trendsRes && trendsRes.success && 'data' in trendsRes)
+      trends.value = trendsRes.data
+    if ('success' in efficiencyRes && efficiencyRes.success && 'data' in efficiencyRes)
+      efficiency.value = efficiencyRes.data
+    if ('success' in budgetRes && budgetRes.success && 'data' in budgetRes)
+      budget.value = budgetRes.data
+    if ('success' in recsRes && recsRes.success && 'data' in recsRes)
+      recommendations.value = recsRes.data
+  } catch (error) {
     console.error('Error loading AI metrics:', error)
-  }
-  finally {
+  } finally {
     loading.value = false
   }
 }
@@ -428,22 +393,21 @@ async function exportData() {
       a.click()
       window.URL.revokeObjectURL(url)
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error exporting data:', error)
-  }
-  finally {
+  } finally {
     exporting.value = false
   }
 }
 
-function convertToCSV(data: any[]): string {
+function convertToCSV(data: AIMetricsExportData[]): string {
   if (!data || data.length === 0) return ''
 
-  const headers = Object.keys(data[0])
-  const rows = data.map(row =>
-    headers.map(header => JSON.stringify(row[header] ?? '')).join(','),
-  )
+  const firstRow = data[0]
+  if (!firstRow) return ''
+
+  const headers = Object.keys(firstRow) as (keyof AIMetricsExportData)[]
+  const rows = data.map(row => headers.map(header => JSON.stringify(row[header] ?? '')).join(','))
 
   return [headers.join(','), ...rows].join('\n')
 }

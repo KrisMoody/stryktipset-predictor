@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright page types and dynamic scraped data */
 import { prisma } from '~/server/utils/prisma'
 import { browserManager } from './browser-manager'
 import { scraperQueue } from './scraper-queue'
@@ -64,10 +65,14 @@ export class ScraperServiceV2 {
   private recordRateLimit(): void {
     this.consecutiveRateLimits++
     this.lastRateLimitTime = Date.now()
-    console.log(`[Scraper Service V2] Rate limit recorded (${this.consecutiveRateLimits}/${this.MAX_CONSECUTIVE_RATE_LIMITS})`)
+    console.log(
+      `[Scraper Service V2] Rate limit recorded (${this.consecutiveRateLimits}/${this.MAX_CONSECUTIVE_RATE_LIMITS})`
+    )
 
     if (this.consecutiveRateLimits >= this.MAX_CONSECUTIVE_RATE_LIMITS) {
-      console.error(`[Scraper Service V2] Circuit breaker OPEN - too many consecutive rate limits. Pausing for ${this.CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`)
+      console.error(
+        `[Scraper Service V2] Circuit breaker OPEN - too many consecutive rate limits. Pausing for ${this.CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`
+      )
     }
   }
 
@@ -87,10 +92,14 @@ export class ScraperServiceV2 {
    */
   private async applyRateLimitBackoff(attemptNumber: number = 0): Promise<void> {
     const baseDelay = this.consecutiveRateLimits > 0 ? 5000 : 2000 // 5s if already rate limited, 2s otherwise
-    const backoffDelay = getExponentialBackoff(attemptNumber > 0 ? attemptNumber : this.consecutiveRateLimits)
+    const backoffDelay = getExponentialBackoff(
+      attemptNumber > 0 ? attemptNumber : this.consecutiveRateLimits
+    )
     const totalDelay = Math.max(baseDelay, backoffDelay)
 
-    console.log(`[Scraper Service V2] Applying backoff delay: ${totalDelay}ms (attempt: ${attemptNumber}, consecutive limits: ${this.consecutiveRateLimits})`)
+    console.log(
+      `[Scraper Service V2] Applying backoff delay: ${totalDelay}ms (attempt: ${attemptNumber}, consecutive limits: ${this.consecutiveRateLimits})`
+    )
     await new Promise(resolve => setTimeout(resolve, totalDelay))
   }
 
@@ -128,15 +137,20 @@ export class ScraperServiceV2 {
       }
 
       const urlPattern: UrlPattern = draw.is_current ? 'current' : 'historic'
-      console.log(`[Scraper Service V2] Using ${urlPattern} URL pattern for draw ${options.drawNumber}`)
+      console.log(
+        `[Scraper Service V2] Using ${urlPattern} URL pattern for draw ${options.drawNumber}`
+      )
 
       // Handle cookie consent on first load
       await this.handleCookieConsent(page)
 
       // Check circuit breaker before starting
       if (this.isCircuitBreakerOpen()) {
-        const waitTime = this.CIRCUIT_BREAKER_COOLDOWN_MS - (Date.now() - (this.lastRateLimitTime || 0))
-        console.error(`[Scraper Service V2] Circuit breaker is OPEN. Wait ${Math.ceil(waitTime / 1000)}s before retrying`)
+        const waitTime =
+          this.CIRCUIT_BREAKER_COOLDOWN_MS - (Date.now() - (this.lastRateLimitTime || 0))
+        console.error(
+          `[Scraper Service V2] Circuit breaker is OPEN. Wait ${Math.ceil(waitTime / 1000)}s before retrying`
+        )
         throw new Error('Circuit breaker open: too many recent rate limits')
       }
 
@@ -158,7 +172,7 @@ export class ScraperServiceV2 {
           dataType,
           options,
           urlContext,
-          urlPattern,
+          urlPattern
         )
         results.push(dataResult)
 
@@ -167,8 +181,7 @@ export class ScraperServiceV2 {
           this.recordRateLimit()
           console.log('[Scraper Service V2] Rate limit detected, stopping further scraping')
           break
-        }
-        else if (dataResult.success) {
+        } else if (dataResult.success) {
           // Reset on success
           this.resetCircuitBreaker()
         }
@@ -182,23 +195,25 @@ export class ScraperServiceV2 {
       console.log(`[Scraper Service V2] Completed scrape in ${totalDuration}ms`)
 
       // Log analytics summary periodically
-      if (Math.random() < 0.1) { // 10% chance
+      if (Math.random() < 0.1) {
+        // 10% chance
         scraperAnalytics.logSummary()
       }
 
       return results
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Scraper Service V2] Fatal error:`, error)
 
-      return [{
-        success: false,
-        matchId: options.matchId,
-        dataType: 'all',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        duration: Date.now() - startTime,
-        timestamp: new Date(),
-      }]
+      return [
+        {
+          success: false,
+          matchId: options.matchId,
+          dataType: 'all',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - startTime,
+          timestamp: new Date(),
+        },
+      ]
     }
   }
 
@@ -210,7 +225,7 @@ export class ScraperServiceV2 {
     dataType: string,
     options: ScrapeOptions,
     urlContext: UrlBuildContext,
-    urlPattern: UrlPattern,
+    urlPattern: UrlPattern
   ): Promise<ScrapeResult> {
     const startTime = Date.now()
     let _directUrlError: string | undefined
@@ -278,7 +293,9 @@ export class ScraperServiceV2 {
           },
         })
 
-        console.log(`[Scraper Service V2] Successfully scraped ${dataType} using ${method} in ${duration}ms`)
+        console.log(
+          `[Scraper Service V2] Successfully scraped ${dataType} using ${method} in ${duration}ms`
+        )
 
         return {
           success: true,
@@ -288,12 +305,10 @@ export class ScraperServiceV2 {
           duration,
           timestamp: new Date(),
         }
-      }
-      else {
+      } else {
         throw new Error('No data returned from any method')
       }
-    }
-    catch (error) {
+    } catch (error) {
       const duration = Date.now() - startTime
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       const isRateLimited = this.isRateLimitError(errorMessage)
@@ -340,7 +355,7 @@ export class ScraperServiceV2 {
   private async scrapeWithTabClick(
     page: any,
     dataType: string,
-    options: ScrapeOptions,
+    options: ScrapeOptions
   ): Promise<any> {
     try {
       console.log(`[Scraper Service V2] Using tab click method for ${dataType}`)
@@ -348,18 +363,37 @@ export class ScraperServiceV2 {
       // Use the traditional scrape method from scrapers
       switch (dataType) {
         case 'xStats':
-          return await this.xStatsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+          return await this.xStatsScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber
+          )
         case 'statistics':
-          return await this.statisticsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+          return await this.statisticsScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber
+          )
         case 'headToHead':
-          return await this.headToHeadScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+          return await this.headToHeadScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber
+          )
         case 'news':
-          return await this.newsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+          return await this.newsScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber
+          )
         default:
           return null
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Scraper Service V2] Tab click method failed:`, error)
       return null
     }
@@ -368,14 +402,15 @@ export class ScraperServiceV2 {
   /**
    * Get draw info from database
    */
-  private async getDrawInfo(drawNumber: number): Promise<{ draw_date: Date, is_current: boolean } | null> {
+  private async getDrawInfo(
+    drawNumber: number
+  ): Promise<{ draw_date: Date; is_current: boolean } | null> {
     try {
       return await prisma.draws.findUnique({
         where: { draw_number: drawNumber },
         select: { draw_date: true, is_current: true },
       })
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Scraper Service V2] Error getting draw info:', error)
       return null
     }
@@ -386,7 +421,8 @@ export class ScraperServiceV2 {
    */
   private async handleCookieConsent(page: any): Promise<void> {
     try {
-      const cookieButtonSelector = 'button:has-text("Acceptera"), button:has-text("Accept"), [id*="cookie"][class*="accept"]'
+      const cookieButtonSelector =
+        'button:has-text("Acceptera"), button:has-text("Accept"), [id*="cookie"][class*="accept"]'
 
       const cookieButton = page.locator(cookieButtonSelector).first()
       if (await cookieButton.isVisible({ timeout: 5000 })) {
@@ -394,8 +430,7 @@ export class ScraperServiceV2 {
         await cookieButton.click()
         await humanDelay(1000, 2000)
       }
-    }
-    catch {
+    } catch {
       // No cookie dialog or already handled - this is fine
       console.log('[Scraper Service V2] No cookie dialog found or already handled')
     }
@@ -460,8 +495,7 @@ export class ScraperServiceV2 {
           initialized: browserManager.isInitialized(),
         },
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Scraper Service V2] Error getting health metrics:', error)
       return {
         error: 'Failed to get health metrics',

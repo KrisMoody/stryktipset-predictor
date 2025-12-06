@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
 import type { Page } from 'playwright'
 import { BaseScraper } from './base-scraper'
 import type { HeadToHeadData } from '~/types'
@@ -9,7 +10,12 @@ export class HeadToHeadScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, matchId: number, drawNumber: number, matchNumber: number): Promise<HeadToHeadData | null> {
+  async scrape(
+    page: Page,
+    matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<HeadToHeadData | null> {
     try {
       this.log('Starting head-to-head scraping')
 
@@ -18,11 +24,11 @@ export class HeadToHeadScraper extends BaseScraper {
       await this.navigateTo(page, url)
 
       // Click on Head-to-Head tab
-      const h2hTabSelector = '[data-tab-id="headToHead"], button:has-text("Head to Head"), a:has-text("Head to Head")'
+      const h2hTabSelector =
+        '[data-tab-id="headToHead"], button:has-text("Head to Head"), a:has-text("Head to Head")'
       if (await this.elementExists(page, h2hTabSelector)) {
         await this.clickTab(page, h2hTabSelector)
-      }
-      else {
+      } else {
         this.log('Head-to-Head tab not found')
         return null
       }
@@ -40,8 +46,7 @@ export class HeadToHeadScraper extends BaseScraper {
 
       this.log('Head-to-head scraping complete')
       return h2hData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping head-to-head: ${error}`)
       return null
     }
@@ -73,8 +78,7 @@ export class HeadToHeadScraper extends BaseScraper {
 
       this.log(`Found ${matches.length} historical matches`)
       return matches
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting matches: ${error}`)
       return []
     }

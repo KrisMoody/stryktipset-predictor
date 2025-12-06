@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright page types and dynamic DOM data */
 import type { Page } from 'playwright'
 import { humanDelay, humanClick, detectRateLimit } from '../utils/human-behavior'
 import { getRandomDelay } from '../scraper-config'
@@ -22,7 +23,11 @@ export abstract class BaseScraper {
   /**
    * Navigate to a URL with human-like behavior
    */
-  protected async navigateTo(page: Page, url: string, options: { waitUntil?: 'domcontentloaded' | 'networkidle' } = {}): Promise<void> {
+  protected async navigateTo(
+    page: Page,
+    url: string,
+    options: { waitUntil?: 'domcontentloaded' | 'networkidle' } = {}
+  ): Promise<void> {
     try {
       this.log(`Navigating to: ${url}`)
 
@@ -54,8 +59,7 @@ export abstract class BaseScraper {
       }
 
       this.log('Page loaded successfully')
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error navigating to ${url}: ${error}`)
 
       // Re-throw with more context
@@ -83,8 +87,7 @@ export abstract class BaseScraper {
       await humanDelay(1000, 2000)
 
       this.log('Tab clicked successfully')
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error clicking tab ${tabSelector}: ${error}`)
       throw error
     }
@@ -98,8 +101,7 @@ export abstract class BaseScraper {
       const element = await page.locator(selector)
       const text = await element.textContent()
       return text?.trim() || null
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting text from ${selector}: ${error}`)
       return null
     }
@@ -121,8 +123,7 @@ export abstract class BaseScraper {
       }
 
       return texts
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting texts from ${selector}: ${error}`)
       return []
     }
@@ -135,8 +136,7 @@ export abstract class BaseScraper {
     try {
       const count = await page.locator(selector).count()
       return count > 0
-    }
-    catch {
+    } catch {
       return false
     }
   }
@@ -173,8 +173,7 @@ export abstract class BaseScraper {
       }
 
       this.log('Direct navigation successful')
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Direct navigation failed: ${error}`)
       throw error
     }
@@ -201,5 +200,10 @@ export abstract class BaseScraper {
    * Abstract method to be implemented by subclasses
    * Traditional scraping method (fallback)
    */
-  abstract scrape(page: Page, matchId: number, drawNumber: number, matchNumber: number): Promise<any>
+  abstract scrape(
+    page: Page,
+    matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<any>
 }

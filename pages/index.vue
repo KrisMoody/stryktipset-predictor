@@ -2,12 +2,8 @@
   <UContainer class="py-8">
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-4xl font-bold mb-2">
-        Stryktipset AI Predictor
-      </h1>
-      <p class="text-gray-600 dark:text-gray-400">
-        AI-powered predictions for Swedish Stryktipset
-      </p>
+      <h1 class="text-4xl font-bold mb-2">Stryktipset AI Predictor</h1>
+      <p class="text-gray-600 dark:text-gray-400">AI-powered predictions for Swedish Stryktipset</p>
     </div>
 
     <!-- Schedule Window Status Banner -->
@@ -50,8 +46,8 @@
         aria-describedby="admin-override-index-desc"
       />
       <label
-        for="admin-override-index"
         id="admin-override-index-desc"
+        for="admin-override-index"
         class="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
       >
         Admin Override (enable actions outside betting window)
@@ -61,7 +57,11 @@
     <!-- Actions -->
     <div class="mb-6">
       <UTooltip
-        :text="!isActionAllowed ? 'Disabled outside betting window. Enable admin override to proceed.' : 'Sync draws from Svenska Spel'"
+        :text="
+          !isActionAllowed
+            ? 'Disabled outside betting window. Enable admin override to proceed.'
+            : 'Sync draws from Svenska Spel'
+        "
       >
         <UButton
           icon="i-heroicons-arrow-path"
@@ -87,9 +87,7 @@
           class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"
           aria-hidden="true"
         />
-        <p class="text-gray-600 dark:text-gray-400">
-          Laddar omgångar...
-        </p>
+        <p class="text-gray-600 dark:text-gray-400">Laddar omgångar...</p>
       </div>
     </div>
 
@@ -105,29 +103,17 @@
     />
 
     <!-- Draws List -->
-    <div
-      v-else-if="draws && draws.length > 0"
-      class="space-y-6"
-    >
-      <UCard
-        v-for="draw in draws"
-        :key="draw.id"
-      >
+    <div v-else-if="draws && draws.length > 0" class="space-y-6">
+      <UCard v-for="draw in draws" :key="draw.id">
         <template #header>
           <div class="flex justify-between items-start">
             <div>
-              <h2 class="text-2xl font-semibold">
-                Draw #{{ draw.draw_number }}
-              </h2>
+              <h2 class="text-2xl font-semibold">Draw #{{ draw.draw_number }}</h2>
               <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 {{ formatDate(draw.draw_date) }} • Closes: {{ formatDateTime(draw.close_time) }}
               </p>
             </div>
-            <UBadge
-              :color="getStatusColor(draw.status)"
-              variant="subtle"
-              size="lg"
-            >
+            <UBadge :color="getStatusColor(draw.status)" variant="subtle" size="lg">
               {{ draw.status }}
             </UBadge>
           </div>
@@ -137,33 +123,25 @@
         <div class="mb-4">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <p class="text-gray-600 dark:text-gray-400">
-                Matches
-              </p>
+              <p class="text-gray-600 dark:text-gray-400">Matches</p>
               <p class="text-lg font-semibold">
                 {{ draw.matches?.length || 0 }}
               </p>
             </div>
             <div>
-              <p class="text-gray-600 dark:text-gray-400">
-                With Predictions
-              </p>
+              <p class="text-gray-600 dark:text-gray-400">With Predictions</p>
               <p class="text-lg font-semibold">
                 {{ countMatchesWithPredictions(draw) }}
               </p>
             </div>
             <div>
-              <p class="text-gray-600 dark:text-gray-400">
-                Net Sale
-              </p>
+              <p class="text-gray-600 dark:text-gray-400">Net Sale</p>
               <p class="text-lg font-semibold">
                 {{ formatCurrency(draw.net_sale) }}
               </p>
             </div>
             <div>
-              <p class="text-gray-600 dark:text-gray-400">
-                Ready
-              </p>
+              <p class="text-gray-600 dark:text-gray-400">Ready</p>
               <UIcon
                 :name="isDrawReady(draw) ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'"
                 :class="isDrawReady(draw) ? 'text-green-500' : 'text-gray-400'"
@@ -175,14 +153,13 @@
 
         <template #footer>
           <div class="flex gap-2">
-            <UButton
-              :to="`/draw/${draw.draw_number}`"
-              color="primary"
-            >
-              View Matches
-            </UButton>
+            <UButton :to="`/draw/${draw.draw_number}`" color="primary"> View Matches </UButton>
             <UTooltip
-              :text="!isActionAllowed ? 'Disabled outside betting window' : 'Generate AI predictions for all matches'"
+              :text="
+                !isActionAllowed
+                  ? 'Disabled outside betting window'
+                  : 'Generate AI predictions for all matches'
+              "
             >
               <UButton
                 color="success"
@@ -194,7 +171,13 @@
               </UButton>
             </UTooltip>
             <UTooltip
-              :text="!isActionAllowed ? 'Disabled outside betting window' : (!isDrawReady(draw) ? 'All matches need predictions first' : 'Generate optimal coupon')"
+              :text="
+                !isActionAllowed
+                  ? 'Disabled outside betting window'
+                  : !isDrawReady(draw)
+                    ? 'All matches need predictions first'
+                    : 'Generate optimal coupon'
+              "
             >
               <UButton
                 :to="`/draw/${draw.draw_number}/optimize`"
@@ -212,24 +195,17 @@
     <!-- Empty State -->
     <UCard v-else>
       <div class="text-center py-12">
-        <UIcon
-          name="i-heroicons-inbox"
-          class="w-16 h-16 mx-auto text-gray-400 mb-4"
-        />
-        <h3 class="text-lg font-semibold mb-2">
-          No Active Draws
-        </h3>
+        <UIcon name="i-heroicons-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
+        <h3 class="text-lg font-semibold mb-2">No Active Draws</h3>
         <p class="text-gray-600 dark:text-gray-400 mb-4">
           There are no active Stryktipset draws at the moment.
         </p>
         <UTooltip
-          :text="!isActionAllowed ? 'Disabled outside betting window' : 'Sync draws from Svenska Spel'"
+          :text="
+            !isActionAllowed ? 'Disabled outside betting window' : 'Sync draws from Svenska Spel'
+          "
         >
-          <UButton
-            :loading="syncing"
-            :disabled="!isActionAllowed"
-            @click="syncDraws"
-          >
+          <UButton :loading="syncing" :disabled="!isActionAllowed" @click="syncDraws">
             Sync Draws
           </UButton>
         </UTooltip>
@@ -261,12 +237,13 @@ const generatingPredictions = ref<Record<number, boolean>>({})
 // Load schedule status
 async function loadScheduleStatus() {
   try {
-    const result = await $fetch<{ success: boolean, status?: ScheduleWindowStatus }>('/api/schedule/status')
+    const result = await $fetch<{ success: boolean; status?: ScheduleWindowStatus }>(
+      '/api/schedule/status'
+    )
     if (result.success && result.status) {
       scheduleStatus.value = result.status
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error loading schedule status:', error)
   }
 }
@@ -277,10 +254,30 @@ onMounted(async () => {
   setInterval(loadScheduleStatus, 60000)
 })
 
+interface MatchData {
+  id: number
+  predictions?: { id: number }[]
+}
+
+interface DrawData {
+  id: number
+  draw_number: number
+  draw_date: string
+  close_time: string
+  status: string
+  net_sale?: string | number
+  matches?: MatchData[]
+}
+
 // Fetch current draws
-const { data: response, pending, error, refresh } = await useFetch<{
+const {
+  data: response,
+  pending,
+  error,
+  refresh,
+} = await useFetch<{
   success: boolean
-  draws?: any[]
+  draws?: DrawData[]
   error?: string
 }>('/api/draws/current')
 
@@ -292,11 +289,9 @@ const syncDraws = async () => {
   try {
     await $fetch('/api/admin/sync', { method: 'POST' })
     await refresh()
-  }
-  catch (error) {
-    console.error('Error syncing draws:', error)
-  }
-  finally {
+  } catch (err) {
+    console.error('Error syncing draws:', err)
+  } finally {
     syncing.value = false
   }
 }
@@ -305,21 +300,19 @@ const syncDraws = async () => {
 const generatePredictions = async (drawNumber: number) => {
   generatingPredictions.value[drawNumber] = true
   try {
-    const draw = draws.value.find((d: any) => d.draw_number === drawNumber)
+    const draw = draws.value.find(d => d.draw_number === drawNumber)
     if (!draw || !draw.matches) return
 
     for (const match of draw.matches) {
       try {
         await $fetch(`/api/matches/${match.id}/predict`, { method: 'POST' })
-      }
-      catch (error) {
-        console.error(`Error predicting match ${match.id}:`, error)
+      } catch (err) {
+        console.error(`Error predicting match ${match.id}:`, err)
       }
     }
 
     await refresh()
-  }
-  finally {
+  } finally {
     generatingPredictions.value[drawNumber] = false
   }
 }
@@ -342,28 +335,32 @@ const formatDateTime = (datetime: string) => {
   })
 }
 
-const formatCurrency = (amount: any) => {
+const formatCurrency = (amount: string | number | undefined) => {
   if (!amount) return 'N/A'
-  return `${parseFloat(amount).toLocaleString('sv-SE')} SEK`
+  return `${parseFloat(String(amount)).toLocaleString('sv-SE')} SEK`
 }
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'Open': return 'success'
-    case 'Closed': return 'warning'
-    case 'Completed': return 'neutral'
-    default: return 'neutral'
+    case 'Open':
+      return 'success'
+    case 'Closed':
+      return 'warning'
+    case 'Completed':
+      return 'neutral'
+    default:
+      return 'neutral'
   }
 }
 
-const countMatchesWithPredictions = (draw: any) => {
+const countMatchesWithPredictions = (draw: DrawData) => {
   if (!draw.matches) return 0
-  return draw.matches.filter((m: any) => m.predictions && m.predictions.length > 0).length
+  return draw.matches.filter(m => m.predictions && m.predictions.length > 0).length
 }
 
-const isDrawReady = (draw: any) => {
+const isDrawReady = (draw: DrawData) => {
   if (!draw.matches || draw.matches.length !== 13) return false
-  return draw.matches.every((m: any) => m.predictions && m.predictions.length > 0)
+  return draw.matches.every(m => m.predictions && m.predictions.length > 0)
 }
 
 const formatDuration = (minutes: number): string => {

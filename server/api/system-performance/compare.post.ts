@@ -1,6 +1,6 @@
 import { systemPerformanceAnalyzer } from '~/server/services/system-performance-analyzer'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   const body = await readBody(event)
   const { systemIds } = body
 
@@ -18,13 +18,13 @@ export default defineEventHandler(async (event) => {
       success: true,
       comparison,
     }
-  }
-  catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { message?: string }
     console.error('Failed to compare systems:', error)
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to compare systems',
-      data: { error: error.message },
+      data: { error: err.message },
     })
   }
 })

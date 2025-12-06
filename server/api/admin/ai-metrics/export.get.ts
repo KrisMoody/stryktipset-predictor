@@ -1,12 +1,12 @@
 import { prisma } from '~/server/utils/prisma'
 import type { AIMetricsExportData } from '~/types'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const query = getQuery(event)
 
     // Build where clause based on date range
-    const whereClause: any = {}
+    const whereClause: { timestamp?: { gte: Date; lte: Date } } = {}
 
     if (query.preset) {
       const dateRange = parseDatePreset(query.preset as string)
@@ -14,8 +14,7 @@ export default defineEventHandler(async (event) => {
         gte: dateRange.start,
         lte: dateRange.end,
       }
-    }
-    else if (query.start && query.end) {
+    } else if (query.start && query.end) {
       whereClause.timestamp = {
         gte: new Date(query.start as string),
         lte: new Date(query.end as string),
@@ -50,8 +49,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: exportData,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error exporting AI metrics:', error)
     return {
       success: false,
@@ -60,7 +58,7 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-function parseDatePreset(preset: string): { start: Date, end: Date } {
+function parseDatePreset(preset: string): { start: Date; end: Date } {
   const now = new Date()
   const start = new Date()
 
@@ -78,12 +76,13 @@ function parseDatePreset(preset: string): { start: Date, end: Date } {
       start.setDate(1)
       start.setHours(0, 0, 0, 0)
       break
-    case 'lastMonth':
+    case 'lastMonth': {
       start.setMonth(now.getMonth() - 1)
       start.setDate(1)
       start.setHours(0, 0, 0, 0)
       const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
       return { start, end }
+    }
     default:
       // All time - last 90 days
       start.setDate(now.getDate() - 90)

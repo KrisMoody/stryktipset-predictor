@@ -2,12 +2,10 @@
   <div class="space-y-6">
     <!-- xStats Section -->
     <div v-if="xStatsData">
-      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-        <UIcon
-          name="i-heroicons-chart-bar"
-          class="w-4 h-4"
-          aria-hidden="true"
-        />
+      <h4
+        class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"
+      >
+        <UIcon name="i-heroicons-chart-bar" class="w-4 h-4" aria-hidden="true" />
         Expected Goals (xStats)
       </h4>
 
@@ -64,19 +62,24 @@
 
     <!-- Team Statistics Section -->
     <div v-if="statisticsData">
-      <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-        <UIcon
-          name="i-heroicons-table-cells"
-          class="w-4 h-4"
-          aria-hidden="true"
-        />
+      <h4
+        class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"
+      >
+        <UIcon name="i-heroicons-table-cells" class="w-4 h-4" aria-hidden="true" />
         Team Statistics
       </h4>
 
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <caption class="sr-only">
-            Lagstatistik för {{ homeTeamName }} och {{ awayTeamName }}
+            Lagstatistik för
+            {{
+              homeTeamName
+            }}
+            och
+            {{
+              awayTeamName
+            }}
           </caption>
           <thead class="bg-gray-50 dark:bg-gray-800">
             <tr>
@@ -169,10 +172,12 @@
                 Goals (F / A)
               </th>
               <td class="px-3 py-2 text-center">
-                {{ statisticsData.homeTeam?.goalsFor || 0 }} / {{ statisticsData.homeTeam?.goalsAgainst || 0 }}
+                {{ statisticsData.homeTeam?.goalsFor || 0 }} /
+                {{ statisticsData.homeTeam?.goalsAgainst || 0 }}
               </td>
               <td class="px-3 py-2 text-center">
-                {{ statisticsData.awayTeam?.goalsFor || 0 }} / {{ statisticsData.awayTeam?.goalsAgainst || 0 }}
+                {{ statisticsData.awayTeam?.goalsFor || 0 }} /
+                {{ statisticsData.awayTeam?.goalsAgainst || 0 }}
               </td>
             </tr>
           </tbody>
@@ -180,14 +185,8 @@
       </div>
 
       <!-- Form Section -->
-      <div
-        v-if="hasForm"
-        class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4"
-      >
-        <div
-          v-if="statisticsData.homeTeam?.form"
-          class="flex items-center gap-2"
-        >
+      <div v-if="hasForm" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div v-if="statisticsData.homeTeam?.form" class="flex items-center gap-2">
           <span class="text-sm text-gray-600 dark:text-gray-400">{{ homeTeamName }} form:</span>
           <div class="flex gap-1">
             <span
@@ -200,10 +199,7 @@
             </span>
           </div>
         </div>
-        <div
-          v-if="statisticsData.awayTeam?.form"
-          class="flex items-center gap-2"
-        >
+        <div v-if="statisticsData.awayTeam?.form" class="flex items-center gap-2">
           <span class="text-sm text-gray-600 dark:text-gray-400">{{ awayTeamName }} form:</span>
           <div class="flex gap-1">
             <span
@@ -224,16 +220,9 @@
       v-if="!xStatsData && !statisticsData"
       class="text-center py-6 text-gray-500 dark:text-gray-400"
     >
-      <UIcon
-        name="i-heroicons-chart-bar"
-        class="w-8 h-8 mx-auto mb-2 opacity-50"
-      />
-      <p class="text-sm">
-        No statistics data available for this match.
-      </p>
-      <p class="text-xs mt-1">
-        Try scraping the match to fetch statistics.
-      </p>
+      <UIcon name="i-heroicons-chart-bar" class="w-8 h-8 mx-auto mb-2 opacity-50" />
+      <p class="text-sm">No statistics data available for this match.</p>
+      <p class="text-xs mt-1">Try scraping the match to fetch statistics.</p>
     </div>
   </div>
 </template>
@@ -241,8 +230,13 @@
 <script setup lang="ts">
 import type { XStatsData, StatisticsData, XStatsValues } from '~/types'
 
+interface ScrapedDataItem {
+  data_type: string
+  data: unknown
+}
+
 const props = defineProps<{
-  scrapedData: Array<{ data_type: string, data: any }> | null | undefined
+  scrapedData: Array<ScrapedDataItem> | null | undefined
   homeTeamName: string
   awayTeamName: string
 }>()
@@ -251,27 +245,38 @@ const props = defineProps<{
 const xStatsData = computed((): XStatsData | null => {
   if (!props.scrapedData) return null
   const xStats = props.scrapedData.find(d => d.data_type === 'xStats')
-  return xStats?.data || null
+  if (!xStats?.data) return null
+  const data = xStats.data as XStatsData
+  // Validate required shape
+  if (!('homeTeam' in data) || !('awayTeam' in data)) return null
+  return data
 })
 
 // Extract statistics data
 const statisticsData = computed((): StatisticsData | null => {
   if (!props.scrapedData) return null
   const stats = props.scrapedData.find(d => d.data_type === 'statistics')
-  return stats?.data || null
+  if (!stats?.data) return null
+  const data = stats.data as StatisticsData
+  // Validate required shape
+  if (!('homeTeam' in data) || !('awayTeam' in data)) return null
+  return data
 })
 
 // Check if a stat exists for either team
 const hasStatValue = (key: string) => {
   if (!statisticsData.value) return false
-  return statisticsData.value.homeTeam?.[key] !== undefined
-    || statisticsData.value.awayTeam?.[key] !== undefined
+  return (
+    statisticsData.value.homeTeam?.[key] !== undefined ||
+    statisticsData.value.awayTeam?.[key] !== undefined
+  )
 }
 
 // Check if form data exists
 const hasForm = computed(() => {
-  return statisticsData.value?.homeTeam?.form?.length
-    || statisticsData.value?.awayTeam?.form?.length
+  return (
+    statisticsData.value?.homeTeam?.form?.length || statisticsData.value?.awayTeam?.form?.length
+  )
 })
 
 // Get CSS class for form result

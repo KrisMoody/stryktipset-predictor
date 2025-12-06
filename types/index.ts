@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic API data structures require any types */
 // Type definitions for Svenska Spel API and application data structures
 
 /**

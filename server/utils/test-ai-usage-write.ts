@@ -7,7 +7,7 @@ export interface TestResult {
   success: boolean
   message: string
   error?: string
-  details?: any
+  details?: unknown
 }
 
 export async function testAIUsageWrite(): Promise<TestResult> {
@@ -19,8 +19,7 @@ export async function testAIUsageWrite(): Promise<TestResult> {
     try {
       await prisma.$queryRaw`SELECT 1`
       logger.info('✓ Database connection successful')
-    }
-    catch (error) {
+    } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       logger.error('✗ Database connection failed', error)
       return {
@@ -35,8 +34,7 @@ export async function testAIUsageWrite(): Promise<TestResult> {
     try {
       await prisma.$queryRaw`SELECT COUNT(*) FROM ai_usage LIMIT 1`
       logger.info('✓ ai_usage table exists')
-    }
-    catch (error) {
+    } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       logger.error('✗ ai_usage table does not exist or is not accessible', error)
       return {
@@ -67,8 +65,7 @@ export async function testAIUsageWrite(): Promise<TestResult> {
         data: testData,
       })
       logger.info('✓ Test record written successfully', { id: createdRecord.id })
-    }
-    catch (error) {
+    } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       logger.error('✗ Failed to write test record', error)
       return {
@@ -96,8 +93,7 @@ export async function testAIUsageWrite(): Promise<TestResult> {
       }
 
       logger.info('✓ Record read back successfully', { id: readRecord.id })
-    }
-    catch (error) {
+    } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       logger.error('✗ Failed to read back test record', error)
       return {
@@ -115,23 +111,25 @@ export async function testAIUsageWrite(): Promise<TestResult> {
         where: { id: createdRecord.id },
       })
       logger.info('✓ Test record deleted successfully')
-    }
-    catch (error) {
+    } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
-      logger.warn('⚠ Failed to delete test record (non-critical)', { error: errorMsg, id: createdRecord.id })
+      logger.warn('⚠ Failed to delete test record (non-critical)', {
+        error: errorMsg,
+        id: createdRecord.id,
+      })
     }
 
     logger.info('All tests passed successfully')
     return {
       success: true,
-      message: 'All tests passed: Database connection, table exists, write successful, read successful',
+      message:
+        'All tests passed: Database connection, table exists, write successful, read successful',
       details: {
         testRecordId: createdRecord.id,
         testData,
       },
     }
-  }
-  catch (error) {
+  } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     logger.error('Unexpected error during test', error)
     return {

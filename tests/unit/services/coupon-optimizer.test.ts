@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- Test file with mock data */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { CouponSelection, ExpectedValue, BettingSystem, HedgeAssignment } from '~/types'
 
@@ -9,7 +10,7 @@ const createSelection = (
   matchNumber: number,
   selection: string,
   isSpik: boolean = false,
-  ev: number = 5.0,
+  ev: number = 5.0
 ): CouponSelection => ({
   matchNumber,
   homeTeam: `Home ${matchNumber}`,
@@ -24,7 +25,7 @@ const createExpectedValue = (
   outcome: '1' | 'X' | '2',
   probability: number,
   odds: number,
-  ev: number,
+  ev: number
 ): ExpectedValue => ({
   outcome,
   probability,
@@ -47,9 +48,30 @@ class TestableCouponOptimizer {
 
     if (!odds) {
       return [
-        { outcome: '1', probability: Number(prediction.probability_home), crowd_probability: 33.33, odds: 1, ev: Number(prediction.probability_home), is_value_bet: false },
-        { outcome: 'X', probability: Number(prediction.probability_draw), crowd_probability: 33.33, odds: 1, ev: Number(prediction.probability_draw), is_value_bet: false },
-        { outcome: '2', probability: Number(prediction.probability_away), crowd_probability: 33.33, odds: 1, ev: Number(prediction.probability_away), is_value_bet: false },
+        {
+          outcome: '1',
+          probability: Number(prediction.probability_home),
+          crowd_probability: 33.33,
+          odds: 1,
+          ev: Number(prediction.probability_home),
+          is_value_bet: false,
+        },
+        {
+          outcome: 'X',
+          probability: Number(prediction.probability_draw),
+          crowd_probability: 33.33,
+          odds: 1,
+          ev: Number(prediction.probability_draw),
+          is_value_bet: false,
+        },
+        {
+          outcome: '2',
+          probability: Number(prediction.probability_away),
+          crowd_probability: 33.33,
+          odds: 1,
+          ev: Number(prediction.probability_away),
+          is_value_bet: false,
+        },
       ]
     }
 
@@ -59,14 +81,34 @@ class TestableCouponOptimizer {
       away: parseFloat(odds.svenska_folket_away || '33.33'),
     }
 
-    const outcomes: Array<{ outcome: '1' | 'X' | '2'; prob: number; crowdProb: number; odds: number }> = [
-      { outcome: '1', prob: Number(prediction.probability_home), crowdProb: svenskaFolket.home, odds: Number(odds.home_odds) },
-      { outcome: 'X', prob: Number(prediction.probability_draw), crowdProb: svenskaFolket.draw, odds: Number(odds.draw_odds) },
-      { outcome: '2', prob: Number(prediction.probability_away), crowdProb: svenskaFolket.away, odds: Number(odds.away_odds) },
+    const outcomes: Array<{
+      outcome: '1' | 'X' | '2'
+      prob: number
+      crowdProb: number
+      odds: number
+    }> = [
+      {
+        outcome: '1',
+        prob: Number(prediction.probability_home),
+        crowdProb: svenskaFolket.home,
+        odds: Number(odds.home_odds),
+      },
+      {
+        outcome: 'X',
+        prob: Number(prediction.probability_draw),
+        crowdProb: svenskaFolket.draw,
+        odds: Number(odds.draw_odds),
+      },
+      {
+        outcome: '2',
+        prob: Number(prediction.probability_away),
+        crowdProb: svenskaFolket.away,
+        odds: Number(odds.away_odds),
+      },
     ]
 
     for (const { outcome, prob, crowdProb, odds: outcomeOdds } of outcomes) {
-      const ev = (prob * 100 * outcomeOdds) - 100
+      const ev = prob * 100 * outcomeOdds - 100
       const is_value_bet = prob * 100 > crowdProb
 
       results.push({
@@ -85,7 +127,12 @@ class TestableCouponOptimizer {
   /**
    * Determine optimal selection for a match
    */
-  determineOptimalSelection(evs: ExpectedValue[], isSpik: boolean, budget: number, currentSpiks: number): string {
+  determineOptimalSelection(
+    evs: ExpectedValue[],
+    isSpik: boolean,
+    budget: number,
+    currentSpiks: number
+  ): string {
     if (isSpik || currentSpiks >= 10) {
       return this.getBestSingleOutcome(evs)
     }
@@ -117,7 +164,7 @@ class TestableCouponOptimizer {
    */
   getBestSingleOutcome(evs: ExpectedValue[]): string {
     if (evs.length === 0) return '1'
-    return evs.reduce((best, current) => current.ev > best.ev ? current : best, evs[0]!).outcome
+    return evs.reduce((best, current) => (current.ev > best.ev ? current : best), evs[0]!).outcome
   }
 
   /**
@@ -129,10 +176,11 @@ class TestableCouponOptimizer {
     }
 
     const outcomes = selection.split('')
-    const avgEV = outcomes.reduce((sum, outcome) => {
-      const ev = evs.find(e => e.outcome === outcome)?.ev || 0
-      return sum + ev
-    }, 0) / outcomes.length
+    const avgEV =
+      outcomes.reduce((sum, outcome) => {
+        const ev = evs.find(e => e.outcome === outcome)?.ev || 0
+        return sum + ev
+      }, 0) / outcomes.length
 
     return avgEV
   }
@@ -161,10 +209,7 @@ class TestableCouponOptimizerV2 extends TestableCouponOptimizer {
   /**
    * Determine hedge assignment based on system requirements and AI predictions
    */
-  determineHedgeAssignment(
-    selections: CouponSelection[],
-    system: BettingSystem,
-  ): HedgeAssignment {
+  determineHedgeAssignment(selections: CouponSelection[], system: BettingSystem): HedgeAssignment {
     const totalHedges = system.helgarderingar + system.halvgarderingar
     const totalSpiks = 13 - totalHedges
 
@@ -182,9 +227,7 @@ class TestableCouponOptimizerV2 extends TestableCouponOptimizer {
     for (let i = 0; i < totalSpiks && i < sorted.length; i++) {
       const sel = sorted[i]!
       spiks.push(sel.matchNumber)
-      spikOutcomes[sel.matchNumber] = sel.selection.length === 1
-        ? sel.selection
-        : sel.selection[0]!
+      spikOutcomes[sel.matchNumber] = sel.selection.length === 1 ? sel.selection : sel.selection[0]!
     }
 
     const remaining = sorted.slice(totalSpiks)
@@ -211,21 +254,17 @@ class TestableCouponOptimizerV2 extends TestableCouponOptimizer {
    */
   autoGenerateUtgangstecken(
     selections: CouponSelection[],
-    hedgeAssignment: HedgeAssignment,
+    hedgeAssignment: HedgeAssignment
   ): Record<number, string> {
     const utgangstecken: Record<number, string> = {}
 
-    const hedgedMatches = [
-      ...hedgeAssignment.helgarderingar,
-      ...hedgeAssignment.halvgarderingar,
-    ]
+    const hedgedMatches = [...hedgeAssignment.helgarderingar, ...hedgeAssignment.halvgarderingar]
 
     for (const matchNum of hedgedMatches) {
       const selection = selections.find(s => s.matchNumber === matchNum)
       if (selection) {
-        utgangstecken[matchNum] = selection.selection.length === 1
-          ? selection.selection
-          : selection.selection[0]!
+        utgangstecken[matchNum] =
+          selection.selection.length === 1 ? selection.selection : selection.selection[0]!
       }
     }
 
@@ -252,7 +291,7 @@ describe('CouponOptimizer', () => {
     it('calculates EVs without odds data', () => {
       const prediction = {
         probability_home: 0.45,
-        probability_draw: 0.30,
+        probability_draw: 0.3,
         probability_away: 0.25,
       }
 
@@ -262,21 +301,21 @@ describe('CouponOptimizer', () => {
       expect(evs[0]!.outcome).toBe('1')
       expect(evs[0]!.probability).toBe(0.45)
       expect(evs[1]!.outcome).toBe('X')
-      expect(evs[1]!.probability).toBe(0.30)
+      expect(evs[1]!.probability).toBe(0.3)
       expect(evs[2]!.outcome).toBe('2')
       expect(evs[2]!.probability).toBe(0.25)
     })
 
     it('calculates EVs with odds data', () => {
       const prediction = {
-        probability_home: 0.50, // 50% chance
-        probability_draw: 0.30,
-        probability_away: 0.20,
+        probability_home: 0.5, // 50% chance
+        probability_draw: 0.3,
+        probability_away: 0.2,
       }
       const odds = {
-        home_odds: 2.00,
-        draw_odds: 3.50,
-        away_odds: 4.00,
+        home_odds: 2.0,
+        draw_odds: 3.5,
+        away_odds: 4.0,
         svenska_folket_home: '45',
         svenska_folket_draw: '25',
         svenska_folket_away: '30',
@@ -295,14 +334,14 @@ describe('CouponOptimizer', () => {
 
     it('identifies value bets correctly', () => {
       const prediction = {
-        probability_home: 0.50, // AI says 50%
-        probability_draw: 0.30,
-        probability_away: 0.20,
+        probability_home: 0.5, // AI says 50%
+        probability_draw: 0.3,
+        probability_away: 0.2,
       }
       const odds = {
-        home_odds: 2.00,
-        draw_odds: 3.50,
-        away_odds: 4.00,
+        home_odds: 2.0,
+        draw_odds: 3.5,
+        away_odds: 4.0,
         svenska_folket_home: '45', // Crowd says 45%, we say 50% = value
         svenska_folket_draw: '35', // Crowd says 35%, we say 30% = not value
         svenska_folket_away: '20',
@@ -452,9 +491,7 @@ describe('CouponOptimizer', () => {
 
   describe('calculateTotalCombinations', () => {
     it('returns 1 for all single selections', () => {
-      const selections = Array.from({ length: 13 }, (_, i) =>
-        createSelection(i + 1, '1')
-      )
+      const selections = Array.from({ length: 13 }, (_, i) => createSelection(i + 1, '1'))
       expect(optimizer.calculateTotalCombinations(selections)).toBe(1)
     })
 
@@ -478,9 +515,7 @@ describe('CouponOptimizer', () => {
     })
 
     it('calculates exponentially for all triples', () => {
-      const selections = Array.from({ length: 13 }, (_, i) =>
-        createSelection(i + 1, '1X2')
-      )
+      const selections = Array.from({ length: 13 }, (_, i) => createSelection(i + 1, '1X2'))
       // 3^13 = 1,594,323
       expect(optimizer.calculateTotalCombinations(selections)).toBe(1594323)
     })
@@ -564,9 +599,7 @@ describe('CouponOptimizerV2', () => {
 
     it('prioritizes spik-suitable matches for spiks', () => {
       // First 6 matches are spik-suitable
-      const selections = Array.from({ length: 13 }, (_, i) =>
-        createSelection(i + 1, '1', i < 6, 5)
-      )
+      const selections = Array.from({ length: 13 }, (_, i) => createSelection(i + 1, '1', i < 6, 5))
 
       const system: BettingSystem = {
         id: 'R-4-0-9-12',
@@ -589,8 +622,9 @@ describe('CouponOptimizerV2', () => {
     })
 
     it('assigns lowest EV matches as helgarderingar', () => {
-      const selections = Array.from({ length: 13 }, (_, i) =>
-        createSelection(i + 1, '1', false, 20 - i) // EV decreases with match number
+      const selections = Array.from(
+        { length: 13 },
+        (_, i) => createSelection(i + 1, '1', false, 20 - i) // EV decreases with match number
       )
 
       const system: BettingSystem = {
@@ -611,9 +645,7 @@ describe('CouponOptimizerV2', () => {
     })
 
     it('handles system with only halvgarderingar', () => {
-      const selections = Array.from({ length: 13 }, (_, i) =>
-        createSelection(i + 1, '1', false, 5)
-      )
+      const selections = Array.from({ length: 13 }, (_, i) => createSelection(i + 1, '1', false, 5))
 
       const system: BettingSystem = {
         id: 'R-0-5-8-11',
@@ -636,9 +668,7 @@ describe('CouponOptimizerV2', () => {
         createSelection(1, '1', true, 10),
         createSelection(2, 'X', true, 9),
         createSelection(3, '2', false, 8),
-        ...Array.from({ length: 10 }, (_, i) =>
-          createSelection(i + 4, '1', false, 5)
-        ),
+        ...Array.from({ length: 10 }, (_, i) => createSelection(i + 4, '1', false, 5)),
       ]
 
       const system: BettingSystem = {
@@ -668,9 +698,7 @@ describe('CouponOptimizerV2', () => {
         createSelection(1, '1', true, 10),
         createSelection(2, 'X', false, 5),
         createSelection(3, '2', false, 3),
-        ...Array.from({ length: 10 }, (_, i) =>
-          createSelection(i + 4, '1', true, 8)
-        ),
+        ...Array.from({ length: 10 }, (_, i) => createSelection(i + 4, '1', true, 8)),
       ]
 
       const hedgeAssignment: HedgeAssignment = {
@@ -691,9 +719,7 @@ describe('CouponOptimizerV2', () => {
       const selections = [
         createSelection(1, '1X', false, 5), // Double selection
         createSelection(2, '1X2', false, 3), // Triple selection
-        ...Array.from({ length: 11 }, (_, i) =>
-          createSelection(i + 3, '1', true, 8)
-        ),
+        ...Array.from({ length: 11 }, (_, i) => createSelection(i + 3, '1', true, 8)),
       ]
 
       const hedgeAssignment: HedgeAssignment = {
@@ -710,9 +736,7 @@ describe('CouponOptimizerV2', () => {
     })
 
     it('handles empty hedge assignment', () => {
-      const selections = Array.from({ length: 13 }, (_, i) =>
-        createSelection(i + 1, '1', true, 10)
-      )
+      const selections = Array.from({ length: 13 }, (_, i) => createSelection(i + 1, '1', true, 10))
 
       const hedgeAssignment: HedgeAssignment = {
         spiks: Array.from({ length: 13 }, (_, i) => i + 1),

@@ -4,7 +4,7 @@ import { systemGenerator } from '~/server/services/system-generator'
  * GET /api/betting-systems/:systemId
  * Returns detailed information about a specific system
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const systemId = event.context.params?.systemId
 
@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
 
     // Calculate additional metadata
     const fullSystemRows = Math.pow(3, system.helgarderingar) * Math.pow(2, system.halvgarderingar)
-    const reductionRatio = (system.rows / fullSystemRows * 100).toFixed(1)
+    const reductionRatio = ((system.rows / fullSystemRows) * 100).toFixed(1)
     const estimatedCost = `${system.rows} SEK`
 
     return {
@@ -38,9 +38,9 @@ export default defineEventHandler(async (event) => {
         estimatedCost,
       },
     }
-  }
-  catch (error: any) {
-    if (error.statusCode) throw error
+  } catch (error: unknown) {
+    const err = error as { statusCode?: number; message?: string }
+    if (err.statusCode) throw error
 
     console.error('[API] Error getting system details:', error)
     throw createError({

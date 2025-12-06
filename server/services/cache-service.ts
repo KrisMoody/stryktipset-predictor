@@ -9,7 +9,7 @@ import NodeCache from 'node-cache'
  */
 class CacheService {
   private cache: NodeCache
-  private inflightRequests: Map<string, Promise<any>>
+  private inflightRequests: Map<string, Promise<unknown>>
 
   constructor() {
     // Initialize with default 5min TTL and 10min cleanup period
@@ -51,12 +51,19 @@ class CacheService {
 
       const ttl = dayOfWeek === 6 ? 300 : 86400 // 5 minutes on Saturday, 24 hours otherwise
 
-      const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek]
+      const dayName = [
+        'Sunday',
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+      ][dayOfWeek]
       console.log(`[Cache] Day-aware TTL: ${dayName} → ${ttl}s (${ttl / 60}min)`)
 
       return ttl
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Cache] Error calculating TTL, defaulting to 5 minutes:', error)
       return 300 // Safe default
     }
@@ -73,13 +80,11 @@ class CacheService {
       const value = this.cache.get<T>(key)
       if (value !== undefined) {
         console.log(`[Cache] HIT: ${key}`)
-      }
-      else {
+      } else {
         console.log(`[Cache] MISS: ${key}`)
       }
       return value
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Cache] Error reading cache key ${key}:`, error)
       return undefined
     }
@@ -96,8 +101,7 @@ class CacheService {
     try {
       const effectiveTTL = ttl ?? this.getCacheTTL()
       this.cache.set(key, value, effectiveTTL)
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Cache] Error setting cache key ${key}:`, error)
     }
   }
@@ -110,8 +114,7 @@ class CacheService {
   del(key: string): void {
     try {
       this.cache.del(key)
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Cache] Error deleting cache key ${key}:`, error)
     }
   }
@@ -130,8 +133,7 @@ class CacheService {
         this.cache.del(matchingKeys)
         console.log(`[Cache] Deleted ${matchingKeys.length} keys matching pattern: ${pattern}`)
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Cache] Error deleting pattern ${pattern}:`, error)
     }
   }
@@ -143,8 +145,7 @@ class CacheService {
     try {
       this.cache.flushAll()
       console.log('[Cache] Flushed all cache')
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Cache] Error flushing cache:', error)
     }
   }
@@ -182,7 +183,7 @@ class CacheService {
     // Check if request is already in-flight (stampede prevention)
     if (this.inflightRequests.has(key)) {
       console.log(`[Cache] Waiting for in-flight request: ${key}`)
-      return await this.inflightRequests.get(key)
+      return (await this.inflightRequests.get(key)) as T
     }
 
     // Fetch data
@@ -194,8 +195,7 @@ class CacheService {
       const ttl = this.getCacheTTL()
       this.set(key, data, ttl)
       return data
-    }
-    finally {
+    } finally {
       this.inflightRequests.delete(key)
     }
   }

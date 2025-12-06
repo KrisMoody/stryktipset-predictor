@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright accessibility tree returns dynamic structures */
 /**
  * Accessibility tree node structure from Playwright
  */
@@ -42,7 +43,7 @@ export interface AccessibilityNode {
 export function findByRole(
   tree: AccessibilityNode | null,
   role: string,
-  namePattern?: string | RegExp,
+  namePattern?: string | RegExp
 ): AccessibilityNode[] {
   if (!tree) return []
 
@@ -52,11 +53,8 @@ export function findByRole(
     if (node.role === role) {
       if (!namePattern) {
         results.push(node)
-      }
-      else if (node.name) {
-        const pattern = typeof namePattern === 'string'
-          ? new RegExp(namePattern, 'i')
-          : namePattern
+      } else if (node.name) {
+        const pattern = typeof namePattern === 'string' ? new RegExp(namePattern, 'i') : namePattern
         if (pattern.test(node.name)) {
           results.push(node)
         }
@@ -78,7 +76,7 @@ export function findByRole(
 export function findFirst(
   tree: AccessibilityNode | null,
   role: string,
-  namePattern?: string | RegExp,
+  namePattern?: string | RegExp
 ): AccessibilityNode | null {
   const results = findByRole(tree, role, namePattern)
   return results[0] || null
@@ -87,10 +85,10 @@ export function findFirst(
 /**
  * Find all links in the accessibility tree
  */
-export function findLinks(tree: AccessibilityNode | null): Array<{ name: string, url: string }> {
+export function findLinks(tree: AccessibilityNode | null): Array<{ name: string; url: string }> {
   if (!tree) return []
 
-  const links: Array<{ name: string, url: string }> = []
+  const links: Array<{ name: string; url: string }> = []
 
   function traverse(node: AccessibilityNode) {
     if (node.role === 'link' && node.name) {
@@ -115,15 +113,14 @@ export function findLinks(tree: AccessibilityNode | null): Array<{ name: string,
  */
 export function extractTabUrls(
   tree: AccessibilityNode | null,
-  tabs: string[] = ['statistik', 'xstats', 'head-to-head', 'nyheter'],
+  tabs: string[] = ['statistik', 'xstats', 'head-to-head', 'nyheter']
 ): Record<string, string> {
   const links = findLinks(tree)
   const tabUrls: Record<string, string> = {}
 
   for (const tab of tabs) {
-    const link = links.find(l =>
-      l.name.toLowerCase().includes(tab)
-      || l.url.toLowerCase().includes(tab),
+    const link = links.find(
+      l => l.name.toLowerCase().includes(tab) || l.url.toLowerCase().includes(tab)
     )
 
     if (link) {
@@ -144,8 +141,12 @@ export function extractTableData(tableNode: AccessibilityNode): string[][] {
     if (node.role === 'row') {
       const rowData: string[] = []
       if (node.children) {
-        node.children.forEach((child) => {
-          if (child.role === 'cell' || child.role === 'columnheader' || child.role === 'rowheader') {
+        node.children.forEach(child => {
+          if (
+            child.role === 'cell' ||
+            child.role === 'columnheader' ||
+            child.role === 'rowheader'
+          ) {
             rowData.push(child.name || String(child.value) || '')
           }
         })
@@ -180,41 +181,41 @@ export function parseStatsFromTable(rows: string[][]): Record<string, any> {
 
     // Map Swedish and English labels to keys
     const mappings: Record<string, string> = {
-      'placering': 'position',
-      'position': 'position',
-      'poäng': 'points',
-      'points': 'points',
-      'spelade': 'played',
-      'played': 'played',
-      'matcher': 'played',
-      'games': 'played',
-      'vunna': 'won',
-      'won': 'won',
-      'segrar': 'won',
-      'wins': 'won',
-      'oavgjorda': 'drawn',
-      'drawn': 'drawn',
-      'oavgjort': 'drawn',
-      'draws': 'drawn',
-      'förlorade': 'lost',
-      'lost': 'lost',
-      'förluster': 'lost',
-      'losses': 'lost',
+      placering: 'position',
+      position: 'position',
+      poäng: 'points',
+      points: 'points',
+      spelade: 'played',
+      played: 'played',
+      matcher: 'played',
+      games: 'played',
+      vunna: 'won',
+      won: 'won',
+      segrar: 'won',
+      wins: 'won',
+      oavgjorda: 'drawn',
+      drawn: 'drawn',
+      oavgjort: 'drawn',
+      draws: 'drawn',
+      förlorade: 'lost',
+      lost: 'lost',
+      förluster: 'lost',
+      losses: 'lost',
       'gjorda mål': 'goalsFor',
       'goals for': 'goalsFor',
       'mål för': 'goalsFor',
-      'gf': 'goalsFor',
-      'insläppta': 'goalsAgainst',
+      gf: 'goalsFor',
+      insläppta: 'goalsAgainst',
       'goals against': 'goalsAgainst',
       'mål emot': 'goalsAgainst',
-      'ga': 'goalsAgainst',
-      'målskillnad': 'goalDifference',
+      ga: 'goalsAgainst',
+      målskillnad: 'goalDifference',
       'goal difference': 'goalDifference',
-      'gd': 'goalDifference',
-      'xg': 'xg',
-      'xga': 'xga',
-      'xgd': 'xgd',
-      'xp': 'xp',
+      gd: 'goalDifference',
+      xg: 'xg',
+      xga: 'xga',
+      xgd: 'xgd',
+      xp: 'xp',
       'förväntade poäng': 'xp',
       'expected points': 'xp',
       'förväntade mål': 'xg',
@@ -247,7 +248,7 @@ export function extractAllText(node: AccessibilityNode): string {
   let text = node.name || String(node.value || '') || ''
 
   if (node.children) {
-    node.children.forEach((child) => {
+    node.children.forEach(child => {
       const childText = extractAllText(child)
       if (childText) {
         text += ' ' + childText
@@ -261,7 +262,10 @@ export function extractAllText(node: AccessibilityNode): string {
 /**
  * Find form data (W/D/L sequences) in accessibility tree
  */
-export function extractFormData(tree: AccessibilityNode | null): { home?: string[], away?: string[] } {
+export function extractFormData(tree: AccessibilityNode | null): {
+  home?: string[]
+  away?: string[]
+} {
   if (!tree) return {}
 
   try {
@@ -273,8 +277,12 @@ export function extractFormData(tree: AccessibilityNode | null): { home?: string
       const formTexts = formNodes.map(node => extractAllText(node))
 
       return {
-        home: formTexts[0]?.split('').filter(c => ['W', 'D', 'L', 'V', 'O', 'F'].includes(c.toUpperCase())),
-        away: formTexts[1]?.split('').filter(c => ['W', 'D', 'L', 'V', 'O', 'F'].includes(c.toUpperCase())),
+        home: formTexts[0]
+          ?.split('')
+          .filter(c => ['W', 'D', 'L', 'V', 'O', 'F'].includes(c.toUpperCase())),
+        away: formTexts[1]
+          ?.split('')
+          .filter(c => ['W', 'D', 'L', 'V', 'O', 'F'].includes(c.toUpperCase())),
       }
     }
 
@@ -288,8 +296,7 @@ export function extractFormData(tree: AccessibilityNode | null): { home?: string
         away: matches[1].toUpperCase().split(''),
       }
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('[Accessibility] Error extracting form data:', error)
   }
 
@@ -374,10 +381,7 @@ export function parseNewsArticles(tree: AccessibilityNode | null): Array<{
   const articles: Array<any> = []
 
   // Find article elements or list items that might contain news
-  const articleNodes = [
-    ...findByRole(tree, 'article'),
-    ...findByRole(tree, 'listitem'),
-  ]
+  const articleNodes = [...findByRole(tree, 'article'), ...findByRole(tree, 'listitem')]
 
   for (const node of articleNodes) {
     // Look for headings within the article

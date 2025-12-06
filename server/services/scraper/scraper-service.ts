@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright page types and dynamic scraped data */
 import { prisma } from '~/server/utils/prisma'
 import { browserManager } from './browser-manager'
 import { scraperQueue } from './scraper-queue'
@@ -30,9 +31,11 @@ export class ScraperService {
   private isRateLimitError(error: unknown): boolean {
     if (error instanceof Error) {
       const message = error.message.toLowerCase()
-      return message.includes('rate limit')
-        || message.includes('429')
-        || message.includes('too many requests')
+      return (
+        message.includes('rate limit') ||
+        message.includes('429') ||
+        message.includes('too many requests')
+      )
     }
     return false
   }
@@ -44,8 +47,8 @@ export class ScraperService {
     page: any,
     dataType: string,
     options: ScrapeOptions,
-    maxRetries: number = 3,
-  ): Promise<{ data: any | null, duration: number, retryCount: number }> {
+    maxRetries: number = 3
+  ): Promise<{ data: any | null; duration: number; retryCount: number }> {
     let retryCount = 0
     let lastError: Error | null = null
 
@@ -57,16 +60,36 @@ export class ScraperService {
 
         switch (dataType) {
           case 'xStats':
-            data = await this.xStatsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+            data = await this.xStatsScraper.scrape(
+              page,
+              options.matchId,
+              options.drawNumber,
+              options.matchNumber
+            )
             break
           case 'statistics':
-            data = await this.statisticsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+            data = await this.statisticsScraper.scrape(
+              page,
+              options.matchId,
+              options.drawNumber,
+              options.matchNumber
+            )
             break
           case 'headToHead':
-            data = await this.headToHeadScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+            data = await this.headToHeadScraper.scrape(
+              page,
+              options.matchId,
+              options.drawNumber,
+              options.matchNumber
+            )
             break
           case 'news':
-            data = await this.newsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+            data = await this.newsScraper.scrape(
+              page,
+              options.matchId,
+              options.drawNumber,
+              options.matchNumber
+            )
             break
         }
 
@@ -74,12 +97,10 @@ export class ScraperService {
 
         if (data) {
           return { data, duration, retryCount }
-        }
-        else {
+        } else {
           throw new Error(`No data returned for ${dataType}`)
         }
-      }
-      catch (error) {
+      } catch (error) {
         const duration = Date.now() - dataStartTime
         lastError = error instanceof Error ? error : new Error('Unknown error')
         const isRateLimited = this.isRateLimitError(error)
@@ -89,7 +110,9 @@ export class ScraperService {
         if (isRateLimited && retryCount < maxRetries) {
           // Exponential backoff for rate limits: 5s, 15s, 45s
           const backoffMs = 5000 * Math.pow(3, retryCount - 1)
-          console.log(`[Scraper Service] Rate limit on ${dataType} (attempt ${retryCount}/${maxRetries}), waiting ${backoffMs / 1000}s before retry`)
+          console.log(
+            `[Scraper Service] Rate limit on ${dataType} (attempt ${retryCount}/${maxRetries}), waiting ${backoffMs / 1000}s before retry`
+          )
 
           await prisma.scrape_operations.create({
             data: {
@@ -107,15 +130,15 @@ export class ScraperService {
 
           // Perform natural behavior after waiting
           await performNaturalBehavior(page)
-        }
-        else if (!isRateLimited && retryCount < maxRetries) {
+        } else if (!isRateLimited && retryCount < maxRetries) {
           // Regular error - shorter backoff: 2s, 4s, 8s
           const backoffMs = 2000 * Math.pow(2, retryCount - 1)
-          console.log(`[Scraper Service] Error on ${dataType} (attempt ${retryCount}/${maxRetries}), waiting ${backoffMs / 1000}s before retry`)
+          console.log(
+            `[Scraper Service] Error on ${dataType} (attempt ${retryCount}/${maxRetries}), waiting ${backoffMs / 1000}s before retry`
+          )
 
           await new Promise(resolve => setTimeout(resolve, backoffMs))
-        }
-        else {
+        } else {
           // Max retries reached or non-retryable error
           throw lastError
         }
@@ -159,7 +182,11 @@ export class ScraperService {
             },
           })
 
-          const { data, duration, retryCount } = await this.scrapeDataTypeWithRetry(page, dataType, options)
+          const { data, duration, retryCount } = await this.scrapeDataTypeWithRetry(
+            page,
+            dataType,
+            options
+          )
 
           // Save to database
           await prisma.match_scraped_data.upsert({
@@ -201,15 +228,16 @@ export class ScraperService {
             timestamp: new Date(),
           })
 
-          console.log(`[Scraper Service] Successfully scraped ${dataType} for match ${options.matchId}${retryCount > 0 ? ` after ${retryCount} retries` : ''}`)
+          console.log(
+            `[Scraper Service] Successfully scraped ${dataType} for match ${options.matchId}${retryCount > 0 ? ` after ${retryCount} retries` : ''}`
+          )
 
           // Longer delay between scraping different data types (3-5 seconds)
           await humanDelay(3000, 5000)
 
           // Add natural behavior between scrapers
           await performNaturalBehavior(page)
-        }
-        catch (error) {
+        } catch (error) {
           const isRateLimited = this.isRateLimitError(error)
 
           console.error(`[Scraper Service] Error scraping ${dataType} after all retries:`, error)
@@ -239,7 +267,9 @@ export class ScraperService {
 
           // If rate limited even after retries, stop trying other data types
           if (isRateLimited) {
-            console.log('[Scraper Service] Rate limit persists after retries, stopping further scraping for this match')
+            console.log(
+              '[Scraper Service] Rate limit persists after retries, stopping further scraping for this match'
+            )
             break
           }
         }
@@ -252,21 +282,24 @@ export class ScraperService {
       await browserManager.saveCookies()
 
       const totalDuration = Date.now() - startTime
-      console.log(`[Scraper Service] Completed scrape for match ${options.matchId} in ${totalDuration}ms`)
+      console.log(
+        `[Scraper Service] Completed scrape for match ${options.matchId} in ${totalDuration}ms`
+      )
 
       return results
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Scraper Service] Fatal error scraping match ${options.matchId}:`, error)
 
-      return [{
-        success: false,
-        matchId: options.matchId,
-        dataType: 'all',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        duration: Date.now() - startTime,
-        timestamp: new Date(),
-      }]
+      return [
+        {
+          success: false,
+          matchId: options.matchId,
+          dataType: 'all',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - startTime,
+          timestamp: new Date(),
+        },
+      ]
     }
   }
 
@@ -276,7 +309,8 @@ export class ScraperService {
   private async handleCookieConsent(page: any): Promise<void> {
     try {
       // Wait for cookie dialog
-      const cookieButtonSelector = 'button:has-text("Acceptera"), button:has-text("Accept"), [id*="cookie"][class*="accept"]'
+      const cookieButtonSelector =
+        'button:has-text("Acceptera"), button:has-text("Accept"), [id*="cookie"][class*="accept"]'
 
       const cookieButton = page.locator(cookieButtonSelector).first()
       if (await cookieButton.isVisible({ timeout: 5000 })) {
@@ -284,8 +318,7 @@ export class ScraperService {
         await cookieButton.click()
         await humanDelay(1000, 2000)
       }
-    }
-    catch {
+    } catch {
       // No cookie dialog or already handled - this is fine
       console.log('[Scraper Service] No cookie dialog found or already handled')
     }
@@ -342,8 +375,7 @@ export class ScraperService {
           initialized: browserManager.isInitialized(),
         },
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Scraper Service] Error getting health metrics:', error)
       return {
         error: 'Failed to get health metrics',

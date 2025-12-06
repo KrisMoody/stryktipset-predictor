@@ -1,5 +1,7 @@
 import { prisma } from '~/server/utils/prisma'
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- Complex Prisma JSON data */
+
 /**
  * Service for tracking and analyzing prediction performance
  */
@@ -7,7 +9,7 @@ export class PerformanceTracker {
   /**
    * Update performance for completed matches
    */
-  async updatePerformance(): Promise<{ updated: number, errors: number }> {
+  async updatePerformance(): Promise<{ updated: number; errors: number }> {
     try {
       console.log('[Performance Tracker] Updating prediction performance...')
 
@@ -33,9 +35,11 @@ export class PerformanceTracker {
         try {
           await this.createPerformanceRecord(prediction)
           updated++
-        }
-        catch (error) {
-          console.error(`[Performance Tracker] Error creating performance record for prediction ${prediction.id}:`, error)
+        } catch (error) {
+          console.error(
+            `[Performance Tracker] Error creating performance record for prediction ${prediction.id}:`,
+            error
+          )
           errors++
         }
       }
@@ -43,8 +47,7 @@ export class PerformanceTracker {
       console.log(`[Performance Tracker] Updated ${updated} performance records (${errors} errors)`)
 
       return { updated, errors }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Performance Tracker] Error updating performance:', error)
       return { updated: 0, errors: 1 }
     }
@@ -64,11 +67,9 @@ export class PerformanceTracker {
     let probabilityScore = 0
     if (actualOutcome === '1') {
       probabilityScore = prediction.probability_home
-    }
-    else if (actualOutcome === 'X') {
+    } else if (actualOutcome === 'X') {
       probabilityScore = prediction.probability_draw
-    }
-    else if (actualOutcome === '2') {
+    } else if (actualOutcome === '2') {
       probabilityScore = prediction.probability_away
     }
 
@@ -124,8 +125,7 @@ export class PerformanceTracker {
         byConfidence,
         byOutcome,
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Performance Tracker] Error getting overall stats:', error)
       return null
     }
@@ -159,8 +159,7 @@ export class PerformanceTracker {
       }
 
       return results
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Performance Tracker] Error getting performance by confidence:', error)
       return {}
     }
@@ -194,8 +193,7 @@ export class PerformanceTracker {
       }
 
       return results
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Performance Tracker] Error getting performance by outcome:', error)
       return {}
     }
@@ -234,8 +232,7 @@ export class PerformanceTracker {
         correctPredictions: correct,
         accuracy: (correct / predictions.length) * 100,
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Performance Tracker] Error getting performance for league ${league}:`, error)
       return null
     }

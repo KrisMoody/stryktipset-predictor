@@ -81,8 +81,9 @@ export default defineConfig({
   ],
 
   // Run local dev server before starting the tests
+  // Use 'preview' in CI (after build) or 'dev' locally
   webServer: {
-    command: 'npm run dev',
+    command: process.env.CI ? 'yarn preview' : 'yarn dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

@@ -35,11 +35,7 @@ class TestableSystemGenerator {
       return fullSystem
     }
 
-    const keyRows = this.coveringCodeReduction(
-      fullSystem,
-      system.rows,
-      system.guarantee || 10,
-    )
+    const keyRows = this.coveringCodeReduction(fullSystem, system.rows, system.guarantee || 10)
 
     this.keyRowsCache.set(system.id, keyRows)
     return keyRows
@@ -49,7 +45,7 @@ class TestableSystemGenerator {
     system: BettingSystem,
     hedgeAssignment: HedgeAssignment,
     utgangstecken?: Record<number, string>,
-    mgExtensions?: MGExtension[],
+    mgExtensions?: MGExtension[]
   ): CouponRow[] {
     const keyRows = this.generateKeyRows(system)
 
@@ -82,8 +78,7 @@ class TestableSystemGenerator {
             })
           }
         }
-      }
-      else if (mg.type === 'halv' && mg.outcomes) {
+      } else if (mg.type === 'halv' && mg.outcomes) {
         for (const row of expandedRows) {
           for (const outcome of mg.outcomes) {
             const newPicks = [...row.picks]
@@ -184,7 +179,7 @@ class TestableSystemGenerator {
     row: number[],
     fullSystem: number[][],
     uncoveredIndices: Set<number>,
-    radius: number,
+    radius: number
   ): number {
     let count = 0
     for (const idx of uncoveredIndices) {
@@ -200,7 +195,7 @@ class TestableSystemGenerator {
     row: number[],
     fullSystem: number[][],
     uncoveredIndices: Set<number>,
-    radius: number,
+    radius: number
   ): number[] {
     const covered: number[] = []
     for (const idx of uncoveredIndices) {
@@ -215,7 +210,7 @@ class TestableSystemGenerator {
   mapPatternToOutcomes(
     pattern: number[],
     hedgeAssignment: HedgeAssignment,
-    utgangstecken?: Record<number, string>,
+    utgangstecken?: Record<number, string>
   ): string[] {
     const outcomes: string[] = new Array(13)
     let patternIdx = 0
@@ -223,28 +218,23 @@ class TestableSystemGenerator {
     for (let matchNum = 1; matchNum <= 13; matchNum++) {
       if (hedgeAssignment.spiks.includes(matchNum)) {
         outcomes[matchNum - 1] = hedgeAssignment.spikOutcomes[matchNum] || '1'
-      }
-      else if (hedgeAssignment.helgarderingar.includes(matchNum)) {
+      } else if (hedgeAssignment.helgarderingar.includes(matchNum)) {
         const value = pattern[patternIdx++] || 0
         outcomes[matchNum - 1] = ['1', 'X', '2'][value] || '1'
-      }
-      else if (hedgeAssignment.halvgarderingar.includes(matchNum)) {
+      } else if (hedgeAssignment.halvgarderingar.includes(matchNum)) {
         const value = pattern[patternIdx++] || 0
         const utgangOutcome = utgangstecken?.[matchNum]
 
         if (utgangOutcome) {
           if (value === 0) {
             outcomes[matchNum - 1] = utgangOutcome
-          }
-          else {
+          } else {
             outcomes[matchNum - 1] = this.getComplementaryOutcome(utgangOutcome)
           }
-        }
-        else {
+        } else {
           outcomes[matchNum - 1] = value === 0 ? '1' : 'X'
         }
-      }
-      else {
+      } else {
         outcomes[matchNum - 1] = '1'
       }
     }
@@ -254,10 +244,14 @@ class TestableSystemGenerator {
 
   getComplementaryOutcome(outcome: string): string {
     switch (outcome) {
-      case '1': return 'X'
-      case 'X': return '2'
-      case '2': return '1'
-      default: return 'X'
+      case '1':
+        return 'X'
+      case 'X':
+        return '2'
+      case '2':
+        return '1'
+      default:
+        return 'X'
     }
   }
 
@@ -285,8 +279,15 @@ const createHedgeAssignment = (overrides: Partial<HedgeAssignment> = {}): HedgeA
   helgarderingar: [10, 11, 12, 13],
   halvgarderingar: [],
   spikOutcomes: {
-    1: '1', 2: 'X', 3: '2', 4: '1', 5: 'X',
-    6: '2', 7: '1', 8: 'X', 9: '2',
+    1: '1',
+    2: 'X',
+    3: '2',
+    4: '1',
+    5: 'X',
+    6: '2',
+    7: '1',
+    8: 'X',
+    9: '2',
   },
   ...overrides,
 })
@@ -302,7 +303,13 @@ describe('SystemGenerator', () => {
     generator = new TestableSystemGenerator([
       createTestSystem({ id: 'R-4-0-9-12' }),
       createTestSystem({ id: 'R-5-0-18-11', helgarderingar: 5, rows: 18, guarantee: 11 }),
-      createTestSystem({ id: 'U-4-4-16', type: 'U', halvgarderingar: 4, rows: 16, guarantee: undefined }),
+      createTestSystem({
+        id: 'U-4-4-16',
+        type: 'U',
+        halvgarderingar: 4,
+        rows: 16,
+        guarantee: undefined,
+      }),
     ])
   })
 
@@ -503,9 +510,7 @@ describe('SystemGenerator', () => {
         spiks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
         helgarderingar: [],
         halvgarderingar: [],
-        spikOutcomes: Object.fromEntries(
-          Array.from({ length: 13 }, (_, i) => [i + 1, '1'])
-        ),
+        spikOutcomes: Object.fromEntries(Array.from({ length: 13 }, (_, i) => [i + 1, '1'])),
       })
 
       const outcomes = generator.mapPatternToOutcomes(pattern, hedgeAssignment)
@@ -521,7 +526,7 @@ describe('SystemGenerator', () => {
       })
 
       const outcomes = generator.mapPatternToOutcomes(pattern, hedgeAssignment)
-      expect(outcomes[9]).toBe('1')  // Match 10, pattern[0]=0 -> '1'
+      expect(outcomes[9]).toBe('1') // Match 10, pattern[0]=0 -> '1'
       expect(outcomes[10]).toBe('X') // Match 11, pattern[1]=1 -> 'X'
       expect(outcomes[11]).toBe('2') // Match 12, pattern[2]=2 -> '2'
       expect(outcomes[12]).toBe('1') // Match 13, pattern[3]=0 -> '1'
@@ -667,9 +672,7 @@ describe('SystemGenerator', () => {
       const baseRows: CouponRow[] = [
         { rowNumber: 1, picks: ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'] },
       ]
-      const mgExtensions: MGExtension[] = [
-        { matchNumber: 1, type: 'hel' },
-      ]
+      const mgExtensions: MGExtension[] = [{ matchNumber: 1, type: 'hel' }]
 
       const expandedRows = generator.applyMGExtensions(baseRows, mgExtensions)
       expect(expandedRows).toHaveLength(3) // 1 × 3 = 3
@@ -679,9 +682,7 @@ describe('SystemGenerator', () => {
       const baseRows: CouponRow[] = [
         { rowNumber: 1, picks: ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'] },
       ]
-      const mgExtensions: MGExtension[] = [
-        { matchNumber: 1, type: 'halv', outcomes: ['1', 'X'] },
-      ]
+      const mgExtensions: MGExtension[] = [{ matchNumber: 1, type: 'halv', outcomes: ['1', 'X'] }]
 
       const expandedRows = generator.applyMGExtensions(baseRows, mgExtensions)
       expect(expandedRows).toHaveLength(2) // 1 × 2 = 2
@@ -704,9 +705,7 @@ describe('SystemGenerator', () => {
       const baseRows: CouponRow[] = [
         { rowNumber: 1, picks: ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'] },
       ]
-      const mgExtensions: MGExtension[] = [
-        { matchNumber: 5, type: 'hel' },
-      ]
+      const mgExtensions: MGExtension[] = [{ matchNumber: 5, type: 'hel' }]
 
       const expandedRows = generator.applyMGExtensions(baseRows, mgExtensions)
 
@@ -721,9 +720,7 @@ describe('SystemGenerator', () => {
       const baseRows: CouponRow[] = [
         { rowNumber: 1, picks: ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'] },
       ]
-      const mgExtensions: MGExtension[] = [
-        { matchNumber: 3, type: 'halv', outcomes: ['X', '2'] },
-      ]
+      const mgExtensions: MGExtension[] = [{ matchNumber: 3, type: 'halv', outcomes: ['X', '2'] }]
 
       const expandedRows = generator.applyMGExtensions(baseRows, mgExtensions)
 
@@ -739,9 +736,7 @@ describe('SystemGenerator', () => {
         { rowNumber: 1, picks: ['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'] },
         { rowNumber: 2, picks: ['2', '2', '2', '2', '2', '2', '2', '2', '2', '2', '2', '2', '2'] },
       ]
-      const mgExtensions: MGExtension[] = [
-        { matchNumber: 1, type: 'hel' },
-      ]
+      const mgExtensions: MGExtension[] = [{ matchNumber: 1, type: 'hel' }]
 
       const expandedRows = generator.applyMGExtensions(baseRows, mgExtensions)
 
@@ -764,9 +759,7 @@ describe('SystemGenerator', () => {
         { rowNumber: 2, picks: ['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'] },
         { rowNumber: 3, picks: ['2', '2', '2', '2', '2', '2', '2', '2', '2', '2', '2', '2', '2'] },
       ]
-      const mgExtensions: MGExtension[] = [
-        { matchNumber: 13, type: 'hel' },
-      ]
+      const mgExtensions: MGExtension[] = [{ matchNumber: 13, type: 'hel' }]
 
       const expandedRows = generator.applyMGExtensions(baseRows, mgExtensions)
       expect(expandedRows).toHaveLength(9) // 3 × 3 = 9
@@ -792,8 +785,15 @@ describe('SystemGenerator', () => {
         helgarderingar: [10, 11],
         halvgarderingar: [12, 13],
         spikOutcomes: {
-          1: '1', 2: '1', 3: 'X', 4: '2', 5: '1',
-          6: 'X', 7: '2', 8: '1', 9: 'X',
+          1: '1',
+          2: '1',
+          3: 'X',
+          4: '2',
+          5: '1',
+          6: 'X',
+          7: '2',
+          8: '1',
+          9: 'X',
         },
       }
 
@@ -831,9 +831,7 @@ describe('SystemGenerator', () => {
         spiks: Array.from({ length: 12 }, (_, i) => i + 1),
         helgarderingar: [13],
         halvgarderingar: [],
-        spikOutcomes: Object.fromEntries(
-          Array.from({ length: 12 }, (_, i) => [i + 1, '1'])
-        ),
+        spikOutcomes: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, '1'])),
       }
 
       const mgExtensions: MGExtension[] = [

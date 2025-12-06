@@ -1,6 +1,6 @@
 import { systemPerformanceAnalyzer } from '~/server/services/system-performance-analyzer'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   const body = await readBody(event)
   const { drawNumber } = body
 
@@ -19,13 +19,13 @@ export default defineEventHandler(async (event) => {
       analyzedCount,
       message: `Analyzed ${analyzedCount} system performances for draw ${drawNumber}`,
     }
-  }
-  catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { message?: string }
     console.error(`Failed to analyze draw ${drawNumber}:`, error)
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to analyze draw',
-      data: { error: error.message },
+      data: { error: err.message },
     })
   }
 })

@@ -6,7 +6,7 @@ export enum LogLevel {
 }
 
 interface LogContext {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 class Logger {
@@ -39,13 +39,14 @@ class Logger {
   error(message: string, error?: Error | unknown, context?: LogContext): void {
     const errorContext: LogContext = {
       ...context,
-      error: error instanceof Error
-        ? {
-            message: error.message,
-            stack: error.stack,
-            name: error.name,
-          }
-        : error,
+      error:
+        error instanceof Error
+          ? {
+              message: error.message,
+              stack: error.stack,
+              name: error.name,
+            }
+          : error,
     }
     console.error(this.formatMessage(LogLevel.ERROR, message, errorContext))
   }

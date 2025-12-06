@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Test file with mock data */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock the console methods to avoid noisy output
@@ -10,7 +11,12 @@ class TestablePredictionService {
   /**
    * Prepare context for Claude - main logic to test
    */
-  prepareMatchContext(match: any, similarMatches: any[], teamMatchups: any[], userContext?: string): string {
+  prepareMatchContext(
+    match: any,
+    similarMatches: any[],
+    teamMatchups: any[],
+    userContext?: string
+  ): string {
     const parts: string[] = []
 
     // User-provided context (placed first for emphasis)
@@ -31,11 +37,19 @@ class TestablePredictionService {
     // Data interpretation guide
     parts.push('DATA INTERPRETATION GUIDE')
     parts.push('=========================')
-    parts.push('- ODDS: Lower odds = higher probability (e.g., 1.50 = ~67%, 5.00 = ~20%). Formula: probability = 1/odds')
-    parts.push('- TIO TIDNINGARS TIPS: Count out of 10 newspaper experts picking each outcome (not percentages). If 8/10 pick "1", that outcome is strongly favored by experts.')
+    parts.push(
+      '- ODDS: Lower odds = higher probability (e.g., 1.50 = ~67%, 5.00 = ~20%). Formula: probability = 1/odds'
+    )
+    parts.push(
+      '- TIO TIDNINGARS TIPS: Count out of 10 newspaper experts picking each outcome (not percentages). If 8/10 pick "1", that outcome is strongly favored by experts.'
+    )
     parts.push('- SVENSKA FOLKET: Percentages showing current public betting distribution')
-    parts.push('- HOME TEAM is always listed first (1 = home win, X = draw, 2 = away win). Lower home odds = home team favored')
-    parts.push('- DATA QUALITY: If odds and expert consensus strongly conflict (e.g., odds suggest 1% chance but 10/10 experts pick that outcome), treat the expert consensus as more reliable - odds data may be corrupted or from a different source.')
+    parts.push(
+      '- HOME TEAM is always listed first (1 = home win, X = draw, 2 = away win). Lower home odds = home team favored'
+    )
+    parts.push(
+      '- DATA QUALITY: If odds and expert consensus strongly conflict (e.g., odds suggest 1% chance but 10/10 experts pick that outcome), treat the expert consensus as more reliable - odds data may be corrupted or from a different source.'
+    )
     parts.push('')
 
     // Match information
@@ -102,8 +116,12 @@ class TestablePredictionService {
       if (xStats.goalStats?.home) {
         parts.push('')
         parts.push('Goal Statistics:')
-        parts.push(`  ${match.homeTeam.name}: Avg scored ${xStats.goalStats.home.avgGoalsScored || 'N/A'}, Avg conceded ${xStats.goalStats.home.avgGoalsConceded || 'N/A'}`)
-        parts.push(`  ${match.awayTeam.name}: Avg scored ${xStats.goalStats.away?.avgGoalsScored || 'N/A'}, Avg conceded ${xStats.goalStats.away?.avgGoalsConceded || 'N/A'}`)
+        parts.push(
+          `  ${match.homeTeam.name}: Avg scored ${xStats.goalStats.home.avgGoalsScored || 'N/A'}, Avg conceded ${xStats.goalStats.home.avgGoalsConceded || 'N/A'}`
+        )
+        parts.push(
+          `  ${match.awayTeam.name}: Avg scored ${xStats.goalStats.away?.avgGoalsScored || 'N/A'}, Avg conceded ${xStats.goalStats.away?.avgGoalsConceded || 'N/A'}`
+        )
       }
 
       // Last 5 games xStats for recent form context
@@ -111,10 +129,14 @@ class TestablePredictionService {
         parts.push('')
         parts.push('Recent Form (Last 5 Games):')
         if (xStats.homeTeam?.last5Games) {
-          parts.push(`  ${match.homeTeam.name}: xG ${xStats.homeTeam.last5Games.xg || 'N/A'}, xGA ${xStats.homeTeam.last5Games.xga || 'N/A'}`)
+          parts.push(
+            `  ${match.homeTeam.name}: xG ${xStats.homeTeam.last5Games.xg || 'N/A'}, xGA ${xStats.homeTeam.last5Games.xga || 'N/A'}`
+          )
         }
         if (xStats.awayTeam?.last5Games) {
-          parts.push(`  ${match.awayTeam.name}: xG ${xStats.awayTeam.last5Games.xg || 'N/A'}, xGA ${xStats.awayTeam.last5Games.xga || 'N/A'}`)
+          parts.push(
+            `  ${match.awayTeam.name}: xG ${xStats.awayTeam.last5Games.xg || 'N/A'}, xGA ${xStats.awayTeam.last5Games.xga || 'N/A'}`
+          )
         }
       }
       parts.push('')
@@ -133,9 +155,13 @@ class TestablePredictionService {
         parts.push(`  Points: ${stats.homeTeam.points || 'N/A'}`)
         parts.push(`  Form: ${stats.homeTeam.form?.join('') || 'N/A'}`)
         parts.push(`  Played: ${stats.homeTeam.played || 'N/A'}`)
-        parts.push(`  W-D-L: ${stats.homeTeam.won || 0}-${stats.homeTeam.drawn || 0}-${stats.homeTeam.lost || 0}`)
+        parts.push(
+          `  W-D-L: ${stats.homeTeam.won || 0}-${stats.homeTeam.drawn || 0}-${stats.homeTeam.lost || 0}`
+        )
         if (stats.homeTeam.goalsFor !== undefined || stats.homeTeam.goalsAgainst !== undefined) {
-          parts.push(`  Goals: ${stats.homeTeam.goalsFor ?? 'N/A'} scored, ${stats.homeTeam.goalsAgainst ?? 'N/A'} conceded`)
+          parts.push(
+            `  Goals: ${stats.homeTeam.goalsFor ?? 'N/A'} scored, ${stats.homeTeam.goalsAgainst ?? 'N/A'} conceded`
+          )
         }
       }
 
@@ -145,9 +171,13 @@ class TestablePredictionService {
         parts.push(`  Points: ${stats.awayTeam.points || 'N/A'}`)
         parts.push(`  Form: ${stats.awayTeam.form?.join('') || 'N/A'}`)
         parts.push(`  Played: ${stats.awayTeam.played || 'N/A'}`)
-        parts.push(`  W-D-L: ${stats.awayTeam.won || 0}-${stats.awayTeam.drawn || 0}-${stats.awayTeam.lost || 0}`)
+        parts.push(
+          `  W-D-L: ${stats.awayTeam.won || 0}-${stats.awayTeam.drawn || 0}-${stats.awayTeam.lost || 0}`
+        )
         if (stats.awayTeam.goalsFor !== undefined || stats.awayTeam.goalsAgainst !== undefined) {
-          parts.push(`  Goals: ${stats.awayTeam.goalsFor ?? 'N/A'} scored, ${stats.awayTeam.goalsAgainst ?? 'N/A'} conceded`)
+          parts.push(
+            `  Goals: ${stats.awayTeam.goalsFor ?? 'N/A'} scored, ${stats.awayTeam.goalsAgainst ?? 'N/A'} conceded`
+          )
         }
       }
       parts.push('')
@@ -158,9 +188,14 @@ class TestablePredictionService {
       parts.push('HEAD-TO-HEAD HISTORY')
       parts.push('====================')
       for (const matchup of teamMatchups) {
-        const result = matchup.result_home !== null ? `${matchup.result_home}-${matchup.result_away}` : 'Not played'
+        const result =
+          matchup.result_home !== null
+            ? `${matchup.result_home}-${matchup.result_away}`
+            : 'Not played'
         const outcome = matchup.outcome || 'N/A'
-        parts.push(`${matchup.draw_date?.toISOString().split('T')[0] || 'Unknown'}: ${matchup.home_team} vs ${matchup.away_team} - ${result} (${outcome})`)
+        parts.push(
+          `${matchup.draw_date?.toISOString().split('T')[0] || 'Unknown'}: ${matchup.home_team} vs ${matchup.away_team} - ${result} (${outcome})`
+        )
       }
       parts.push('')
     }
@@ -170,9 +205,14 @@ class TestablePredictionService {
       parts.push('SIMILAR HISTORICAL MATCHES')
       parts.push('=========================')
       for (const similar of similarMatches.slice(0, 5)) {
-        const result = similar.result_home !== null ? `${similar.result_home}-${similar.result_away}` : 'Not played'
+        const result =
+          similar.result_home !== null
+            ? `${similar.result_home}-${similar.result_away}`
+            : 'Not played'
         const similarity = Math.round((similar.similarity || 0) * 100)
-        parts.push(`[${similarity}% similar] ${similar.home_team} vs ${similar.away_team} - ${result} (${similar.outcome || 'N/A'})`)
+        parts.push(
+          `[${similarity}% similar] ${similar.home_team} vs ${similar.away_team} - ${result} (${similar.outcome || 'N/A'})`
+        )
       }
       parts.push('')
     }
@@ -183,7 +223,7 @@ class TestablePredictionService {
   /**
    * Get predicted outcome from probabilities
    */
-  getPredictedOutcome(probabilities: { home_win: number, draw: number, away_win: number }): string {
+  getPredictedOutcome(probabilities: { home_win: number; draw: number; away_win: number }): string {
     const max = Math.max(probabilities.home_win, probabilities.draw, probabilities.away_win)
 
     if (probabilities.home_win === max) return '1'
@@ -194,7 +234,10 @@ class TestablePredictionService {
   /**
    * Determine if a match is suitable as a spik (spike bet)
    */
-  isSpikSuitable(probabilities: { home_win: number, draw: number, away_win: number }, confidence: string): boolean {
+  isSpikSuitable(
+    probabilities: { home_win: number; draw: number; away_win: number },
+    confidence: string
+  ): boolean {
     const max = Math.max(probabilities.home_win, probabilities.draw, probabilities.away_win)
     return max > 0.6 && confidence === 'high'
   }
@@ -226,73 +269,79 @@ const createMinimalMatch = (overrides: Partial<any> = {}): any => ({
 
 const createMatchWithOdds = (overrides: Partial<any> = {}): any => ({
   ...createMinimalMatch(),
-  match_odds: [{
-    home_odds: 2.50,
-    draw_odds: 3.20,
-    away_odds: 2.80,
-    home_probability: 40,
-    draw_probability: 31,
-    away_probability: 36,
-    svenska_folket_home: 42,
-    svenska_folket_draw: 28,
-    svenska_folket_away: 30,
-    tio_tidningars_tips_home: 5,
-    tio_tidningars_tips_draw: 2,
-    tio_tidningars_tips_away: 3,
-  }],
+  match_odds: [
+    {
+      home_odds: 2.5,
+      draw_odds: 3.2,
+      away_odds: 2.8,
+      home_probability: 40,
+      draw_probability: 31,
+      away_probability: 36,
+      svenska_folket_home: 42,
+      svenska_folket_draw: 28,
+      svenska_folket_away: 30,
+      tio_tidningars_tips_home: 5,
+      tio_tidningars_tips_draw: 2,
+      tio_tidningars_tips_away: 3,
+    },
+  ],
   ...overrides,
 })
 
 const createMatchWithXStats = (): any => ({
   ...createMatchWithOdds(),
-  match_scraped_data: [{
-    data_type: 'xStats',
-    data: {
-      homeTeam: {
-        entireSeason: { xg: 1.8, xga: 1.2, xgd: 0.6, xp: 45 },
-        last5Games: { xg: 2.1, xga: 0.9 },
-      },
-      awayTeam: {
-        entireSeason: { xg: 1.5, xga: 1.4, xgd: 0.1, xp: 38 },
-        last5Games: { xg: 1.3, xga: 1.5 },
-      },
-      goalStats: {
-        home: { avgGoalsScored: 1.7, avgGoalsConceded: 1.1 },
-        away: { avgGoalsScored: 1.4, avgGoalsConceded: 1.3 },
+  match_scraped_data: [
+    {
+      data_type: 'xStats',
+      data: {
+        homeTeam: {
+          entireSeason: { xg: 1.8, xga: 1.2, xgd: 0.6, xp: 45 },
+          last5Games: { xg: 2.1, xga: 0.9 },
+        },
+        awayTeam: {
+          entireSeason: { xg: 1.5, xga: 1.4, xgd: 0.1, xp: 38 },
+          last5Games: { xg: 1.3, xga: 1.5 },
+        },
+        goalStats: {
+          home: { avgGoalsScored: 1.7, avgGoalsConceded: 1.1 },
+          away: { avgGoalsScored: 1.4, avgGoalsConceded: 1.3 },
+        },
       },
     },
-  }],
+  ],
 })
 
 const createMatchWithStatistics = (): any => ({
   ...createMatchWithOdds(),
-  match_scraped_data: [{
-    data_type: 'statistics',
-    data: {
-      homeTeam: {
-        position: 3,
-        points: 45,
-        form: ['W', 'W', 'D', 'L', 'W'],
-        played: 20,
-        won: 12,
-        drawn: 9,
-        lost: 5,
-        goalsFor: 38,
-        goalsAgainst: 22,
-      },
-      awayTeam: {
-        position: 7,
-        points: 32,
-        form: ['L', 'D', 'W', 'W', 'L'],
-        played: 20,
-        won: 8,
-        drawn: 8,
-        lost: 4,
-        goalsFor: 28,
-        goalsAgainst: 25,
+  match_scraped_data: [
+    {
+      data_type: 'statistics',
+      data: {
+        homeTeam: {
+          position: 3,
+          points: 45,
+          form: ['W', 'W', 'D', 'L', 'W'],
+          played: 20,
+          won: 12,
+          drawn: 9,
+          lost: 5,
+          goalsFor: 38,
+          goalsAgainst: 22,
+        },
+        awayTeam: {
+          position: 7,
+          points: 32,
+          form: ['L', 'D', 'W', 'W', 'L'],
+          played: 20,
+          won: 8,
+          drawn: 8,
+          lost: 4,
+          goalsFor: 28,
+          goalsAgainst: 25,
+        },
       },
     },
-  }],
+  ],
 })
 
 const createSimilarMatch = (overrides: Partial<any> = {}): any => ({
@@ -459,15 +508,17 @@ describe('PredictionService', () => {
 
       it('handles missing Svenska Folket data', () => {
         const match = createMatchWithOdds({
-          match_odds: [{
-            home_odds: 2.50,
-            draw_odds: 3.20,
-            away_odds: 2.80,
-            home_probability: 40,
-            draw_probability: 31,
-            away_probability: 36,
-            // No svenska_folket data
-          }],
+          match_odds: [
+            {
+              home_odds: 2.5,
+              draw_odds: 3.2,
+              away_odds: 2.8,
+              home_probability: 40,
+              draw_probability: 31,
+              away_probability: 36,
+              // No svenska_folket data
+            },
+          ],
         })
         const context = service.prepareMatchContext(match, [], [])
 
@@ -541,7 +592,12 @@ describe('PredictionService', () => {
         const match = createMinimalMatch()
         const matchups = [
           createTeamMatchup({ result_home: 2, result_away: 1, outcome: '1' }),
-          createTeamMatchup({ result_home: 0, result_away: 0, outcome: 'X', draw_date: new Date('2024-03-10') }),
+          createTeamMatchup({
+            result_home: 0,
+            result_away: 0,
+            outcome: 'X',
+            draw_date: new Date('2024-03-10'),
+          }),
         ]
         const context = service.prepareMatchContext(match, [], matchups)
 
@@ -553,9 +609,7 @@ describe('PredictionService', () => {
 
       it('handles matches without results', () => {
         const match = createMinimalMatch()
-        const matchups = [
-          createTeamMatchup({ result_home: null, result_away: null }),
-        ]
+        const matchups = [createTeamMatchup({ result_home: null, result_away: null })]
         const context = service.prepareMatchContext(match, [], matchups)
 
         expect(context).toContain('Not played')
@@ -600,9 +654,7 @@ describe('PredictionService', () => {
 
       it('handles matches without results', () => {
         const match = createMinimalMatch()
-        const similar = [
-          createSimilarMatch({ result_home: null, result_away: null }),
-        ]
+        const similar = [createSimilarMatch({ result_home: null, result_away: null })]
         const context = service.prepareMatchContext(match, similar, [])
 
         expect(context).toContain('Not played')
@@ -665,37 +717,37 @@ describe('PredictionService', () => {
 
   describe('isSpikSuitable', () => {
     it('returns true when probability > 60% and confidence is high', () => {
-      const probabilities = { home_win: 0.65, draw: 0.20, away_win: 0.15 }
+      const probabilities = { home_win: 0.65, draw: 0.2, away_win: 0.15 }
       expect(service.isSpikSuitable(probabilities, 'high')).toBe(true)
     })
 
     it('returns false when probability > 60% but confidence is medium', () => {
-      const probabilities = { home_win: 0.65, draw: 0.20, away_win: 0.15 }
+      const probabilities = { home_win: 0.65, draw: 0.2, away_win: 0.15 }
       expect(service.isSpikSuitable(probabilities, 'medium')).toBe(false)
     })
 
     it('returns false when probability > 60% but confidence is low', () => {
-      const probabilities = { home_win: 0.65, draw: 0.20, away_win: 0.15 }
+      const probabilities = { home_win: 0.65, draw: 0.2, away_win: 0.15 }
       expect(service.isSpikSuitable(probabilities, 'low')).toBe(false)
     })
 
     it('returns false when confidence is high but probability < 60%', () => {
-      const probabilities = { home_win: 0.55, draw: 0.25, away_win: 0.20 }
+      const probabilities = { home_win: 0.55, draw: 0.25, away_win: 0.2 }
       expect(service.isSpikSuitable(probabilities, 'high')).toBe(false)
     })
 
     it('returns false when probability is exactly 60%', () => {
-      const probabilities = { home_win: 0.60, draw: 0.25, away_win: 0.15 }
+      const probabilities = { home_win: 0.6, draw: 0.25, away_win: 0.15 }
       expect(service.isSpikSuitable(probabilities, 'high')).toBe(false)
     })
 
     it('returns true when draw probability > 60%', () => {
-      const probabilities = { home_win: 0.15, draw: 0.65, away_win: 0.20 }
+      const probabilities = { home_win: 0.15, draw: 0.65, away_win: 0.2 }
       expect(service.isSpikSuitable(probabilities, 'high')).toBe(true)
     })
 
     it('returns true when away probability > 60%', () => {
-      const probabilities = { home_win: 0.15, draw: 0.20, away_win: 0.65 }
+      const probabilities = { home_win: 0.15, draw: 0.2, away_win: 0.65 }
       expect(service.isSpikSuitable(probabilities, 'high')).toBe(true)
     })
   })
@@ -706,15 +758,15 @@ describe('PredictionService', () => {
 
   describe('calculateExpectedValue', () => {
     it('returns positive EV when our probability > crowd', () => {
-      const ev = service.calculateExpectedValue(0.50, 0.40)
+      const ev = service.calculateExpectedValue(0.5, 0.4)
       expect(ev).toBeGreaterThan(0)
-      expect(ev).toBeCloseTo(0.10)
+      expect(ev).toBeCloseTo(0.1)
     })
 
     it('returns negative EV when our probability < crowd', () => {
-      const ev = service.calculateExpectedValue(0.30, 0.40)
+      const ev = service.calculateExpectedValue(0.3, 0.4)
       expect(ev).toBeLessThan(0)
-      expect(ev).toBeCloseTo(-0.10)
+      expect(ev).toBeCloseTo(-0.1)
     })
 
     it('returns zero EV when probabilities match', () => {
@@ -741,20 +793,22 @@ describe('PredictionService', () => {
     it('generates complete context with all data types', () => {
       const match = {
         ...createMinimalMatch(),
-        match_odds: [{
-          home_odds: 2.10,
-          draw_odds: 3.40,
-          away_odds: 3.30,
-          home_probability: 48,
-          draw_probability: 29,
-          away_probability: 30,
-          svenska_folket_home: 50,
-          svenska_folket_draw: 25,
-          svenska_folket_away: 25,
-          tio_tidningars_tips_home: 6,
-          tio_tidningars_tips_draw: 2,
-          tio_tidningars_tips_away: 2,
-        }],
+        match_odds: [
+          {
+            home_odds: 2.1,
+            draw_odds: 3.4,
+            away_odds: 3.3,
+            home_probability: 48,
+            draw_probability: 29,
+            away_probability: 30,
+            svenska_folket_home: 50,
+            svenska_folket_draw: 25,
+            svenska_folket_away: 25,
+            tio_tidningars_tips_home: 6,
+            tio_tidningars_tips_draw: 2,
+            tio_tidningars_tips_away: 2,
+          },
+        ],
         match_scraped_data: [
           {
             data_type: 'xStats',
@@ -766,8 +820,24 @@ describe('PredictionService', () => {
           {
             data_type: 'statistics',
             data: {
-              homeTeam: { position: 1, points: 50, form: ['W', 'W', 'W', 'W', 'W'], played: 22, won: 15, drawn: 5, lost: 2 },
-              awayTeam: { position: 10, points: 28, form: ['L', 'L', 'D', 'W', 'L'], played: 22, won: 7, drawn: 7, lost: 8 },
+              homeTeam: {
+                position: 1,
+                points: 50,
+                form: ['W', 'W', 'W', 'W', 'W'],
+                played: 22,
+                won: 15,
+                drawn: 5,
+                lost: 2,
+              },
+              awayTeam: {
+                position: 10,
+                points: 28,
+                form: ['L', 'L', 'D', 'W', 'L'],
+                played: 22,
+                won: 7,
+                drawn: 7,
+                lost: 8,
+              },
             },
           },
         ],
@@ -778,9 +848,7 @@ describe('PredictionService', () => {
         createSimilarMatch({ similarity: 0.82, result_home: 3, result_away: 0 }),
       ]
 
-      const teamMatchups = [
-        createTeamMatchup({ result_home: 2, result_away: 0 }),
-      ]
+      const teamMatchups = [createTeamMatchup({ result_home: 2, result_away: 0 })]
 
       const userContext = 'Star striker is back from injury'
 

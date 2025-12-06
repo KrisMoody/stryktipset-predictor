@@ -1,10 +1,7 @@
 <template>
   <div class="space-y-4">
     <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-      <UIcon
-        name="i-heroicons-scale"
-        class="w-4 h-4"
-      />
+      <UIcon name="i-heroicons-scale" class="w-4 h-4" />
       Odds & Distribution Comparison
     </h4>
 
@@ -13,9 +10,7 @@
       <table class="w-full text-sm">
         <thead class="bg-gray-50 dark:bg-gray-800">
           <tr>
-            <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-400">
-              Source
-            </th>
+            <th class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Source</th>
             <th class="px-3 py-2 text-center font-medium text-gray-600 dark:text-gray-400">
               1 (Home)
             </th>
@@ -30,9 +25,7 @@
         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
           <!-- Market Odds -->
           <tr v-if="currentOdds">
-            <td class="px-3 py-2 text-gray-600 dark:text-gray-400 font-medium">
-              Market Odds
-            </td>
+            <td class="px-3 py-2 text-gray-600 dark:text-gray-400 font-medium">Market Odds</td>
             <td class="px-3 py-2 text-center font-semibold">
               {{ currentOdds.home_odds }}
             </td>
@@ -64,14 +57,7 @@
           <tr v-if="svenskaFolket">
             <td class="px-3 py-2 text-gray-600 dark:text-gray-400">
               Svenska Folket
-              <UBadge
-                color="primary"
-                variant="soft"
-                size="xs"
-                class="ml-1"
-              >
-                Public
-              </UBadge>
+              <UBadge color="primary" variant="soft" size="xs" class="ml-1"> Public </UBadge>
             </td>
             <td class="px-3 py-2 text-center">
               <span :class="getHighlightClass('1', svenskaFolket)">
@@ -94,29 +80,16 @@
           <tr v-if="expertTips">
             <td class="px-3 py-2 text-gray-600 dark:text-gray-400">
               Tio Tidningar
-              <UBadge
-                color="warning"
-                variant="soft"
-                size="xs"
-                class="ml-1"
-              >
-                Expert
-              </UBadge>
+              <UBadge color="warning" variant="soft" size="xs" class="ml-1"> Expert </UBadge>
             </td>
             <td class="px-3 py-2 text-center">
-              <span :class="getExpertHighlight('1')">
-                {{ expertTips.one }}/10
-              </span>
+              <span :class="getExpertHighlight('1')"> {{ expertTips.one }}/10 </span>
             </td>
             <td class="px-3 py-2 text-center">
-              <span :class="getExpertHighlight('X')">
-                {{ expertTips.x }}/10
-              </span>
+              <span :class="getExpertHighlight('X')"> {{ expertTips.x }}/10 </span>
             </td>
             <td class="px-3 py-2 text-center">
-              <span :class="getExpertHighlight('2')">
-                {{ expertTips.two }}/10
-              </span>
+              <span :class="getExpertHighlight('2')"> {{ expertTips.two }}/10 </span>
             </td>
           </tr>
 
@@ -124,27 +97,38 @@
           <tr v-if="prediction">
             <td class="px-3 py-2 text-gray-600 dark:text-gray-400">
               AI Prediction
-              <UBadge
-                color="success"
-                variant="soft"
-                size="xs"
-                class="ml-1"
-              >
-                AI
-              </UBadge>
+              <UBadge color="success" variant="soft" size="xs" class="ml-1"> AI </UBadge>
             </td>
             <td class="px-3 py-2 text-center">
-              <span :class="prediction.predicted_outcome === '1' ? 'font-bold text-primary-600 dark:text-primary-400' : ''">
+              <span
+                :class="
+                  prediction.predicted_outcome === '1'
+                    ? 'font-bold text-primary-600 dark:text-primary-400'
+                    : ''
+                "
+              >
                 {{ formatPercent(prediction.probability_home) }}
               </span>
             </td>
             <td class="px-3 py-2 text-center">
-              <span :class="prediction.predicted_outcome === 'X' ? 'font-bold text-primary-600 dark:text-primary-400' : ''">
+              <span
+                :class="
+                  prediction.predicted_outcome === 'X'
+                    ? 'font-bold text-primary-600 dark:text-primary-400'
+                    : ''
+                "
+              >
                 {{ formatPercent(prediction.probability_draw) }}
               </span>
             </td>
             <td class="px-3 py-2 text-center">
-              <span :class="prediction.predicted_outcome === '2' ? 'font-bold text-primary-600 dark:text-primary-400' : ''">
+              <span
+                :class="
+                  prediction.predicted_outcome === '2'
+                    ? 'font-bold text-primary-600 dark:text-primary-400'
+                    : ''
+                "
+              >
                 {{ formatPercent(prediction.probability_away) }}
               </span>
             </td>
@@ -154,10 +138,7 @@
     </div>
 
     <!-- Visual Bars -->
-    <div
-      v-if="hasData"
-      class="space-y-3"
-    >
+    <div v-if="hasData" class="space-y-3">
       <h5 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
         Distribution Comparison
       </h5>
@@ -245,24 +226,15 @@
 
       <!-- Legend -->
       <div class="flex flex-wrap gap-4 text-xs pt-2">
-        <div
-          v-if="currentOdds"
-          class="flex items-center gap-1"
-        >
+        <div v-if="currentOdds" class="flex items-center gap-1">
           <span class="w-3 h-3 bg-blue-500 rounded-sm" />
           <span class="text-gray-600 dark:text-gray-400">Market</span>
         </div>
-        <div
-          v-if="svenskaFolket"
-          class="flex items-center gap-1"
-        >
+        <div v-if="svenskaFolket" class="flex items-center gap-1">
           <span class="w-3 h-3 bg-purple-500 rounded-sm" />
           <span class="text-gray-600 dark:text-gray-400">Svenska Folket</span>
         </div>
-        <div
-          v-if="prediction"
-          class="flex items-center gap-1"
-        >
+        <div v-if="prediction" class="flex items-center gap-1">
           <span class="w-3 h-3 bg-green-500 rounded-sm" />
           <span class="text-gray-600 dark:text-gray-400">AI</span>
         </div>
@@ -270,37 +242,21 @@
     </div>
 
     <!-- Value Bet Indicators -->
-    <div
-      v-if="valueBets.length > 0"
-      class="pt-2"
-    >
+    <div v-if="valueBets.length > 0" class="pt-2">
       <h5 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-2">
         Potential Value Bets
       </h5>
       <div class="flex flex-wrap gap-2">
-        <UBadge
-          v-for="bet in valueBets"
-          :key="bet.outcome"
-          color="success"
-          variant="soft"
-        >
+        <UBadge v-for="bet in valueBets" :key="bet.outcome" color="success" variant="soft">
           {{ bet.outcome }}: AI {{ bet.aiProb }}% vs Public {{ bet.publicProb }}% (+{{ bet.edge }}%)
         </UBadge>
       </div>
     </div>
 
     <!-- Empty State -->
-    <div
-      v-if="!hasData"
-      class="text-center py-6 text-gray-500 dark:text-gray-400"
-    >
-      <UIcon
-        name="i-heroicons-scale"
-        class="w-8 h-8 mx-auto mb-2 opacity-50"
-      />
-      <p class="text-sm">
-        No odds comparison data available.
-      </p>
+    <div v-if="!hasData" class="text-center py-6 text-gray-500 dark:text-gray-400">
+      <UIcon name="i-heroicons-scale" class="w-8 h-8 mx-auto mb-2 opacity-50" />
+      <p class="text-sm">No odds comparison data available.</p>
     </div>
   </div>
 </template>
@@ -340,10 +296,15 @@ interface ExpertTips {
   two: number
 }
 
+interface ScrapedDataItem {
+  data_type: string
+  data: unknown
+}
+
 const props = defineProps<{
   matchOdds: MatchOdds[] | null | undefined
   prediction: Prediction | null | undefined
-  scrapedData?: Array<{ data_type: string, data: any }> | null
+  scrapedData?: Array<ScrapedDataItem> | null
 }>()
 
 // Get current (most recent) odds
@@ -370,10 +331,11 @@ const svenskaFolket = computed((): SvenskaFolket | null => {
   if (props.scrapedData) {
     const sfData = props.scrapedData.find(d => d.data_type === 'svenskaFolket')
     if (sfData?.data) {
+      const data = sfData.data as SvenskaFolket
       return {
-        one: sfData.data.one || '0',
-        x: sfData.data.x || '0',
-        two: sfData.data.two || '0',
+        one: data.one || '0',
+        x: data.x || '0',
+        two: data.two || '0',
       }
     }
   }
@@ -385,7 +347,8 @@ const svenskaFolket = computed((): SvenskaFolket | null => {
 const expertTips = computed((): ExpertTips | null => {
   // Try match_odds first
   if (currentOdds.value) {
-    const { tio_tidningars_tips_home, tio_tidningars_tips_draw, tio_tidningars_tips_away } = currentOdds.value
+    const { tio_tidningars_tips_home, tio_tidningars_tips_draw, tio_tidningars_tips_away } =
+      currentOdds.value
     if (tio_tidningars_tips_home || tio_tidningars_tips_draw || tio_tidningars_tips_away) {
       return {
         one: parseInt(tio_tidningars_tips_home || '0'),
@@ -399,10 +362,11 @@ const expertTips = computed((): ExpertTips | null => {
   if (props.scrapedData) {
     const etData = props.scrapedData.find(d => d.data_type === 'expertTips')
     if (etData?.data) {
+      const data = etData.data as ExpertTips
       return {
-        one: etData.data.one ?? 0,
-        x: etData.data.x ?? 0,
-        two: etData.data.two ?? 0,
+        one: data.one ?? 0,
+        x: data.x ?? 0,
+        two: data.two ?? 0,
       }
     }
   }
@@ -461,13 +425,25 @@ const getExpertHighlight = (outcome: string) => {
 const valueBets = computed(() => {
   if (!props.prediction || !svenskaFolket.value) return []
 
-  const bets: Array<{ outcome: string, aiProb: string, publicProb: string, edge: string }> = []
+  const bets: Array<{ outcome: string; aiProb: string; publicProb: string; edge: string }> = []
   const minEdge = 5 // Minimum edge percentage to consider
 
   const comparisons = [
-    { outcome: '1', ai: Number(props.prediction.probability_home), pub: parseFloat(svenskaFolket.value.one) },
-    { outcome: 'X', ai: Number(props.prediction.probability_draw), pub: parseFloat(svenskaFolket.value.x) },
-    { outcome: '2', ai: Number(props.prediction.probability_away), pub: parseFloat(svenskaFolket.value.two) },
+    {
+      outcome: '1',
+      ai: Number(props.prediction.probability_home),
+      pub: parseFloat(svenskaFolket.value.one),
+    },
+    {
+      outcome: 'X',
+      ai: Number(props.prediction.probability_draw),
+      pub: parseFloat(svenskaFolket.value.x),
+    },
+    {
+      outcome: '2',
+      ai: Number(props.prediction.probability_away),
+      pub: parseFloat(svenskaFolket.value.two),
+    },
   ]
 
   for (const { outcome, ai, pub } of comparisons) {

@@ -1,7 +1,7 @@
 import { aiMetricsService } from '~/server/services/ai-metrics-service'
 import type { DateRangeFilter } from '~/types'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   try {
     const query = getQuery(event)
 
@@ -11,10 +11,9 @@ export default defineEventHandler(async (event) => {
       dateRange = {
         start: new Date(query.start as string),
         end: new Date(query.end as string),
-        preset: query.preset as any,
+        preset: query.preset as DateRangeFilter['preset'],
       }
-    }
-    else if (query.preset) {
+    } else if (query.preset) {
       dateRange = parseDatePreset(query.preset as string)
     }
 
@@ -24,8 +23,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: overview,
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error getting AI metrics overview:', error)
     return {
       success: false,
@@ -52,16 +50,17 @@ function parseDatePreset(preset: string): DateRangeFilter {
       start.setDate(1)
       start.setHours(0, 0, 0, 0)
       break
-    case 'lastMonth':
+    case 'lastMonth': {
       start.setMonth(now.getMonth() - 1)
       start.setDate(1)
       start.setHours(0, 0, 0, 0)
       const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
-      return { start, end, preset: preset as any }
+      return { start, end, preset: preset as DateRangeFilter['preset'] }
+    }
     default:
       // All time - last 90 days
       start.setDate(now.getDate() - 90)
   }
 
-  return { start, end: now, preset: preset as any }
+  return { start, end: now, preset: preset as DateRangeFilter['preset'] }
 }

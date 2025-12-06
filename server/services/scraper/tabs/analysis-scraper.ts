@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
 import type { Page } from 'playwright'
 import { BaseScraper } from './base-scraper'
 
@@ -54,7 +55,12 @@ export class AnalysisScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, _matchId: number, _drawNumber: number, _matchNumber: number): Promise<DrawAnalysisData | null> {
+  async scrape(
+    page: Page,
+    _matchId: number,
+    _drawNumber: number,
+    _matchNumber: number
+  ): Promise<DrawAnalysisData | null> {
     try {
       this.log('Starting analysis scraping')
 
@@ -63,7 +69,9 @@ export class AnalysisScraper extends BaseScraper {
       await this.navigateTo(page, url)
 
       // Wait for the analysis content to load
-      await page.waitForSelector('.route-play-draw-analyses, .draw-analysis-author-container', { timeout: 15000 })
+      await page.waitForSelector('.route-play-draw-analyses, .draw-analysis-author-container', {
+        timeout: 15000,
+      })
 
       // Extract title and introduction
       const title = await this.extractText(page, '.route-play-draw-analyses .f-content h2')
@@ -86,10 +94,11 @@ export class AnalysisScraper extends BaseScraper {
         analysisContent,
       }
 
-      this.log(`Analysis scraping complete: ${analysts.length} analysts, ${predictions.length} predictions`)
+      this.log(
+        `Analysis scraping complete: ${analysts.length} analysts, ${predictions.length} predictions`
+      )
       return analysisData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping analysis: ${error}`)
       return null
     }
@@ -100,10 +109,12 @@ export class AnalysisScraper extends BaseScraper {
    */
   private async extractIntroduction(page: Page): Promise<string | undefined> {
     try {
-      const firstParagraph = await page.locator('.route-play-draw-analyses .f-content > .margin-bottom-2 p').first().textContent()
+      const firstParagraph = await page
+        .locator('.route-play-draw-analyses .f-content > .margin-bottom-2 p')
+        .first()
+        .textContent()
       return firstParagraph?.trim() || undefined
-    }
-    catch {
+    } catch {
       return undefined
     }
   }
@@ -126,10 +137,12 @@ export class AnalysisScraper extends BaseScraper {
           const imageUrl = await container.locator('.draw-analysis-author img').getAttribute('src')
 
           // Get description from presentation span
-          const description = await container.locator('.draw_analysis_author__presentation span').textContent()
+          const description = await container
+            .locator('.draw_analysis_author__presentation span')
+            .textContent()
 
           // Check if it's an ombud (betting shop)
-          const isOmbud = await container.locator('.draw-analysis-author-link-button').count() > 0
+          const isOmbud = (await container.locator('.draw-analysis-author-link-button').count()) > 0
 
           if (name) {
             analysts.push({
@@ -139,15 +152,13 @@ export class AnalysisScraper extends BaseScraper {
               isOmbud,
             })
           }
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single analyst: ${innerError}`)
         }
       }
 
       this.log(`Extracted ${analysts.length} analysts`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting analysts: ${error}`)
     }
 
@@ -176,7 +187,9 @@ export class AnalysisScraper extends BaseScraper {
           const matchTitle = match && match[2] ? match[2].trim() : titleElement.trim()
 
           // Get analyst name
-          const analystName = await item.locator('.pg_analyse__event__info__prediction__title').textContent()
+          const analystName = await item
+            .locator('.pg_analyse__event__info__prediction__title')
+            .textContent()
 
           // Get selected prediction (1, X, or 2)
           const prediction = await this.extractPrediction(item)
@@ -187,15 +200,13 @@ export class AnalysisScraper extends BaseScraper {
             analystName: analystName?.trim() || 'Unknown',
             prediction,
           })
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single prediction: ${innerError}`)
         }
       }
 
       this.log(`Extracted ${predictions.length} predictions`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting predictions: ${error}`)
     }
 
@@ -208,12 +219,16 @@ export class AnalysisScraper extends BaseScraper {
   private async extractPrediction(item: any): Promise<MatchPrediction['prediction']> {
     try {
       // Find all selected outcomes
-      const selectedOutcomes = await item.locator('.pg_outcome--selected .pg_outcome__sign').allTextContents()
+      const selectedOutcomes = await item
+        .locator('.pg_outcome--selected .pg_outcome__sign')
+        .allTextContents()
 
       if (selectedOutcomes.length === 0) return null
 
       // Clean and sort the outcomes
-      const cleaned = selectedOutcomes.map((o: string) => o.trim()).filter((o: string) => ['1', 'X', '2'].includes(o))
+      const cleaned = selectedOutcomes
+        .map((o: string) => o.trim())
+        .filter((o: string) => ['1', 'X', '2'].includes(o))
 
       if (cleaned.length === 1) {
         const outcome = cleaned[0]
@@ -232,8 +247,7 @@ export class AnalysisScraper extends BaseScraper {
       if (cleaned.length === 3) return '1X2'
 
       return null
-    }
-    catch {
+    } catch {
       return null
     }
   }
@@ -246,20 +260,17 @@ export class AnalysisScraper extends BaseScraper {
       // Get the analysis sections (after the predictions list)
       const analysisSection = page.locator('.route-play-draw-analyses .f-content').last()
 
-      if (await analysisSection.count() > 0) {
+      if ((await analysisSection.count()) > 0) {
         // Get all text content from headings and paragraphs
         const headings = await analysisSection.locator('h2, h3, h4').allTextContents()
         const paragraphs = await analysisSection.locator('p').allTextContents()
 
         // Combine into structured content
-        const content = [...headings, ...paragraphs]
-          .filter(text => text.trim())
-          .join('\n\n')
+        const content = [...headings, ...paragraphs].filter(text => text.trim()).join('\n\n')
 
         return content || undefined
       }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting analysis content: ${error}`)
     }
 

@@ -4,7 +4,7 @@ interface CheckResult {
   name: string
   passed: boolean
   message: string
-  details?: any
+  details?: unknown
 }
 
 async function verifyAIUsageTable() {
@@ -25,8 +25,7 @@ async function verifyAIUsageTable() {
       message: 'Successfully connected to database',
     })
     console.log('✓ Database connection successful')
-  }
-  catch (error) {
+  } catch (error) {
     results.push({
       name: 'Database Connection',
       passed: false,
@@ -51,8 +50,7 @@ async function verifyAIUsageTable() {
       details: { recordCount: count },
     })
     console.log(`✓ ai_usage table exists (${count} records)`)
-  }
-  catch (error) {
+  } catch (error) {
     results.push({
       name: 'AI Usage Table Exists',
       passed: false,
@@ -72,7 +70,13 @@ async function verifyAIUsageTable() {
       WHERE tablename = 'ai_usage'
     `
     const indexNames = indexes.map(i => i.indexname)
-    const expectedIndexes = ['ai_usage_pkey', 'ai_usage_timestamp_idx', 'ai_usage_data_type_idx', 'ai_usage_model_idx', 'ai_usage_operation_id_idx']
+    const expectedIndexes = [
+      'ai_usage_pkey',
+      'ai_usage_timestamp_idx',
+      'ai_usage_data_type_idx',
+      'ai_usage_model_idx',
+      'ai_usage_operation_id_idx',
+    ]
     const missingIndexes = expectedIndexes.filter(idx => !indexNames.includes(idx))
 
     if (missingIndexes.length === 0) {
@@ -84,8 +88,7 @@ async function verifyAIUsageTable() {
       })
       console.log('✓ All expected indexes exist')
       console.log(`  Found indexes: ${indexNames.join(', ')}`)
-    }
-    else {
+    } else {
       results.push({
         name: 'Table Indexes',
         passed: false,
@@ -96,8 +99,7 @@ async function verifyAIUsageTable() {
       console.log(`  Missing: ${missingIndexes.join(', ')}`)
       console.log(`  Found: ${indexNames.join(', ')}`)
     }
-  }
-  catch (error) {
+  } catch (error) {
     results.push({
       name: 'Table Indexes',
       passed: false,
@@ -133,8 +135,7 @@ async function verifyAIUsageTable() {
       details: { testRecordId },
     })
     console.log(`✓ Successfully wrote test record (id: ${testRecordId})`)
-  }
-  catch (error) {
+  } catch (error) {
     results.push({
       name: 'Write Permissions',
       passed: false,
@@ -156,8 +157,7 @@ async function verifyAIUsageTable() {
         message: 'Successfully read test record from ai_usage table',
       })
       console.log('✓ Successfully read test record')
-    }
-    else {
+    } else {
       results.push({
         name: 'Read Permissions',
         passed: false,
@@ -165,8 +165,7 @@ async function verifyAIUsageTable() {
       })
       console.log('✗ Record was written but could not be read back')
     }
-  }
-  catch (error) {
+  } catch (error) {
     results.push({
       name: 'Read Permissions',
       passed: false,
@@ -181,8 +180,7 @@ async function verifyAIUsageTable() {
   try {
     await prisma.ai_usage.delete({ where: { id: testRecordId! } })
     console.log('✓ Test record deleted')
-  }
-  catch (error) {
+  } catch (error) {
     console.log('⚠ Failed to delete test record (non-critical):', error)
   }
   console.log()
@@ -199,7 +197,7 @@ function printSummary(results: CheckResult[]) {
   const passed = results.filter(r => r.passed).length
   const total = results.length
 
-  results.forEach((result) => {
+  results.forEach(result => {
     const icon = result.passed ? '✓' : '✗'
     console.log(`${icon} ${result.name}: ${result.message}`)
   })
@@ -211,8 +209,7 @@ function printSummary(results: CheckResult[]) {
     console.log()
     console.log('✓ All checks passed! AI usage table is properly configured.')
     process.exit(0)
-  }
-  else {
+  } else {
     console.log()
     console.log('✗ Some checks failed. Please review the errors above.')
     process.exit(1)
@@ -220,7 +217,7 @@ function printSummary(results: CheckResult[]) {
 }
 
 // Run verification
-verifyAIUsageTable().catch((error) => {
+verifyAIUsageTable().catch(error => {
   console.error('Fatal error during verification:', error)
   process.exit(1)
 })

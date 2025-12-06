@@ -1,11 +1,6 @@
 <template>
-  <div
-    v-if="hasOdds"
-    class="space-y-3"
-  >
-    <div class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-      Market Odds
-    </div>
+  <div v-if="hasOdds" class="space-y-3">
+    <div class="text-sm font-semibold text-gray-700 dark:text-gray-300">Market Odds</div>
 
     <div class="grid grid-cols-3 gap-2">
       <div
@@ -18,24 +13,14 @@
         </div>
 
         <!-- Current Odds -->
-        <div
-          v-if="currentOdds"
-          class="font-semibold text-lg"
-        >
+        <div v-if="currentOdds" class="font-semibold text-lg">
           {{ getOdds(currentOdds, outcome) }}
         </div>
 
         <!-- Start Odds & Movement -->
-        <div
-          v-if="startOdds && currentOdds"
-          class="text-xs text-gray-500 dark:text-gray-400 mt-1"
-        >
+        <div v-if="startOdds && currentOdds" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
           <span class="text-gray-500 dark:text-gray-400">{{ getOdds(startOdds, outcome) }}</span>
-          <span
-            v-if="hasMovement(outcome)"
-            :class="getMovementClass(outcome)"
-            class="ml-1"
-          >
+          <span v-if="hasMovement(outcome)" :class="getMovementClass(outcome)" class="ml-1">
             {{ getMovement(outcome) }}
           </span>
         </div>
@@ -47,27 +32,27 @@
       v-if="hasExpertTips && currentOdds"
       class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700"
     >
-      <div class="text-xs text-gray-600 dark:text-gray-400 mb-2">
-        10 Tidningars Tips
-      </div>
+      <div class="text-xs text-gray-600 dark:text-gray-400 mb-2">10 Tidningars Tips</div>
       <div class="flex gap-3 text-xs">
-        <span v-if="currentOdds.tio_tidningars_tips_home">1: {{ currentOdds.tio_tidningars_tips_home }}</span>
-        <span v-if="currentOdds.tio_tidningars_tips_draw">X: {{ currentOdds.tio_tidningars_tips_draw }}</span>
-        <span v-if="currentOdds.tio_tidningars_tips_away">2: {{ currentOdds.tio_tidningars_tips_away }}</span>
+        <span v-if="currentOdds.tio_tidningars_tips_home"
+          >1: {{ currentOdds.tio_tidningars_tips_home }}</span
+        >
+        <span v-if="currentOdds.tio_tidningars_tips_draw"
+          >X: {{ currentOdds.tio_tidningars_tips_draw }}</span
+        >
+        <span v-if="currentOdds.tio_tidningars_tips_away"
+          >2: {{ currentOdds.tio_tidningars_tips_away }}</span
+        >
       </div>
     </div>
   </div>
 
-  <div
-    v-else
-    class="text-sm text-gray-500 dark:text-gray-400"
-  >
-    No odds available yet
-  </div>
+  <div v-else class="text-sm text-gray-500 dark:text-gray-400">No odds available yet</div>
 </template>
 
 <script setup lang="ts">
 interface Odds {
+  type?: 'current' | 'start' | string
   home_odds: string | number
   draw_odds: string | number
   away_odds: string | number
@@ -83,11 +68,11 @@ interface Props {
 const props = defineProps<Props>()
 
 const currentOdds = computed(() => {
-  return props.matchOdds?.find((o: any) => o.type === 'current')
+  return props.matchOdds?.find(o => o.type === 'current')
 })
 
 const startOdds = computed(() => {
-  return props.matchOdds?.find((o: any) => o.type === 'start')
+  return props.matchOdds?.find(o => o.type === 'start')
 })
 
 const hasOdds = computed(() => {
@@ -95,17 +80,15 @@ const hasOdds = computed(() => {
 })
 
 const hasExpertTips = computed(() => {
-  return currentOdds.value?.tio_tidningars_tips_home
-    || currentOdds.value?.tio_tidningars_tips_draw
-    || currentOdds.value?.tio_tidningars_tips_away
+  return (
+    currentOdds.value?.tio_tidningars_tips_home ||
+    currentOdds.value?.tio_tidningars_tips_draw ||
+    currentOdds.value?.tio_tidningars_tips_away
+  )
 })
 
 const getOdds = (odds: Odds, outcome: string) => {
-  const value = outcome === '1'
-    ? odds.home_odds
-    : outcome === 'X'
-      ? odds.draw_odds
-      : odds.away_odds
+  const value = outcome === '1' ? odds.home_odds : outcome === 'X' ? odds.draw_odds : odds.away_odds
   return typeof value === 'string' ? value : value.toFixed(2)
 }
 

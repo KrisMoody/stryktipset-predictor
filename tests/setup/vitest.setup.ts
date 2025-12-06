@@ -38,9 +38,12 @@ vi.stubGlobal('useNuxtApp', () => ({
 }))
 
 // Mock Nuxt server utilities
-vi.stubGlobal('defineEventHandler', (handler: Function) => handler)
+vi.stubGlobal('defineEventHandler', (handler: (...args: unknown[]) => unknown) => handler)
 vi.stubGlobal('readBody', vi.fn())
-vi.stubGlobal('getQuery', vi.fn(() => ({})))
+vi.stubGlobal(
+  'getQuery',
+  vi.fn(() => ({}))
+)
 vi.stubGlobal('getRouterParam', vi.fn())
 vi.stubGlobal('createError', (opts: { statusCode?: number; message: string }) => {
   const error = new Error(opts.message) as Error & { statusCode?: number }
@@ -68,11 +71,20 @@ vi.stubGlobal('onMounted', vi.fn())
 vi.stubGlobal('onUnmounted', vi.fn())
 vi.stubGlobal('onBeforeMount', vi.fn())
 vi.stubGlobal('onBeforeUnmount', vi.fn())
-vi.stubGlobal('getCurrentInstance', vi.fn(() => null))
+vi.stubGlobal(
+  'getCurrentInstance',
+  vi.fn(() => null)
+)
 
 // Mock Nuxt composables
-vi.stubGlobal('useRoute', vi.fn(() => ({ path: '/', params: {}, query: {} })))
-vi.stubGlobal('useRouter', vi.fn(() => ({ push: vi.fn(), replace: vi.fn() })))
+vi.stubGlobal(
+  'useRoute',
+  vi.fn(() => ({ path: '/', params: {}, query: {} }))
+)
+vi.stubGlobal(
+  'useRouter',
+  vi.fn(() => ({ push: vi.fn(), replace: vi.fn() }))
+)
 vi.stubGlobal('useFetch', vi.fn())
 vi.stubGlobal('useAsyncData', vi.fn())
 vi.stubGlobal('watch', vi.fn())

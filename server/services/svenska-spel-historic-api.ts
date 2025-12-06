@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Complex API response structures */
 /**
  * Historic API client for Svenska Spel
  * Used for one-time backfilling of historic draws
@@ -49,9 +50,9 @@ export class SvenskaSpelHistoricApiClient {
 
     const response = await fetch(url, {
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Referer': 'https://spela.svenskaspel.se/',
+        Referer: 'https://spela.svenskaspel.se/',
       },
     })
 
@@ -59,7 +60,7 @@ export class SvenskaSpelHistoricApiClient {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const data = await response.json() as DatePickerResponse
+    const data = (await response.json()) as DatePickerResponse
 
     return data.resultDates?.map(d => d.drawNumber) || []
   }
@@ -67,7 +68,9 @@ export class SvenskaSpelHistoricApiClient {
   /**
    * Fetch multiple draws in a single request
    */
-  async fetchMultipleDraws(drawNumbers: number[]): Promise<Array<{ drawNumber: number, draw?: any, error?: string }>> {
+  async fetchMultipleDraws(
+    drawNumbers: number[]
+  ): Promise<Array<{ drawNumber: number; draw?: any; error?: string }>> {
     if (drawNumbers.length === 0) {
       return []
     }
@@ -77,9 +80,9 @@ export class SvenskaSpelHistoricApiClient {
 
     const response = await fetch(url, {
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Referer': 'https://spela.svenskaspel.se/',
+        Referer: 'https://spela.svenskaspel.se/',
       },
     })
 
@@ -87,7 +90,7 @@ export class SvenskaSpelHistoricApiClient {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const data = await response.json() as MultifetchResponse
+    const data = (await response.json()) as MultifetchResponse
 
     return drawNumbers.map((drawNumber, index) => {
       const itemResponse = data.responses[index]
@@ -119,9 +122,9 @@ export class SvenskaSpelHistoricApiClient {
 
     const response = await fetch(url, {
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Referer': 'https://spela.svenskaspel.se/',
+        Referer: 'https://spela.svenskaspel.se/',
       },
     })
 

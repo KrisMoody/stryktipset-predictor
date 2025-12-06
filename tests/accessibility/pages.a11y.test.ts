@@ -20,14 +20,12 @@ test.describe('Accessibility - Main Pages', () => {
     // Wait for page to fully load
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withTags(axeConfig.tags)
-      .analyze()
+    const results = await new AxeBuilder({ page }).withTags(axeConfig.tags).analyze()
 
     // Log violations for debugging
     if (results.violations.length > 0) {
       console.log('Accessibility violations on homepage:')
-      results.violations.forEach((violation) => {
+      results.violations.forEach(violation => {
         console.log(`  - ${violation.id}: ${violation.description}`)
         console.log(`    Impact: ${violation.impact}`)
         console.log(`    Nodes: ${violation.nodes.length}`)
@@ -41,13 +39,11 @@ test.describe('Accessibility - Main Pages', () => {
     await page.goto('/analytics')
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withTags(axeConfig.tags)
-      .analyze()
+    const results = await new AxeBuilder({ page }).withTags(axeConfig.tags).analyze()
 
     if (results.violations.length > 0) {
       console.log('Accessibility violations on analytics page:')
-      results.violations.forEach((v) => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.id}: ${v.description} (${v.impact})`)
       })
     }
@@ -59,13 +55,11 @@ test.describe('Accessibility - Main Pages', () => {
     await page.goto('/ai-dashboard')
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withTags(axeConfig.tags)
-      .analyze()
+    const results = await new AxeBuilder({ page }).withTags(axeConfig.tags).analyze()
 
     if (results.violations.length > 0) {
       console.log('Accessibility violations on AI dashboard:')
-      results.violations.forEach((v) => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.id}: ${v.description} (${v.impact})`)
       })
     }
@@ -77,13 +71,11 @@ test.describe('Accessibility - Main Pages', () => {
     await page.goto('/performance')
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withTags(axeConfig.tags)
-      .analyze()
+    const results = await new AxeBuilder({ page }).withTags(axeConfig.tags).analyze()
 
     if (results.violations.length > 0) {
       console.log('Accessibility violations on performance page:')
-      results.violations.forEach((v) => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.id}: ${v.description} (${v.impact})`)
       })
     }
@@ -95,13 +87,11 @@ test.describe('Accessibility - Main Pages', () => {
     await page.goto('/admin')
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withTags(axeConfig.tags)
-      .analyze()
+    const results = await new AxeBuilder({ page }).withTags(axeConfig.tags).analyze()
 
     if (results.violations.length > 0) {
       console.log('Accessibility violations on admin page:')
-      results.violations.forEach((v) => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.id}: ${v.description} (${v.impact})`)
       })
     }
@@ -123,7 +113,9 @@ test.describe('Accessibility - Keyboard Navigation', () => {
       const el = document.activeElement
       return {
         tagName: el?.tagName,
-        hasVisibleFocus: el ? getComputedStyle(el).outlineStyle !== 'none' || el.classList.contains('focus-visible') : false,
+        hasVisibleFocus: el
+          ? getComputedStyle(el).outlineStyle !== 'none' || el.classList.contains('focus-visible')
+          : false,
       }
     })
 
@@ -151,18 +143,14 @@ test.describe('Accessibility - Color Contrast', () => {
     await page.waitForLoadState('networkidle')
 
     // Run axe specifically for color contrast
-    const results = await new AxeBuilder({ page })
-      .withTags(['cat.color'])
-      .analyze()
+    const results = await new AxeBuilder({ page }).withTags(['cat.color']).analyze()
 
     // Filter for contrast-specific violations
-    const contrastViolations = results.violations.filter(
-      (v) => v.id.includes('contrast')
-    )
+    const contrastViolations = results.violations.filter(v => v.id.includes('contrast'))
 
     if (contrastViolations.length > 0) {
       console.log('Color contrast violations:')
-      contrastViolations.forEach((v) => {
+      contrastViolations.forEach(v => {
         console.log(`  - ${v.id}: ${v.nodes.length} elements`)
       })
     }
@@ -176,18 +164,14 @@ test.describe('Accessibility - Forms', () => {
     await page.goto('/admin')
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withTags(['cat.forms'])
-      .analyze()
+    const results = await new AxeBuilder({ page }).withTags(['cat.forms']).analyze()
 
     // Filter for label-related violations
-    const labelViolations = results.violations.filter(
-      (v) => v.id.includes('label')
-    )
+    const labelViolations = results.violations.filter(v => v.id.includes('label'))
 
     if (labelViolations.length > 0) {
       console.log('Form label violations:')
-      labelViolations.forEach((v) => {
+      labelViolations.forEach(v => {
         console.log(`  - ${v.id}: ${v.description}`)
       })
     }
@@ -201,13 +185,11 @@ test.describe('Accessibility - Images', () => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withRules(['image-alt'])
-      .analyze()
+    const results = await new AxeBuilder({ page }).withRules(['image-alt']).analyze()
 
     if (results.violations.length > 0) {
       console.log('Image alt text violations:')
-      results.violations.forEach((v) => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.nodes.length} images missing alt text`)
       })
     }
@@ -228,7 +210,7 @@ test.describe('Accessibility - Semantic HTML', () => {
     // This is a common violation - log but don't fail initially
     if (results.violations.length > 0) {
       console.log('Landmark violations (consider fixing):')
-      results.violations.forEach((v) => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.id}: ${v.description}`)
       })
     }
@@ -241,13 +223,11 @@ test.describe('Accessibility - Semantic HTML', () => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withRules(['heading-order'])
-      .analyze()
+    const results = await new AxeBuilder({ page }).withRules(['heading-order']).analyze()
 
     if (results.violations.length > 0) {
       console.log('Heading order violations:')
-      results.violations.forEach((v) => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.description}`)
       })
     }
@@ -263,13 +243,11 @@ test.describe('Accessibility - Mobile', () => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const results = await new AxeBuilder({ page })
-      .withTags(axeConfig.tags)
-      .analyze()
+    const results = await new AxeBuilder({ page }).withTags(axeConfig.tags).analyze()
 
     if (results.violations.length > 0) {
       console.log('Mobile accessibility violations:')
-      results.violations.forEach((v) => {
+      results.violations.forEach(v => {
         console.log(`  - ${v.id}: ${v.description} (${v.impact})`)
       })
     }

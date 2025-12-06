@@ -2,7 +2,7 @@ interface ErrorRecord {
   timestamp: Date
   errorType: string
   errorMessage: string
-  context?: any
+  context?: unknown
 }
 
 interface MetricsData {
@@ -39,7 +39,7 @@ class AIUsageMetricsTracker {
     this.metrics.successfulWrites++
   }
 
-  recordFailure(errorType: string, errorMessage: string, context?: any): void {
+  recordFailure(errorType: string, errorMessage: string, context?: unknown): void {
     this.metrics.failedWrites++
 
     // Track error by type
@@ -69,9 +69,10 @@ class AIUsageMetricsTracker {
   }
 
   getMetrics() {
-    const successRate = this.metrics.totalAttempts > 0
-      ? (this.metrics.successfulWrites / this.metrics.totalAttempts) * 100
-      : 0
+    const successRate =
+      this.metrics.totalAttempts > 0
+        ? (this.metrics.successfulWrites / this.metrics.totalAttempts) * 100
+        : 0
 
     return {
       totalAttempts: this.metrics.totalAttempts,

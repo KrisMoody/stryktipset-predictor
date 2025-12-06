@@ -33,6 +33,29 @@ export default defineConfig({
     },
     mockReset: true,
     restoreMocks: true,
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          include: ['tests/unit/**/*.test.ts'],
+        },
+      },
+      {
+        test: {
+          name: 'components',
+          include: ['tests/components/**/*.test.ts'],
+          environment: 'happy-dom',
+        },
+      },
+      {
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
+          environment: 'node',
+          testTimeout: 30000,
+        },
+      },
+    ],
   },
   resolve: {
     alias: {

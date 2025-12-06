@@ -3,6 +3,8 @@ import { OpenAI } from 'openai'
 import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
 import { calculateAICost } from '~/server/constants/ai-pricing'
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- OpenAI API and Prisma JSON fields */
+
 /**
  * Service for generating and managing vector embeddings for similarity search
  */
@@ -19,7 +21,9 @@ export class EmbeddingsService {
       this.apiKeyChecked = true
       const apiKey = useRuntimeConfig().openaiApiKey
       if (!apiKey) {
-        console.warn('[Embeddings] OpenAI API key not configured - embeddings functionality disabled')
+        console.warn(
+          '[Embeddings] OpenAI API key not configured - embeddings functionality disabled'
+        )
         return null
       }
       this.openai = new OpenAI({ apiKey })
@@ -35,7 +39,9 @@ export class EmbeddingsService {
     try {
       const openai = this.getOpenAIClient()
       if (!openai) {
-        console.log(`[Embeddings] Skipping embedding generation for match ${matchId} - OpenAI client not available`)
+        console.log(
+          `[Embeddings] Skipping embedding generation for match ${matchId} - OpenAI client not available`
+        )
         return
       }
 
@@ -115,13 +121,14 @@ export class EmbeddingsService {
         endpoint: 'embeddings.create',
         duration,
         success: true,
-      }).catch((recordError) => {
+      }).catch(recordError => {
         console.error('[Embeddings] Failed to record AI usage:', recordError)
       })
 
-      console.log(`[Embeddings] Successfully generated embedding for match ${matchId} (${inputTokens} tokens, $${cost.toFixed(6)}, ${duration}ms)`)
-    }
-    catch (error) {
+      console.log(
+        `[Embeddings] Successfully generated embedding for match ${matchId} (${inputTokens} tokens, $${cost.toFixed(6)}, ${duration}ms)`
+      )
+    } catch (error) {
       const duration = Date.now() - startTime
       // Record failed attempt
       await recordAIUsage({
@@ -134,7 +141,7 @@ export class EmbeddingsService {
         endpoint: 'embeddings.create',
         duration,
         success: false,
-      }).catch((recordError) => {
+      }).catch(recordError => {
         console.error('[Embeddings] Failed to record AI usage error:', recordError)
       })
 
@@ -194,8 +201,7 @@ export class EmbeddingsService {
 
       console.log(`[Embeddings] Found ${similarMatches.length} similar matches`)
       return similarMatches
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Embeddings] Error finding similar matches:`, error)
       return []
     }
@@ -204,7 +210,11 @@ export class EmbeddingsService {
   /**
    * Find similar matches by team matchup (using team IDs)
    */
-  async findSimilarTeamMatchups(homeTeamId: number, awayTeamId: number, limit: number = 5): Promise<any[]> {
+  async findSimilarTeamMatchups(
+    homeTeamId: number,
+    awayTeamId: number,
+    limit: number = 5
+  ): Promise<any[]> {
     try {
       console.log(`[Embeddings] Finding similar matchups for team ${homeTeamId} vs ${awayTeamId}`)
 
@@ -237,8 +247,7 @@ export class EmbeddingsService {
 
       console.log(`[Embeddings] Found ${directMatchups.length} direct matchups`)
       return directMatchups
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Embeddings] Error finding team matchups:`, error)
       return []
     }
@@ -259,10 +268,14 @@ export class EmbeddingsService {
     if (match.match_odds && match.match_odds.length > 0) {
       const odds = match.match_odds[0]
       parts.push(`Odds: 1=${odds.home_odds} X=${odds.draw_odds} 2=${odds.away_odds}`)
-      parts.push(`Market probabilities: Home=${odds.home_probability}% Draw=${odds.draw_probability}% Away=${odds.away_probability}%`)
+      parts.push(
+        `Market probabilities: Home=${odds.home_probability}% Draw=${odds.draw_probability}% Away=${odds.away_probability}%`
+      )
 
       if (odds.svenska_folket_home) {
-        parts.push(`Public betting: 1=${odds.svenska_folket_home}% X=${odds.svenska_folket_draw}% 2=${odds.svenska_folket_away}%`)
+        parts.push(
+          `Public betting: 1=${odds.svenska_folket_home}% X=${odds.svenska_folket_draw}% 2=${odds.svenska_folket_away}%`
+        )
       }
     }
 

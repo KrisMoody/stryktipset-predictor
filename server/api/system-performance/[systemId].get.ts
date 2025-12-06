@@ -1,6 +1,6 @@
 import { systemPerformanceAnalyzer } from '~/server/services/system-performance-analyzer'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   const systemId = getRouterParam(event, 'systemId')
 
   if (!systemId) {
@@ -28,13 +28,13 @@ export default defineEventHandler(async (event) => {
       stats,
       trend,
     }
-  }
-  catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { message?: string }
     console.error(`Failed to get performance for system ${systemId}:`, error)
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to get system performance',
-      data: { error: error.message },
+      data: { error: err.message },
     })
   }
 })

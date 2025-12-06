@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
 import type { Page } from 'playwright'
 import { BaseScraper } from './base-scraper'
 
@@ -41,7 +42,12 @@ export class OddsetScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, _matchId: number, drawNumber: number, matchNumber: number): Promise<OddsetData | null> {
+  async scrape(
+    page: Page,
+    _matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<OddsetData | null> {
     try {
       this.log('Starting Oddset scraping')
 
@@ -68,8 +74,7 @@ export class OddsetScraper extends BaseScraper {
 
       this.log(`Oddset scraping complete: ${markets.length} markets extracted`)
       return oddsetData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping Oddset: ${error}`)
       return null
     }
@@ -94,8 +99,7 @@ export class OddsetScraper extends BaseScraper {
           return title.trim()
         }
       }
-    }
-    catch {
+    } catch {
       // Title not found is acceptable
     }
     return undefined
@@ -128,15 +132,13 @@ export class OddsetScraper extends BaseScraper {
               outcomes,
             })
           }
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single market: ${innerError}`)
         }
       }
 
       this.log(`Extracted ${markets.length} betting markets`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting markets: ${error}`)
     }
 
@@ -175,13 +177,11 @@ export class OddsetScraper extends BaseScraper {
               outcomes.push({ label, odds })
             }
           }
-        }
-        catch (innerError) {
+        } catch (innerError) {
           this.log(`Error extracting single outcome: ${innerError}`)
         }
       }
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting outcomes: ${error}`)
     }
 
@@ -197,8 +197,7 @@ export class OddsetScraper extends BaseScraper {
       const normalized = oddsText.replace(',', '.')
       const odds = parseFloat(normalized)
       return isNaN(odds) ? 0 : odds
-    }
-    catch {
+    } catch {
       return 0
     }
   }

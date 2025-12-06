@@ -8,9 +8,14 @@ export class CouponOptimizer {
   /**
    * Generate optimal coupon for a draw
    */
-  async generateOptimalCoupon(drawNumber: number, budget: number = 500): Promise<OptimalCoupon | null> {
+  async generateOptimalCoupon(
+    drawNumber: number,
+    budget: number = 500
+  ): Promise<OptimalCoupon | null> {
     try {
-      console.log(`[Coupon Optimizer] Generating optimal coupon for draw ${drawNumber} with budget ${budget} SEK`)
+      console.log(
+        `[Coupon Optimizer] Generating optimal coupon for draw ${drawNumber} with budget ${budget} SEK`
+      )
 
       // Get draw and its matches with predictions
       const draw = await prisma.draws.findUnique({
@@ -43,9 +48,13 @@ export class CouponOptimizer {
       }
 
       // Check if all matches have predictions
-      const matchesWithoutPredictions = draw.matches.filter(m => !m.predictions || m.predictions.length === 0)
+      const matchesWithoutPredictions = draw.matches.filter(
+        m => !m.predictions || m.predictions.length === 0
+      )
       if (matchesWithoutPredictions.length > 0) {
-        throw new Error(`Missing predictions for matches: ${matchesWithoutPredictions.map(m => m.match_number).join(', ')}`)
+        throw new Error(
+          `Missing predictions for matches: ${matchesWithoutPredictions.map(m => m.match_number).join(', ')}`
+        )
       }
 
       // Generate selections for each match
@@ -107,8 +116,7 @@ export class CouponOptimizer {
         expectedValue,
         budget,
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Coupon Optimizer] Error generating optimal coupon:`, error)
       return null
     }
@@ -117,15 +125,37 @@ export class CouponOptimizer {
   /**
    * Calculate expected values for all outcomes
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Complex API response types
   private calculateExpectedValues(prediction: any, odds: any): ExpectedValue[] {
     const results: ExpectedValue[] = []
 
     if (!odds) {
       // No odds data, use probabilities only
       return [
-        { outcome: '1', probability: Number(prediction.probability_home), crowd_probability: 33.33, odds: 1, ev: Number(prediction.probability_home), is_value_bet: false },
-        { outcome: 'X', probability: Number(prediction.probability_draw), crowd_probability: 33.33, odds: 1, ev: Number(prediction.probability_draw), is_value_bet: false },
-        { outcome: '2', probability: Number(prediction.probability_away), crowd_probability: 33.33, odds: 1, ev: Number(prediction.probability_away), is_value_bet: false },
+        {
+          outcome: '1',
+          probability: Number(prediction.probability_home),
+          crowd_probability: 33.33,
+          odds: 1,
+          ev: Number(prediction.probability_home),
+          is_value_bet: false,
+        },
+        {
+          outcome: 'X',
+          probability: Number(prediction.probability_draw),
+          crowd_probability: 33.33,
+          odds: 1,
+          ev: Number(prediction.probability_draw),
+          is_value_bet: false,
+        },
+        {
+          outcome: '2',
+          probability: Number(prediction.probability_away),
+          crowd_probability: 33.33,
+          odds: 1,
+          ev: Number(prediction.probability_away),
+          is_value_bet: false,
+        },
       ]
     }
 
@@ -136,14 +166,34 @@ export class CouponOptimizer {
     }
 
     // Calculate EV for each outcome
-    const outcomes: Array<{ outcome: '1' | 'X' | '2', prob: number, crowdProb: number, odds: number }> = [
-      { outcome: '1', prob: Number(prediction.probability_home), crowdProb: svenskaFolket.home, odds: Number(odds.home_odds) },
-      { outcome: 'X', prob: Number(prediction.probability_draw), crowdProb: svenskaFolket.draw, odds: Number(odds.draw_odds) },
-      { outcome: '2', prob: Number(prediction.probability_away), crowdProb: svenskaFolket.away, odds: Number(odds.away_odds) },
+    const outcomes: Array<{
+      outcome: '1' | 'X' | '2'
+      prob: number
+      crowdProb: number
+      odds: number
+    }> = [
+      {
+        outcome: '1',
+        prob: Number(prediction.probability_home),
+        crowdProb: svenskaFolket.home,
+        odds: Number(odds.home_odds),
+      },
+      {
+        outcome: 'X',
+        prob: Number(prediction.probability_draw),
+        crowdProb: svenskaFolket.draw,
+        odds: Number(odds.draw_odds),
+      },
+      {
+        outcome: '2',
+        prob: Number(prediction.probability_away),
+        crowdProb: svenskaFolket.away,
+        odds: Number(odds.away_odds),
+      },
     ]
 
     for (const { outcome, prob, crowdProb, odds: outcomeOdds } of outcomes) {
-      const ev = (prob * 100 * outcomeOdds) - 100
+      const ev = prob * 100 * outcomeOdds - 100
       const is_value_bet = prob * 100 > crowdProb
 
       results.push({
@@ -162,7 +212,12 @@ export class CouponOptimizer {
   /**
    * Determine optimal selection for a match
    */
-  private determineOptimalSelection(evs: ExpectedValue[], isSpik: boolean, budget: number, currentSpiks: number): string {
+  private determineOptimalSelection(
+    evs: ExpectedValue[],
+    isSpik: boolean,
+    budget: number,
+    currentSpiks: number
+  ): string {
     if (isSpik || currentSpiks >= 10) {
       // Use single outcome
       return this.getBestSingleOutcome(evs)
@@ -200,7 +255,7 @@ export class CouponOptimizer {
    */
   private getBestSingleOutcome(evs: ExpectedValue[]): string {
     if (evs.length === 0) return '1'
-    return evs.reduce((best, current) => current.ev > best.ev ? current : best, evs[0]!).outcome
+    return evs.reduce((best, current) => (current.ev > best.ev ? current : best), evs[0]!).outcome
   }
 
   /**
@@ -213,10 +268,11 @@ export class CouponOptimizer {
 
     // For multiple outcomes, average the EVs
     const outcomes = selection.split('')
-    const avgEV = outcomes.reduce((sum, outcome) => {
-      const ev = evs.find(e => e.outcome === outcome)?.ev || 0
-      return sum + ev
-    }, 0) / outcomes.length
+    const avgEV =
+      outcomes.reduce((sum, outcome) => {
+        const ev = evs.find(e => e.outcome === outcome)?.ev || 0
+        return sum + ev
+      }, 0) / outcomes.length
 
     return avgEV
   }
@@ -232,11 +288,9 @@ export class CouponOptimizer {
     const ev = this.getSelectionEV(selection, evs)
     if (ev > 10) {
       return `Strong value bet (EV: ${ev.toFixed(1)}%)`
-    }
-    else if (ev > 0) {
+    } else if (ev > 0) {
       return `Positive EV (${ev.toFixed(1)}%)`
-    }
-    else {
+    } else {
       return `Best available option`
     }
   }

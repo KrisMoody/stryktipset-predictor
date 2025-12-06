@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+// eslint-disable-next-line nuxt/nuxt-config-keys-order -- Custom key order preference
 export default defineNuxtConfig({
-
   app: {
     head: {
       htmlAttrs: {
@@ -9,23 +9,20 @@ export default defineNuxtConfig({
     },
   },
 
-  modules: [
-    '@nuxt/ui',
-    '@nuxt/icon',
-    '@nuxt/eslint',
-  ],
+  modules: ['@nuxt/ui', '@nuxt/icon', '@nuxt/eslint'],
+
   devtools: { enabled: true },
 
-  css: [
-    '~/assets/css/main.css',
-  ],
+  css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
     // Private keys (server-side only)
     databaseUrl: process.env.DATABASE_URL,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     openaiApiKey: process.env.OPENAI_API_KEY,
-    svenskaSpelApiBaseUrl: process.env.SVENSKA_SPEL_API_BASE_URL || 'https://api.spela.svenskaspel.se/draw/1/stryktipset',
+    svenskaSpelApiBaseUrl:
+      process.env.SVENSKA_SPEL_API_BASE_URL ||
+      'https://api.spela.svenskaspel.se/draw/1/stryktipset',
 
     // Scraper configuration
     enableScraperV3: process.env.ENABLE_SCRAPER_V3 === 'true',
@@ -64,10 +61,7 @@ export default defineNuxtConfig({
     server: {
       watch: {
         // Exclude Python venv from file watching
-        ignored: [
-          '**/services/ai-scraper/**',
-          '**/*.pyc',
-        ],
+        ignored: ['**/services/ai-scraper/**', '**/*.pyc'],
       },
     },
   },

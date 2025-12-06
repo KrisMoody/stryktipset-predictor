@@ -4,12 +4,8 @@
 
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-4xl font-bold mb-2">
-        Admin Control Panel
-      </h1>
-      <p class="text-gray-600 dark:text-gray-400">
-        System health, actions, and monitoring
-      </p>
+      <h1 class="text-4xl font-bold mb-2">Admin Control Panel</h1>
+      <p class="text-gray-600 dark:text-gray-400">System health, actions, and monitoring</p>
     </div>
 
     <!-- Schedule Window Status Banner -->
@@ -54,33 +50,20 @@
 
     <!-- Health Status Cards -->
     <div class="mb-8">
-      <h2 class="text-2xl font-semibold mb-4">
-        System Health
-      </h2>
+      <h2 class="text-2xl font-semibold mb-4">System Health</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Scraper Health -->
         <UCard>
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold">
-              AI Scraper
-            </h3>
-            <UBadge
-              :color="getHealthColor(scraperHealth?.health?.status)"
-              variant="subtle"
-            >
+            <h3 class="font-semibold">AI Scraper</h3>
+            <UBadge :color="getHealthColor(scraperHealth?.health?.status)" variant="subtle">
               {{ scraperHealth?.health?.status || 'Unknown' }}
             </UBadge>
           </div>
-          <div
-            v-if="loadingScraperHealth"
-            class="flex justify-center py-4"
-          >
+          <div v-if="loadingScraperHealth" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="scraperHealth?.success"
-            class="text-sm space-y-1"
-          >
+          <div v-else-if="scraperHealth?.success" class="text-sm space-y-1">
             <p class="text-gray-600 dark:text-gray-400">
               Queue: {{ scraperHealth.health?.queueSize || 0 }} pending
             </p>
@@ -88,10 +71,7 @@
               Processed: {{ scraperHealth.health?.totalProcessed || 0 }}
             </p>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ scraperHealth?.error || 'Failed to fetch' }}
           </div>
           <UButton
@@ -109,26 +89,15 @@
         <!-- Svenska Spel Health -->
         <UCard>
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold">
-              Svenska Spel API
-            </h3>
-            <UBadge
-              :color="getHealthColor(svenskaSpelHealth?.status)"
-              variant="subtle"
-            >
+            <h3 class="font-semibold">Svenska Spel API</h3>
+            <UBadge :color="getHealthColor(svenskaSpelHealth?.status)" variant="subtle">
               {{ svenskaSpelHealth?.status || 'Unknown' }}
             </UBadge>
           </div>
-          <div
-            v-if="loadingSvenskaSpelHealth"
-            class="flex justify-center py-4"
-          >
+          <div v-if="loadingSvenskaSpelHealth" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="svenskaSpelHealth?.success"
-            class="text-sm space-y-1"
-          >
+          <div v-else-if="svenskaSpelHealth?.success" class="text-sm space-y-1">
             <p class="text-gray-600 dark:text-gray-400">
               Response: {{ svenskaSpelHealth.responseTime }}
             </p>
@@ -136,10 +105,7 @@
               Draws available: {{ svenskaSpelHealth.drawsAvailable }}
             </p>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ svenskaSpelHealth?.error || 'Failed to fetch' }}
           </div>
           <UButton
@@ -157,9 +123,7 @@
         <!-- Failed Writes Queue -->
         <UCard>
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold">
-              Failed Writes Queue
-            </h3>
+            <h3 class="font-semibold">Failed Writes Queue</h3>
             <UBadge
               :color="(failedWrites?.queueStatus?.count || 0) > 0 ? 'warning' : 'success'"
               variant="subtle"
@@ -167,16 +131,10 @@
               {{ failedWrites?.queueStatus?.count || 0 }} pending
             </UBadge>
           </div>
-          <div
-            v-if="loadingFailedWrites"
-            class="flex justify-center py-4"
-          >
+          <div v-if="loadingFailedWrites" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="failedWrites?.success"
-            class="text-sm space-y-1"
-          >
+          <div v-else-if="failedWrites?.success" class="text-sm space-y-1">
             <p class="text-gray-600 dark:text-gray-400">
               Last checked: {{ formatTime(failedWrites.timestamp) }}
             </p>
@@ -208,20 +166,20 @@
 
     <!-- Actions -->
     <div class="mb-8">
-      <h2 class="text-2xl font-semibold mb-4">
-        Actions
-      </h2>
+      <h2 class="text-2xl font-semibold mb-4">Actions</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Sync Draws -->
         <UCard>
-          <h3 class="font-semibold mb-2">
-            Sync Draws
-          </h3>
+          <h3 class="font-semibold mb-2">Sync Draws</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Fetch latest draws from Svenska Spel and update the database.
           </p>
           <UTooltip
-            :text="!isActionAllowed ? 'Disabled outside betting window. Enable admin override to proceed.' : 'Sync draws from Svenska Spel'"
+            :text="
+              !isActionAllowed
+                ? 'Disabled outside betting window. Enable admin override to proceed.'
+                : 'Sync draws from Svenska Spel'
+            "
           >
             <UButton
               icon="i-heroicons-arrow-path"
@@ -235,24 +193,26 @@
           <div
             v-if="syncResult"
             class="mt-4 p-3 rounded-lg"
-            :class="syncResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'"
+            :class="
+              syncResult.success
+                ? 'bg-green-50 dark:bg-green-900/20'
+                : 'bg-red-50 dark:bg-red-900/20'
+            "
           >
             <p
               class="text-sm font-medium"
-              :class="syncResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'"
+              :class="
+                syncResult.success
+                  ? 'text-green-700 dark:text-green-400'
+                  : 'text-red-700 dark:text-red-400'
+              "
             >
               {{ syncResult.success ? 'Sync completed' : 'Sync failed' }}
             </p>
-            <p
-              v-if="syncResult.success"
-              class="text-xs text-gray-600 dark:text-gray-400 mt-1"
-            >
+            <p v-if="syncResult.success" class="text-xs text-gray-600 dark:text-gray-400 mt-1">
               Draws: {{ syncResult.drawsProcessed }} | Matches: {{ syncResult.matchesProcessed }}
             </p>
-            <p
-              v-else
-              class="text-xs text-red-600 dark:text-red-400 mt-1"
-            >
+            <p v-else class="text-xs text-red-600 dark:text-red-400 mt-1">
               {{ syncResult.error }}
             </p>
           </div>
@@ -260,28 +220,20 @@
 
         <!-- Backfill Season -->
         <UCard>
-          <h3 class="font-semibold mb-2">
-            Backfill Season
-          </h3>
+          <h3 class="font-semibold mb-2">Backfill Season</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Backfill historical draw data for a date range.
           </p>
           <div class="flex gap-2 mb-4">
-            <UInput
-              v-model="backfillStartDate"
-              type="date"
-              size="sm"
-              placeholder="Start date"
-            />
-            <UInput
-              v-model="backfillEndDate"
-              type="date"
-              size="sm"
-              placeholder="End date"
-            />
+            <UInput v-model="backfillStartDate" type="date" size="sm" placeholder="Start date" />
+            <UInput v-model="backfillEndDate" type="date" size="sm" placeholder="End date" />
           </div>
           <UTooltip
-            :text="!isActionAllowed ? 'Disabled outside betting window. Enable admin override to proceed.' : 'Start backfill operation'"
+            :text="
+              !isActionAllowed
+                ? 'Disabled outside betting window. Enable admin override to proceed.'
+                : 'Start backfill operation'
+            "
           >
             <UButton
               icon="i-heroicons-archive-box"
@@ -295,24 +247,26 @@
           <div
             v-if="backfillResult"
             class="mt-4 p-3 rounded-lg"
-            :class="backfillResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'"
+            :class="
+              backfillResult.success
+                ? 'bg-green-50 dark:bg-green-900/20'
+                : 'bg-red-50 dark:bg-red-900/20'
+            "
           >
             <p
               class="text-sm font-medium"
-              :class="backfillResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'"
+              :class="
+                backfillResult.success
+                  ? 'text-green-700 dark:text-green-400'
+                  : 'text-red-700 dark:text-red-400'
+              "
             >
               {{ backfillResult.success ? 'Backfill started' : 'Backfill failed' }}
             </p>
-            <p
-              v-if="backfillResult.success"
-              class="text-xs text-gray-600 dark:text-gray-400 mt-1"
-            >
+            <p v-if="backfillResult.success" class="text-xs text-gray-600 dark:text-gray-400 mt-1">
               Operation ID: {{ backfillResult.operationId }}
             </p>
-            <p
-              v-else
-              class="text-xs text-red-600 dark:text-red-400 mt-1"
-            >
+            <p v-else class="text-xs text-red-600 dark:text-red-400 mt-1">
               {{ backfillResult.error }}
             </p>
           </div>
@@ -321,13 +275,8 @@
     </div>
 
     <!-- Backfill Operations -->
-    <div
-      v-if="backfillOperations.length > 0"
-      class="mb-8"
-    >
-      <h2 class="text-2xl font-semibold mb-4">
-        Active Backfill Operations
-      </h2>
+    <div v-if="backfillOperations.length > 0" class="mb-8">
+      <h2 class="text-2xl font-semibold mb-4">Active Backfill Operations</h2>
       <UCard>
         <div class="space-y-4">
           <div
@@ -336,18 +285,13 @@
             class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
           >
             <div>
-              <p class="font-medium">
-                Operation {{ op.id }}
-              </p>
+              <p class="font-medium">Operation {{ op.id }}</p>
               <p class="text-xs text-gray-500">
                 {{ op.processed_draws || 0 }}/{{ op.total_draws || '?' }} draws processed
               </p>
             </div>
             <div class="flex items-center gap-3">
-              <UBadge
-                :color="getBackfillStatusColor(op.status)"
-                variant="subtle"
-              >
+              <UBadge :color="getBackfillStatusColor(op.status)" variant="subtle">
                 {{ op.status }}
               </UBadge>
               <UButton
@@ -365,16 +309,9 @@
     <!-- AI Metrics Section -->
     <div class="mb-8">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-semibold">
-          AI Metrics
-        </h2>
+        <h2 class="text-2xl font-semibold">AI Metrics</h2>
         <div class="flex gap-2">
-          <USelect
-            v-model="aiMetricsPreset"
-            :items="datePresetOptions"
-            size="sm"
-            class="w-36"
-          />
+          <USelect v-model="aiMetricsPreset" :items="datePresetOptions" size="sm" class="w-36" />
           <UButton
             size="xs"
             variant="ghost"
@@ -400,20 +337,12 @@
         <!-- Overview Card -->
         <UCard>
           <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold text-sm">
-              Overview
-            </h3>
+            <h3 class="font-semibold text-sm">Overview</h3>
           </div>
-          <div
-            v-if="loadingAiMetrics"
-            class="flex justify-center py-4"
-          >
+          <div v-if="loadingAiMetrics" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="aiMetricsOverview?.success"
-            class="text-sm space-y-1"
-          >
+          <div v-else-if="aiMetricsOverview?.success" class="text-sm space-y-1">
             <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
               ${{ aiMetricsOverview.data?.totalCost?.toFixed(4) || '0.00' }}
             </p>
@@ -424,10 +353,7 @@
               {{ formatTokens(aiMetricsOverview.data?.totalTokens || 0) }} tokens
             </p>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ aiMetricsOverview?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -435,26 +361,15 @@
         <!-- Budget Card -->
         <UCard>
           <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold text-sm">
-              Budget
-            </h3>
-            <UBadge
-              :color="getBudgetColor(aiMetricsBudget?.data?.percentUsed)"
-              variant="subtle"
-            >
+            <h3 class="font-semibold text-sm">Budget</h3>
+            <UBadge :color="getBudgetColor(aiMetricsBudget?.data?.percentUsed)" variant="subtle">
               {{ aiMetricsBudget?.data?.percentUsed?.toFixed(0) || 0 }}% used
             </UBadge>
           </div>
-          <div
-            v-if="loadingAiMetrics"
-            class="flex justify-center py-4"
-          >
+          <div v-if="loadingAiMetrics" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="aiMetricsBudget?.success"
-            class="text-sm space-y-1"
-          >
+          <div v-else-if="aiMetricsBudget?.success" class="text-sm space-y-1">
             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
               <div
                 class="h-2 rounded-full"
@@ -463,16 +378,15 @@
               />
             </div>
             <p class="text-gray-600 dark:text-gray-400">
-              ${{ aiMetricsBudget.data?.spent?.toFixed(2) || '0.00' }} / ${{ aiMetricsBudget.data?.limit?.toFixed(2) || '0.00' }}
+              ${{ aiMetricsBudget.data?.spent?.toFixed(2) || '0.00' }} / ${{
+                aiMetricsBudget.data?.limit?.toFixed(2) || '0.00'
+              }}
             </p>
             <p class="text-gray-600 dark:text-gray-400">
               Remaining: ${{ aiMetricsBudget.data?.remaining?.toFixed(2) || '0.00' }}
             </p>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ aiMetricsBudget?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -480,34 +394,26 @@
         <!-- Efficiency Card -->
         <UCard>
           <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold text-sm">
-              Efficiency
-            </h3>
+            <h3 class="font-semibold text-sm">Efficiency</h3>
           </div>
-          <div
-            v-if="loadingAiMetrics"
-            class="flex justify-center py-4"
-          >
+          <div v-if="loadingAiMetrics" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="aiMetricsEfficiency?.success"
-            class="text-sm space-y-1"
-          >
+          <div v-else-if="aiMetricsEfficiency?.success" class="text-sm space-y-1">
             <p class="text-gray-600 dark:text-gray-400">
-              Avg tokens/request: {{ aiMetricsEfficiency.data?.avgTokensPerRequest?.toFixed(0) || 0 }}
+              Avg tokens/request:
+              {{ aiMetricsEfficiency.data?.avgTokensPerRequest?.toFixed(0) || 0 }}
             </p>
             <p class="text-gray-600 dark:text-gray-400">
-              Avg cost/request: ${{ aiMetricsEfficiency.data?.avgCostPerRequest?.toFixed(4) || '0.00' }}
+              Avg cost/request: ${{
+                aiMetricsEfficiency.data?.avgCostPerRequest?.toFixed(4) || '0.00'
+              }}
             </p>
             <p class="text-gray-600 dark:text-gray-400">
               Success rate: {{ aiMetricsEfficiency.data?.successRate?.toFixed(1) || 0 }}%
             </p>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ aiMetricsEfficiency?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -515,20 +421,12 @@
         <!-- Costs Breakdown Card -->
         <UCard>
           <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold text-sm">
-              Cost by Model
-            </h3>
+            <h3 class="font-semibold text-sm">Cost by Model</h3>
           </div>
-          <div
-            v-if="loadingAiMetrics"
-            class="flex justify-center py-4"
-          >
+          <div v-if="loadingAiMetrics" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="aiMetricsCosts?.success"
-            class="text-sm space-y-1"
-          >
+          <div v-else-if="aiMetricsCosts?.success" class="text-sm space-y-1">
             <div
               v-for="model in aiMetricsCosts.data?.byModel || []"
               :key="model.model"
@@ -537,17 +435,11 @@
               <span class="text-gray-600 dark:text-gray-400 truncate">{{ model.model }}</span>
               <span class="font-medium">${{ model.cost?.toFixed(4) || '0.00' }}</span>
             </div>
-            <p
-              v-if="!aiMetricsCosts.data?.byModel?.length"
-              class="text-gray-500"
-            >
+            <p v-if="!aiMetricsCosts.data?.byModel?.length" class="text-gray-500">
               No data available
             </p>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ aiMetricsCosts?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -558,14 +450,9 @@
         <!-- Trends Card -->
         <UCard>
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold">
-              Cost Trends (7 days)
-            </h3>
+            <h3 class="font-semibold">Cost Trends (7 days)</h3>
           </div>
-          <div
-            v-if="loadingAiMetrics"
-            class="flex justify-center py-8"
-          >
+          <div v-if="loadingAiMetrics" class="flex justify-center py-8">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
           <div
@@ -584,28 +471,20 @@
                   :style="{ width: `${getTrendWidth(trend.cost, aiMetricsTrends.data)}%` }"
                 />
               </div>
-              <span class="text-xs font-medium w-16 text-right">${{ trend.cost?.toFixed(4) || '0.00' }}</span>
+              <span class="text-xs font-medium w-16 text-right"
+                >${{ trend.cost?.toFixed(4) || '0.00' }}</span
+              >
             </div>
           </div>
-          <p
-            v-else
-            class="text-sm text-gray-500 py-4 text-center"
-          >
-            No trend data available
-          </p>
+          <p v-else class="text-sm text-gray-500 py-4 text-center">No trend data available</p>
         </UCard>
 
         <!-- Recommendations Card -->
         <UCard>
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold">
-              Optimization Recommendations
-            </h3>
+            <h3 class="font-semibold">Optimization Recommendations</h3>
           </div>
-          <div
-            v-if="loadingAiMetrics"
-            class="flex justify-center py-8"
-          >
+          <div v-if="loadingAiMetrics" class="flex justify-center py-8">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
           <div
@@ -634,10 +513,7 @@
               </div>
             </div>
           </div>
-          <p
-            v-else
-            class="text-sm text-gray-500 py-4 text-center"
-          >
+          <p v-else class="text-sm text-gray-500 py-4 text-center">
             No recommendations at this time
           </p>
         </UCard>
@@ -647,9 +523,7 @@
     <!-- Scraper Metrics Section -->
     <div class="mb-8">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-semibold">
-          Scraper Metrics
-        </h2>
+        <h2 class="text-2xl font-semibold">Scraper Metrics</h2>
         <UButton
           size="xs"
           variant="ghost"
@@ -664,49 +538,32 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <!-- Total Costs -->
         <UCard>
-          <h3 class="font-semibold mb-2">
-            30-Day Costs
-          </h3>
-          <div
-            v-if="loadingScraperMetrics"
-            class="flex justify-center py-4"
-          >
+          <h3 class="font-semibold mb-2">30-Day Costs</h3>
+          <div v-if="loadingScraperMetrics" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="scraperMetrics?.success"
-            class="text-sm space-y-1"
-          >
+          <div v-else-if="scraperMetrics?.success" class="text-sm space-y-1">
             <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">
               ${{ scraperMetrics.data?.totalCosts?.last30Days?.toFixed(4) || '0.00' }}
             </p>
             <p class="text-gray-600 dark:text-gray-400">
-              Est. monthly: ${{ scraperMetrics.data?.totalCosts?.estimatedMonthly?.toFixed(4) || '0.00' }}
+              Est. monthly: ${{
+                scraperMetrics.data?.totalCosts?.estimatedMonthly?.toFixed(4) || '0.00'
+              }}
             </p>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ scraperMetrics?.error || 'Failed to load' }}
           </div>
         </UCard>
 
         <!-- Success Rates -->
         <UCard>
-          <h3 class="font-semibold mb-2">
-            Success Rates by Type
-          </h3>
-          <div
-            v-if="loadingScraperMetrics"
-            class="flex justify-center py-4"
-          >
+          <h3 class="font-semibold mb-2">Success Rates by Type</h3>
+          <div v-if="loadingScraperMetrics" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="scraperMetrics?.success"
-            class="text-sm space-y-2"
-          >
+          <div v-else-if="scraperMetrics?.success" class="text-sm space-y-2">
             <div
               v-for="rate in scraperMetrics.data?.successRates || []"
               :key="rate.dataType"
@@ -714,36 +571,27 @@
             >
               <span class="text-gray-600 dark:text-gray-400">{{ rate.dataType }}</span>
               <UBadge
-                :color="rate.successRate >= 90 ? 'success' : rate.successRate >= 70 ? 'warning' : 'error'"
+                :color="
+                  rate.successRate >= 90 ? 'success' : rate.successRate >= 70 ? 'warning' : 'error'
+                "
                 variant="subtle"
               >
                 {{ rate.successRate?.toFixed(1) }}%
               </UBadge>
             </div>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ scraperMetrics?.error || 'Failed to load' }}
           </div>
         </UCard>
 
         <!-- AI vs DOM Comparison -->
         <UCard>
-          <h3 class="font-semibold mb-2">
-            AI vs DOM Success
-          </h3>
-          <div
-            v-if="loadingScraperMetrics"
-            class="flex justify-center py-4"
-          >
+          <h3 class="font-semibold mb-2">AI vs DOM Success</h3>
+          <div v-if="loadingScraperMetrics" class="flex justify-center py-4">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
           </div>
-          <div
-            v-else-if="scraperMetrics?.success"
-            class="text-sm space-y-2"
-          >
+          <div v-else-if="scraperMetrics?.success" class="text-sm space-y-2">
             <div
               v-for="comp in scraperMetrics.data?.aiVsDomComparison || []"
               :key="comp.dataType"
@@ -754,14 +602,13 @@
               </p>
               <div class="flex gap-2">
                 <span class="text-gray-500">AI: {{ comp.ai?.successRate?.toFixed(0) || 0 }}%</span>
-                <span class="text-gray-500">DOM: {{ comp.dom?.successRate?.toFixed(0) || 0 }}%</span>
+                <span class="text-gray-500"
+                  >DOM: {{ comp.dom?.successRate?.toFixed(0) || 0 }}%</span
+                >
               </div>
             </div>
           </div>
-          <div
-            v-else
-            class="text-sm text-red-500"
-          >
+          <div v-else class="text-sm text-red-500">
             {{ scraperMetrics?.error || 'Failed to load' }}
           </div>
         </UCard>
@@ -771,9 +618,7 @@
     <!-- AI Usage Metrics (In-Memory) -->
     <div class="mb-8">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-semibold">
-          AI Usage Metrics (Session)
-        </h2>
+        <h2 class="text-2xl font-semibold">AI Usage Metrics (Session)</h2>
         <UButton
           size="xs"
           variant="ghost"
@@ -786,53 +631,36 @@
       </div>
 
       <UCard>
-        <div
-          v-if="loadingAiUsageMetrics"
-          class="flex justify-center py-8"
-        >
+        <div v-if="loadingAiUsageMetrics" class="flex justify-center py-8">
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
         </div>
-        <div
-          v-else-if="aiUsageMetrics?.success"
-          class="grid grid-cols-2 md:grid-cols-4 gap-4"
-        >
+        <div v-else-if="aiUsageMetrics?.success" class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Total Requests
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Total Requests</p>
             <p class="text-xl font-bold">
               {{ aiUsageMetrics.metrics?.totalRequests || 0 }}
             </p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Total Tokens
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Total Tokens</p>
             <p class="text-xl font-bold">
               {{ formatTokens(aiUsageMetrics.metrics?.totalTokens || 0) }}
             </p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Total Cost
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Total Cost</p>
             <p class="text-xl font-bold">
               ${{ aiUsageMetrics.metrics?.totalCost?.toFixed(4) || '0.00' }}
             </p>
           </div>
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">
-              Avg Latency
-            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Latency</p>
             <p class="text-xl font-bold">
               {{ aiUsageMetrics.metrics?.avgLatency?.toFixed(0) || 0 }}ms
             </p>
           </div>
         </div>
-        <div
-          v-else
-          class="text-sm text-red-500 py-4 text-center"
-        >
+        <div v-else class="text-sm text-red-500 py-4 text-center">
           {{ aiUsageMetrics?.error || 'Failed to load metrics' }}
         </div>
       </UCard>
@@ -863,6 +691,7 @@ const loadingSvenskaSpelHealth = ref(false)
 const loadingFailedWrites = ref(false)
 const retryingWrites = ref(false)
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes */
 const scraperHealth = ref<any>(null)
 const svenskaSpelHealth = ref<any>(null)
 const failedWrites = ref<any>(null)
@@ -887,6 +716,7 @@ const aiMetricsEfficiency = ref<any>(null)
 const aiMetricsCosts = ref<any>(null)
 const aiMetricsTrends = ref<any>(null)
 const aiMetricsRecommendations = ref<any>(null)
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 const datePresetOptions = [
   { label: 'Today', value: 'today' },
@@ -898,21 +728,24 @@ const datePresetOptions = [
 
 // Scraper Metrics states
 const loadingScraperMetrics = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
 const scraperMetrics = ref<any>(null)
 
 // AI Usage Metrics states
 const loadingAiUsageMetrics = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
 const aiUsageMetrics = ref<any>(null)
 
 // Schedule status
 async function loadScheduleStatus() {
   try {
-    const result = await $fetch<{ success: boolean, status?: ScheduleWindowStatus }>('/api/schedule/status')
+    const result = await $fetch<{ success: boolean; status?: ScheduleWindowStatus }>(
+      '/api/schedule/status'
+    )
     if (result.success && result.status) {
       scheduleStatus.value = result.status
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error loading schedule status:', error)
   }
 }
@@ -938,11 +771,9 @@ async function checkScraperHealth() {
   loadingScraperHealth.value = true
   try {
     scraperHealth.value = await $fetch('/api/admin/scraper-health')
-  }
-  catch {
+  } catch {
     scraperHealth.value = { success: false, error: 'Failed to connect' }
-  }
-  finally {
+  } finally {
     loadingScraperHealth.value = false
   }
 }
@@ -951,11 +782,9 @@ async function checkSvenskaSpelHealth() {
   loadingSvenskaSpelHealth.value = true
   try {
     svenskaSpelHealth.value = await $fetch('/api/admin/svenska-spel-health')
-  }
-  catch {
+  } catch {
     svenskaSpelHealth.value = { success: false, error: 'Failed to connect' }
-  }
-  finally {
+  } finally {
     loadingSvenskaSpelHealth.value = false
   }
 }
@@ -964,11 +793,9 @@ async function checkFailedWrites() {
   loadingFailedWrites.value = true
   try {
     failedWrites.value = await $fetch('/api/admin/failed-writes')
-  }
-  catch {
+  } catch {
     failedWrites.value = { success: false, error: 'Failed to fetch' }
-  }
-  finally {
+  } finally {
     loadingFailedWrites.value = false
   }
 }
@@ -978,11 +805,9 @@ async function retryFailedWrites() {
   try {
     await $fetch('/api/admin/failed-writes?action=retry')
     await checkFailedWrites()
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error retrying failed writes:', error)
-  }
-  finally {
+  } finally {
     retryingWrites.value = false
   }
 }
@@ -996,14 +821,13 @@ async function syncDraws() {
       method: 'POST',
       body: { adminOverride: adminOverride.value },
     })
-  }
-  catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
     syncResult.value = {
       success: false,
-      error: error?.data?.message || error?.message || 'Unknown error',
+      error: err?.data?.message || err?.message || 'Unknown error',
     }
-  }
-  finally {
+  } finally {
     syncing.value = false
   }
 }
@@ -1029,14 +853,13 @@ async function startBackfill() {
         total_draws: null,
       })
     }
-  }
-  catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
     backfillResult.value = {
       success: false,
-      error: error?.data?.message || error?.message || 'Unknown error',
+      error: err?.data?.message || err?.message || 'Unknown error',
     }
-  }
-  finally {
+  } finally {
     backfilling.value = false
   }
 }
@@ -1048,8 +871,7 @@ async function refreshBackfillStatus(operationId: string) {
     if (index !== -1 && 'success' in result && result.success && 'operation' in result) {
       backfillOperations.value[index] = result.operation
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error fetching backfill status:', error)
   }
 }
@@ -1120,11 +942,9 @@ async function loadAiMetrics() {
     aiMetricsCosts.value = costs
     aiMetricsTrends.value = trends
     aiMetricsRecommendations.value = recommendations
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error loading AI metrics:', error)
-  }
-  finally {
+  } finally {
     loadingAiMetrics.value = false
   }
 }
@@ -1132,7 +952,9 @@ async function loadAiMetrics() {
 async function exportAiMetrics() {
   exportingMetrics.value = true
   try {
-    const data = await $fetch<{ success: boolean, data?: any[] }>(`/api/admin/ai-metrics/export?preset=${aiMetricsPreset.value}`)
+    const data = await $fetch<{ success: boolean; data?: unknown[] }>(
+      `/api/admin/ai-metrics/export?preset=${aiMetricsPreset.value}`
+    )
     if (data.success && data.data) {
       const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -1142,11 +964,9 @@ async function exportAiMetrics() {
       a.click()
       URL.revokeObjectURL(url)
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error exporting AI metrics:', error)
-  }
-  finally {
+  } finally {
     exportingMetrics.value = false
   }
 }
@@ -1156,12 +976,10 @@ async function loadScraperMetrics() {
   loadingScraperMetrics.value = true
   try {
     scraperMetrics.value = await $fetch('/api/admin/scraper-metrics')
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error loading scraper metrics:', error)
     scraperMetrics.value = { success: false, error: 'Failed to load' }
-  }
-  finally {
+  } finally {
     loadingScraperMetrics.value = false
   }
 }
@@ -1171,12 +989,10 @@ async function loadAiUsageMetrics() {
   loadingAiUsageMetrics.value = true
   try {
     aiUsageMetrics.value = await $fetch('/api/admin/ai-usage-metrics')
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Error loading AI usage metrics:', error)
     aiUsageMetrics.value = { success: false, error: 'Failed to load' }
-  }
-  finally {
+  } finally {
     loadingAiUsageMetrics.value = false
   }
 }
@@ -1216,20 +1032,29 @@ function getTrendWidth(cost: number, trends: Array<{ cost: number }>): number {
 
 function getRecommendationIcon(type: string): string {
   switch (type) {
-    case 'cost': return 'i-heroicons-currency-dollar'
-    case 'performance': return 'i-heroicons-bolt'
-    case 'efficiency': return 'i-heroicons-chart-bar'
-    case 'warning': return 'i-heroicons-exclamation-triangle'
-    default: return 'i-heroicons-light-bulb'
+    case 'cost':
+      return 'i-heroicons-currency-dollar'
+    case 'performance':
+      return 'i-heroicons-bolt'
+    case 'efficiency':
+      return 'i-heroicons-chart-bar'
+    case 'warning':
+      return 'i-heroicons-exclamation-triangle'
+    default:
+      return 'i-heroicons-light-bulb'
   }
 }
 
 function getRecommendationColor(priority: string): string {
   switch (priority) {
-    case 'high': return 'text-red-500'
-    case 'medium': return 'text-yellow-500'
-    case 'low': return 'text-blue-500'
-    default: return 'text-gray-500'
+    case 'high':
+      return 'text-red-500'
+    case 'medium':
+      return 'text-yellow-500'
+    case 'low':
+      return 'text-blue-500'
+    default:
+      return 'text-gray-500'
   }
 }
 

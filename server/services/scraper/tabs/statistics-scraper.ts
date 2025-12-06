@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
 import type { Page } from 'playwright'
 import { BaseScraper } from './base-scraper'
 import type { StatisticsData } from '~/types'
@@ -32,7 +33,12 @@ export class StatisticsScraper extends BaseScraper {
   /**
    * DOM-based scraping method
    */
-  async scrape(page: Page, matchId: number, drawNumber: number, matchNumber: number): Promise<ExtendedStatisticsData | null> {
+  async scrape(
+    page: Page,
+    matchId: number,
+    drawNumber: number,
+    matchNumber: number
+  ): Promise<ExtendedStatisticsData | null> {
     try {
       this.log('Starting statistics scraping')
 
@@ -42,17 +48,20 @@ export class StatisticsScraper extends BaseScraper {
 
       // Click on Statistics tab (in the sub-navigation)
       // The tab is identified by data-test-id="statistic-menu-statistic" or link to /stryktipset/statistik
-      const statsTabSelector = '[data-test-id="statistic-menu-statistic"], a[href*="/statistik"], a:has-text("Statistik"):not([data-testid="side-nav-menu-statistic"])'
+      const statsTabSelector =
+        '[data-test-id="statistic-menu-statistic"], a[href*="/statistik"], a:has-text("Statistik"):not([data-testid="side-nav-menu-statistic"])'
       if (await this.elementExists(page, statsTabSelector)) {
         await this.clickTab(page, statsTabSelector)
-      }
-      else {
+      } else {
         this.log('Statistics tab not found, trying direct navigation')
         await this.navigateTo(page, `https://www.svenskaspel.se/stryktipset/statistik`)
       }
 
       // Wait for statistics content to load - look for league table
-      await page.waitForSelector('.statistics-section, table[class*="table"], [class*="league-table"]', { timeout: 10000 })
+      await page.waitForSelector(
+        '.statistics-section, table[class*="table"], [class*="league-table"]',
+        { timeout: 10000 }
+      )
 
       // Extract league table data
       const leagueTable = await this.extractLeagueTable(page)
@@ -66,8 +75,7 @@ export class StatisticsScraper extends BaseScraper {
 
       this.log('Statistics scraping complete')
       return statisticsData
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error scraping statistics: ${error}`)
       return null
     }
@@ -81,7 +89,9 @@ export class StatisticsScraper extends BaseScraper {
 
     try {
       // Look for table rows in league standings
-      const tableRows = await page.locator('table tbody tr, .league-table-row, [class*="standings"] tr').all()
+      const tableRows = await page
+        .locator('table tbody tr, .league-table-row, [class*="standings"] tr')
+        .all()
 
       for (const row of tableRows) {
         const cells = await row.locator('td, [class*="cell"]').allTextContents()
@@ -108,8 +118,7 @@ export class StatisticsScraper extends BaseScraper {
       }
 
       this.log(`Extracted ${entries.length} league table entries`)
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting league table: ${error}`)
     }
 
@@ -119,22 +128,28 @@ export class StatisticsScraper extends BaseScraper {
   /**
    * Extract statistics for a specific team from league table
    */
-  private async extractTeamStats(page: Page, side: 'home' | 'away', leagueTable: LeagueTableEntry[]): Promise<any> {
+  private async extractTeamStats(
+    page: Page,
+    side: 'home' | 'away',
+    leagueTable: LeagueTableEntry[]
+  ): Promise<any> {
     try {
       const data: any = {}
 
       // Try to find team name from page to match against league table
-      const teamNameSelector = side === 'home'
-        ? '.match-header-home, [class*="home-team"], .participant-home'
-        : '.match-header-away, [class*="away-team"], .participant-away'
+      const teamNameSelector =
+        side === 'home'
+          ? '.match-header-home, [class*="home-team"], .participant-home'
+          : '.match-header-away, [class*="away-team"], .participant-away'
 
       const teamName = await this.extractText(page, teamNameSelector)
 
       if (teamName && leagueTable.length > 0) {
         // Find team in league table (fuzzy match)
-        const teamEntry = leagueTable.find(entry =>
-          entry.team.toLowerCase().includes(teamName.toLowerCase())
-          || teamName.toLowerCase().includes(entry.team.toLowerCase()),
+        const teamEntry = leagueTable.find(
+          entry =>
+            entry.team.toLowerCase().includes(teamName.toLowerCase()) ||
+            teamName.toLowerCase().includes(entry.team.toLowerCase())
         )
 
         if (teamEntry) {
@@ -155,7 +170,9 @@ export class StatisticsScraper extends BaseScraper {
       // Extract form (W/D/L sequence) if available
       const formSelector = `[class*="form"][class*="${side}"], .${side}-form, [data-team="${side}"] [class*="form"]`
       if (await this.elementExists(page, formSelector)) {
-        const formElements = await page.locator(`${formSelector} [class*="result"], ${formSelector} span`).allTextContents()
+        const formElements = await page
+          .locator(`${formSelector} [class*="result"], ${formSelector} span`)
+          .allTextContents()
         if (formElements.length > 0) {
           data.form = formElements
             .map(f => f.trim().toUpperCase())
@@ -164,8 +181,7 @@ export class StatisticsScraper extends BaseScraper {
       }
 
       return data
-    }
-    catch (error) {
+    } catch (error) {
       this.log(`Error extracting ${side} team statistics: ${error}`)
       return {}
     }

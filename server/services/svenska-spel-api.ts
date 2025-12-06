@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Complex API response structures */
 import type { DrawData, MultifetchResponse, DrawResultData, AvailableDrawsData } from '~/types'
 
 /**
@@ -24,11 +25,12 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<{ draws: DrawData[] }>(`${this.baseUrl}/draws`, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Accept-Encoding': 'gzip, deflate, br',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://spela.svenskaspel.se/',
-          'Origin': 'https://spela.svenskaspel.se',
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Referer: 'https://spela.svenskaspel.se/',
+          Origin: 'https://spela.svenskaspel.se',
         },
         timeout: 30000, // 30 seconds timeout
         retry: 4,
@@ -44,8 +46,7 @@ export class SvenskaSpelApiClient {
 
       console.log(`[Svenska Spel API] Found ${response.draws?.length || 0} draws`)
       return response
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Svenska Spel API] Error fetching current draws:', error)
       throw new Error(`Failed to fetch current draws: ${error}`)
     }
@@ -61,11 +62,12 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<{ draw: DrawData }>(`${this.baseUrl}/draws/${drawNumber}`, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Accept-Encoding': 'gzip, deflate, br',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://spela.svenskaspel.se/',
-          'Origin': 'https://spela.svenskaspel.se',
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Referer: 'https://spela.svenskaspel.se/',
+          Origin: 'https://spela.svenskaspel.se',
         },
         timeout: 30000, // 30 seconds timeout
         retry: 4,
@@ -75,14 +77,17 @@ export class SvenskaSpelApiClient {
           console.warn(`[Svenska Spel API] Request error for draw ${drawNumber}:`, error.message)
         },
         onResponseError({ response }) {
-          console.warn(`[Svenska Spel API] Response error for draw ${drawNumber}:`, response.status, response.statusText)
+          console.warn(
+            `[Svenska Spel API] Response error for draw ${drawNumber}:`,
+            response.status,
+            response.statusText
+          )
         },
       })
 
       console.log(`[Svenska Spel API] Successfully fetched draw ${drawNumber}`)
       return response
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Svenska Spel API] Error fetching draw ${drawNumber}:`, error)
       throw new Error(`Failed to fetch draw ${drawNumber}: ${error}`)
     }
@@ -92,9 +97,14 @@ export class SvenskaSpelApiClient {
    * Fetch draw using multifetch endpoint with optional jackpot data
    * This is the preferred method for fetching historic draws
    */
-  async fetchDrawWithMultifetch(drawNumber: number, includeJackpot: boolean = true): Promise<{ draw: DrawData, jackpot?: any }> {
+  async fetchDrawWithMultifetch(
+    drawNumber: number,
+    includeJackpot: boolean = true
+  ): Promise<{ draw: DrawData; jackpot?: any }> {
     try {
-      console.log(`[Svenska Spel API] Fetching draw ${drawNumber} via multifetch (jackpot: ${includeJackpot})...`)
+      console.log(
+        `[Svenska Spel API] Fetching draw ${drawNumber} via multifetch (jackpot: ${includeJackpot})...`
+      )
 
       // Build URLs for multifetch
       const urls: string[] = [`/draw/1/stryktipset/draws/${drawNumber}`]
@@ -106,26 +116,37 @@ export class SvenskaSpelApiClient {
       }
 
       const urlsParam = urls.join('|')
-      const response = await $fetch<MultifetchResponse>(`${this.multifetchBaseUrl}/multifetch?urls=${urlsParam}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://spela.svenskaspel.se/',
-          'Origin': 'https://spela.svenskaspel.se',
-        },
-        timeout: 30000,
-        retry: 4,
-        retryDelay: 1000,
-        retryStatusCodes: [408, 429, 500, 502, 503, 504],
-        onRequestError({ error }) {
-          console.warn(`[Svenska Spel API] Multifetch request error for draw ${drawNumber}:`, error.message)
-        },
-        onResponseError({ response }) {
-          console.warn(`[Svenska Spel API] Multifetch response error for draw ${drawNumber}:`, response.status, response.statusText)
-        },
-      })
+      const response = await $fetch<MultifetchResponse>(
+        `${this.multifetchBaseUrl}/multifetch?urls=${urlsParam}`,
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Referer: 'https://spela.svenskaspel.se/',
+            Origin: 'https://spela.svenskaspel.se',
+          },
+          timeout: 30000,
+          retry: 4,
+          retryDelay: 1000,
+          retryStatusCodes: [408, 429, 500, 502, 503, 504],
+          onRequestError({ error }) {
+            console.warn(
+              `[Svenska Spel API] Multifetch request error for draw ${drawNumber}:`,
+              error.message
+            )
+          },
+          onResponseError({ response }) {
+            console.warn(
+              `[Svenska Spel API] Multifetch response error for draw ${drawNumber}:`,
+              response.status,
+              response.statusText
+            )
+          },
+        }
+      )
 
       // Extract draw data from first response
       if (!response.responses || response.responses.length === 0) {
@@ -145,7 +166,7 @@ export class SvenskaSpelApiClient {
         throw new Error('Multifetch response missing draw data')
       }
 
-      const result: { draw: DrawData, jackpot?: any } = { draw: drawResponse.draw }
+      const result: { draw: DrawData; jackpot?: any } = { draw: drawResponse.draw }
 
       // Extract jackpot data if requested and available
       if (includeJackpot && response.responses.length > 1) {
@@ -157,8 +178,7 @@ export class SvenskaSpelApiClient {
 
       console.log(`[Svenska Spel API] Successfully fetched draw ${drawNumber} via multifetch`)
       return result
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Svenska Spel API] Error fetching draw ${drawNumber} via multifetch:`, error)
       throw new Error(`Failed to fetch draw ${drawNumber} via multifetch: ${error}`)
     }
@@ -168,7 +188,9 @@ export class SvenskaSpelApiClient {
    * Fetch multiple draws in a single multifetch request
    * Efficient for batch syncing historic draws
    */
-  async fetchMultipleDraws(drawNumbers: number[]): Promise<Array<{ drawNumber: number, draw?: DrawData, error?: string }>> {
+  async fetchMultipleDraws(
+    drawNumbers: number[]
+  ): Promise<Array<{ drawNumber: number; draw?: DrawData; error?: string }>> {
     try {
       console.log(`[Svenska Spel API] Batch fetching ${drawNumbers.length} draws via multifetch...`)
 
@@ -179,20 +201,24 @@ export class SvenskaSpelApiClient {
       // Build URLs for multifetch (pipe-separated)
       const urls = drawNumbers.map(num => `/draw/1/stryktipset/draws/${num}`).join('|')
 
-      const response = await $fetch<MultifetchResponse>(`${this.multifetchBaseUrl}/multifetch?urls=${urls}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://spela.svenskaspel.se/',
-          'Origin': 'https://spela.svenskaspel.se',
-        },
-        timeout: 30000,
-        retry: 4,
-        retryDelay: 1000,
-        retryStatusCodes: [408, 429, 500, 502, 503, 504],
-      })
+      const response = await $fetch<MultifetchResponse>(
+        `${this.multifetchBaseUrl}/multifetch?urls=${urls}`,
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Referer: 'https://spela.svenskaspel.se/',
+            Origin: 'https://spela.svenskaspel.se',
+          },
+          timeout: 30000,
+          retry: 4,
+          retryDelay: 1000,
+          retryStatusCodes: [408, 429, 500, 502, 503, 504],
+        }
+      )
 
       // Process each response
       const results = drawNumbers.map((drawNumber, index) => {
@@ -217,11 +243,12 @@ export class SvenskaSpelApiClient {
       })
 
       const successCount = results.filter(r => r.draw).length
-      console.log(`[Svenska Spel API] Batch fetch complete: ${successCount}/${drawNumbers.length} successful`)
+      console.log(
+        `[Svenska Spel API] Batch fetch complete: ${successCount}/${drawNumbers.length} successful`
+      )
 
       return results
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Svenska Spel API] Error in batch multifetch:`, error)
       throw new Error(`Failed to batch fetch draws: ${error}`)
     }
@@ -237,11 +264,12 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<DrawResultData>(`${this.baseUrl}/draws/${drawNumber}/result`, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Accept-Encoding': 'gzip, deflate, br',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://spela.svenskaspel.se/',
-          'Origin': 'https://spela.svenskaspel.se',
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Referer: 'https://spela.svenskaspel.se/',
+          Origin: 'https://spela.svenskaspel.se',
         },
         timeout: 30000,
         retry: 4,
@@ -251,8 +279,7 @@ export class SvenskaSpelApiClient {
 
       console.log(`[Svenska Spel API] Successfully fetched result data for draw ${drawNumber}`)
       return response
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Svenska Spel API] Error fetching result for draw ${drawNumber}:`, error)
       throw new Error(`Failed to fetch result for draw ${drawNumber}: ${error}`)
     }
@@ -271,26 +298,28 @@ export class SvenskaSpelApiClient {
         {
           method: 'GET',
           headers: {
-            'Accept': 'application/json',
+            Accept: 'application/json',
             'Accept-Encoding': 'gzip, deflate, br',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://spela.svenskaspel.se/',
-            'Origin': 'https://spela.svenskaspel.se',
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Referer: 'https://spela.svenskaspel.se/',
+            Origin: 'https://spela.svenskaspel.se',
           },
           timeout: 30000,
           retry: 4,
           retryDelay: 1000,
           retryStatusCodes: [408, 429, 500, 502, 503, 504],
-        },
+        }
       )
 
       // API returns resultDates, but we need to map it to draws for consistency
-      const draws = response.resultDates?.map((result: any) => ({
-        date: result.date,
-        drawNumber: result.drawNumber,
-        product: result.product,
-        drawState: result.drawState,
-      })) || []
+      const draws =
+        response.resultDates?.map((result: any) => ({
+          date: result.date,
+          drawNumber: result.drawNumber,
+          product: result.product,
+          drawState: result.drawState,
+        })) || []
 
       const drawCount = draws.length
       console.log(`[Svenska Spel API] Found ${drawCount} available draws for ${year}-${month}`)
@@ -300,9 +329,11 @@ export class SvenskaSpelApiClient {
         month: response.month,
         draws,
       }
-    }
-    catch (error) {
-      console.error(`[Svenska Spel API] Error fetching available draws for ${year}-${month}:`, error)
+    } catch (error) {
+      console.error(
+        `[Svenska Spel API] Error fetching available draws for ${year}-${month}:`,
+        error
+      )
       throw new Error(`Failed to fetch available draws: ${error}`)
     }
   }

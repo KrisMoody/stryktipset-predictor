@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright page types and dynamic scraped data */
 import { prisma } from '~/server/utils/prisma'
 import { browserManager } from './browser-manager'
 import { XStatsScraper } from './tabs/xstats-scraper'
@@ -69,10 +70,14 @@ export class ScraperServiceV3 {
   private recordRateLimit(): void {
     this.consecutiveRateLimits++
     this.lastRateLimitTime = Date.now()
-    console.log(`[Scraper Service V3] Rate limit recorded (${this.consecutiveRateLimits}/${this.MAX_CONSECUTIVE_RATE_LIMITS})`)
+    console.log(
+      `[Scraper Service V3] Rate limit recorded (${this.consecutiveRateLimits}/${this.MAX_CONSECUTIVE_RATE_LIMITS})`
+    )
 
     if (this.consecutiveRateLimits >= this.MAX_CONSECUTIVE_RATE_LIMITS) {
-      console.error(`[Scraper Service V3] Circuit breaker OPEN - too many consecutive rate limits. Pausing for ${this.CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`)
+      console.error(
+        `[Scraper Service V3] Circuit breaker OPEN - too many consecutive rate limits. Pausing for ${this.CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`
+      )
     }
   }
 
@@ -99,7 +104,7 @@ export class ScraperServiceV3 {
     const values = Object.values(data)
     if (values.length === 0) return true
 
-    return values.every((v) => {
+    return values.every(v => {
       if (v === null || v === undefined) return true
       if (Array.isArray(v) && v.length === 0) return true
       if (typeof v === 'object' && v !== null) {
@@ -134,12 +139,17 @@ export class ScraperServiceV3 {
       }
 
       const urlPattern: UrlPattern = draw.is_current ? 'current' : 'historic'
-      console.log(`[Scraper Service V3] Using ${urlPattern} URL pattern for draw ${options.drawNumber}`)
+      console.log(
+        `[Scraper Service V3] Using ${urlPattern} URL pattern for draw ${options.drawNumber}`
+      )
 
       // Check circuit breaker before starting
       if (this.isCircuitBreakerOpen()) {
-        const waitTime = this.CIRCUIT_BREAKER_COOLDOWN_MS - (Date.now() - (this.lastRateLimitTime || 0))
-        console.error(`[Scraper Service V3] Circuit breaker is OPEN. Wait ${Math.ceil(waitTime / 1000)}s before retrying`)
+        const waitTime =
+          this.CIRCUIT_BREAKER_COOLDOWN_MS - (Date.now() - (this.lastRateLimitTime || 0))
+        console.error(
+          `[Scraper Service V3] Circuit breaker is OPEN. Wait ${Math.ceil(waitTime / 1000)}s before retrying`
+        )
         throw new Error('Circuit breaker open: too many recent rate limits')
       }
 
@@ -151,12 +161,7 @@ export class ScraperServiceV3 {
           break
         }
 
-        const dataResult = await this.scrapeDataType(
-          dataType,
-          options,
-          urlContext,
-          urlPattern,
-        )
+        const dataResult = await this.scrapeDataType(dataType, options, urlContext, urlPattern)
         results.push(dataResult)
 
         // Handle rate limits
@@ -164,8 +169,7 @@ export class ScraperServiceV3 {
           this.recordRateLimit()
           console.log('[Scraper Service V3] Rate limit detected, stopping further scraping')
           break
-        }
-        else if (dataResult.success) {
+        } else if (dataResult.success) {
           // Reset on success
           this.resetCircuitBreaker()
         }
@@ -175,23 +179,25 @@ export class ScraperServiceV3 {
       console.log(`[Scraper Service V3] Completed scrape in ${totalDuration}ms`)
 
       // Log analytics summary periodically
-      if (Math.random() < 0.1) { // 10% chance
+      if (Math.random() < 0.1) {
+        // 10% chance
         scraperAnalytics.logSummary()
       }
 
       return results
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Scraper Service V3] Fatal error:`, error)
 
-      return [{
-        success: false,
-        matchId: options.matchId,
-        dataType: 'all',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        duration: Date.now() - startTime,
-        timestamp: new Date(),
-      }]
+      return [
+        {
+          success: false,
+          matchId: options.matchId,
+          dataType: 'all',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          duration: Date.now() - startTime,
+          timestamp: new Date(),
+        },
+      ]
     }
   }
 
@@ -202,7 +208,7 @@ export class ScraperServiceV3 {
     dataType: string,
     options: ScrapeOptions,
     urlContext: UrlBuildContext,
-    urlPattern: UrlPattern,
+    urlPattern: UrlPattern
   ): Promise<ScrapeResult> {
     const startTime = Date.now()
     let data: any = null
@@ -231,9 +237,10 @@ export class ScraperServiceV3 {
           // Check if AI service is healthy
           const isHealthy = await this.aiScraperClient.healthCheck()
           if (!isHealthy) {
-            console.warn('[Scraper Service V3] AI scraper service is not healthy, falling back to DOM')
-          }
-          else {
+            console.warn(
+              '[Scraper Service V3] AI scraper service is not healthy, falling back to DOM'
+            )
+          } else {
             // Build URL
             const url = urlManager.buildUrl(dataType, urlContext)
 
@@ -257,23 +264,26 @@ export class ScraperServiceV3 {
                   cost: totalCost,
                   dataType,
                   success: true,
-                }).catch((error) => {
+                }).catch(error => {
                   console.error('[Scraper Service V3] Failed to record AI usage:', error)
                 })
 
-                console.log(`[Scraper Service V3] AI usage: ${aiResult.tokens.input} in, ${aiResult.tokens.output} out, $${totalCost.toFixed(6)}`)
+                console.log(
+                  `[Scraper Service V3] AI usage: ${aiResult.tokens.input} in, ${aiResult.tokens.output} out, $${totalCost.toFixed(6)}`
+                )
               }
 
               console.log(`[Scraper Service V3] ✅ AI scraping succeeded for ${dataType}`)
-            }
-            else {
+            } else {
               // AI failed or returned empty data - will fall back to DOM
               const reason = !aiResult.success
                 ? `error: ${aiResult.error}`
                 : aiResult.data && this._isEmptyData(aiResult.data)
                   ? 'returned empty/null data'
                   : 'no data returned'
-              console.log(`[Scraper Service V3] AI scraping failed for ${dataType} (${reason}), will try DOM fallback`)
+              console.log(
+                `[Scraper Service V3] AI scraping failed for ${dataType} (${reason}), will try DOM fallback`
+              )
               error = aiResult.error || 'AI extraction failed or returned empty data'
 
               // Record failed usage
@@ -289,14 +299,13 @@ export class ScraperServiceV3 {
                   cost: totalCost,
                   dataType,
                   success: false,
-                }).catch((error) => {
+                }).catch(error => {
                   console.error('[Scraper Service V3] Failed to record AI usage:', error)
                 })
               }
             }
           }
-        }
-        catch (aiError) {
+        } catch (aiError) {
           console.log(`[Scraper Service V3] AI scraping exception for ${dataType}:`, aiError)
           error = aiError instanceof Error ? aiError.message : 'AI scraping exception'
         }
@@ -317,8 +326,7 @@ export class ScraperServiceV3 {
 
           if (data) {
             console.log(`[Scraper Service V3] ✅ DOM scraping succeeded for ${dataType}`)
-          }
-          else {
+          } else {
             console.log(`[Scraper Service V3] ❌ DOM scraping returned no data for ${dataType}`)
             error = 'No data returned from DOM scraping'
           }
@@ -326,8 +334,7 @@ export class ScraperServiceV3 {
           // Close page and save cookies
           await page.close()
           await browserManager.saveCookies()
-        }
-        catch (domError) {
+        } catch (domError) {
           console.error(`[Scraper Service V3] DOM scraping error for ${dataType}:`, domError)
           error = domError instanceof Error ? domError.message : 'DOM scraping error'
         }
@@ -385,8 +392,7 @@ export class ScraperServiceV3 {
           duration,
           timestamp: new Date(),
         }
-      }
-      else {
+      } else {
         // Log failure
         const isRateLimited = this.isRateLimitErrorResult(error || '')
         await prisma.scrape_operations.create({
@@ -409,8 +415,7 @@ export class ScraperServiceV3 {
           timestamp: new Date(),
         }
       }
-    }
-    catch (error) {
+    } catch (error) {
       const duration = Date.now() - startTime
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       const isRateLimited = this.isRateLimitErrorResult(errorMessage)
@@ -454,29 +459,44 @@ export class ScraperServiceV3 {
   /**
    * Scrape using DOM (tab-clicking method)
    */
-  private async scrapeWithDOM(
-    page: any,
-    dataType: string,
-    options: ScrapeOptions,
-  ): Promise<any> {
+  private async scrapeWithDOM(page: any, dataType: string, options: ScrapeOptions): Promise<any> {
     try {
       console.log(`[Scraper Service V3] Using DOM method for ${dataType}`)
 
       // Use the traditional scrape method from scrapers
       switch (dataType) {
         case 'xStats':
-          return await this.xStatsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+          return await this.xStatsScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber
+          )
         case 'statistics':
-          return await this.statisticsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+          return await this.statisticsScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber
+          )
         case 'headToHead':
-          return await this.headToHeadScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+          return await this.headToHeadScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber
+          )
         case 'news':
-          return await this.newsScraper.scrape(page, options.matchId, options.drawNumber, options.matchNumber)
+          return await this.newsScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber
+          )
         default:
           throw new Error(`Unknown data type: ${dataType}`)
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Scraper Service V3] DOM method failed:`, error)
       return null
     }
@@ -485,14 +505,15 @@ export class ScraperServiceV3 {
   /**
    * Get draw info from database
    */
-  private async getDrawInfo(drawNumber: number): Promise<{ draw_date: Date, is_current: boolean } | null> {
+  private async getDrawInfo(
+    drawNumber: number
+  ): Promise<{ draw_date: Date; is_current: boolean } | null> {
     try {
       return await prisma.draws.findUnique({
         where: { draw_number: drawNumber },
         select: { draw_date: true, is_current: true },
       })
-    }
-    catch (error) {
+    } catch (error) {
       console.error('[Scraper Service V3] Error getting draw info:', error)
       return null
     }
@@ -508,7 +529,10 @@ export class ScraperServiceV3 {
 
 // Export factory function to create instance with runtime config
 // Note: Cannot use singleton here because runtime config is not available at module load time
-export function getScraperServiceV3(enableAiScraper: boolean, aiScraperUrl: string): ScraperServiceV3 {
+export function getScraperServiceV3(
+  enableAiScraper: boolean,
+  aiScraperUrl: string
+): ScraperServiceV3 {
   return new ScraperServiceV3(enableAiScraper, aiScraperUrl)
 }
 

@@ -1,5 +1,7 @@
 import type { ScraperAnalytics, ScrapingMethod, UrlPattern } from '~/types'
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- Analytics aggregation utilities */
+
 /**
  * Analytics tracker for scraping operations
  * Tracks success rates, methods, domains, and performance metrics
@@ -37,7 +39,7 @@ export class ScraperAnalyticsTracker {
    * Get success rate by method
    */
   getSuccessRateByMethod(): Record<ScrapingMethod, number> {
-    const methods: Record<string, { total: number, success: number }> = {}
+    const methods: Record<string, { total: number; success: number }> = {}
 
     for (const event of this.analytics) {
       if (!methods[event.method]) {
@@ -64,7 +66,7 @@ export class ScraperAnalyticsTracker {
    * Get success rate by URL pattern
    */
   getSuccessRateByPattern(): Record<UrlPattern, number> {
-    const patterns: Record<string, { total: number, success: number }> = {}
+    const patterns: Record<string, { total: number; success: number }> = {}
 
     for (const event of this.analytics) {
       if (!patterns[event.urlPattern]) {
@@ -91,7 +93,7 @@ export class ScraperAnalyticsTracker {
    * Get success rate by domain
    */
   getSuccessRateByDomain(): Record<string, number> {
-    const domains: Record<string, { total: number, success: number }> = {}
+    const domains: Record<string, { total: number; success: number }> = {}
 
     for (const event of this.analytics) {
       if (!domains[event.domain]) {
@@ -118,7 +120,7 @@ export class ScraperAnalyticsTracker {
    * Get average duration by method
    */
   getAverageDurationByMethod(): Record<ScrapingMethod, number> {
-    const methods: Record<string, { total: number, duration: number }> = {}
+    const methods: Record<string, { total: number; duration: number }> = {}
 
     for (const event of this.analytics) {
       if (!methods[event.method]) {
@@ -143,7 +145,7 @@ export class ScraperAnalyticsTracker {
    * Get average duration by data type
    */
   getAverageDurationByDataType(): Record<string, number> {
-    const dataTypes: Record<string, { total: number, duration: number }> = {}
+    const dataTypes: Record<string, { total: number; duration: number }> = {}
 
     for (const event of this.analytics) {
       if (!dataTypes[event.dataType]) {
@@ -177,7 +179,7 @@ export class ScraperAnalyticsTracker {
   /**
    * Get common errors
    */
-  getCommonErrors(limit: number = 5): Array<{ error: string, count: number }> {
+  getCommonErrors(limit: number = 5): Array<{ error: string; count: number }> {
     const errors: Record<string, number> = {}
 
     for (const event of this.analytics) {
@@ -230,7 +232,9 @@ export class ScraperAnalyticsTracker {
 
     console.log('\n=== Scraper Analytics Summary ===')
     console.log(`Total Operations: ${summary.totalOperations}`)
-    console.log(`Successful: ${summary.successfulOperations} (${summary.overallSuccessRate.toFixed(2)}%)`)
+    console.log(
+      `Successful: ${summary.successfulOperations} (${summary.overallSuccessRate.toFixed(2)}%)`
+    )
     console.log(`Failed: ${summary.failedOperations}`)
     console.log(`Average Duration: ${summary.averageDuration}ms`)
 

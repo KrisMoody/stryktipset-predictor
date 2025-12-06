@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/ban-ts-comment -- Browser fingerprint injection requires dynamic types */
 import type { BrowserContext } from 'playwright'
 
 /**
@@ -33,7 +34,7 @@ const viewports = [
 /**
  * Get a random viewport size
  */
-export function getRandomViewport(): { width: number, height: number } {
+export function getRandomViewport(): { width: number; height: number } {
   const viewport = viewports[Math.floor(Math.random() * viewports.length)]
   return viewport || { width: 1920, height: 1080 }
 }
@@ -81,11 +82,12 @@ export async function configureAntiDetection(context: BrowserContext): Promise<v
  */
 export function getRealisticHeaders(): Record<string, string> {
   return {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    Accept:
+      'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Encoding': 'gzip, deflate, br',
     'Accept-Language': 'sv-SE,sv;q=0.9,en-US;q=0.8,en;q=0.7',
     'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
+    Pragma: 'no-cache',
     'Sec-Fetch-Dest': 'document',
     'Sec-Fetch-Mode': 'navigate',
     'Sec-Fetch-Site': 'none',

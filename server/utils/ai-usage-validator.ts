@@ -13,7 +13,7 @@ export interface AIUsageData {
 export interface ValidationError {
   field: string
   message: string
-  value: any
+  value: unknown
 }
 
 export interface ValidationResult {
@@ -31,8 +31,7 @@ export function validateAIUsageData(data: AIUsageData): ValidationResult {
       message: 'Model is required',
       value: data.model,
     })
-  }
-  else if (data.model.length > 50) {
+  } else if (data.model.length > 50) {
     errors.push({
       field: 'model',
       message: 'Model name exceeds 50 characters',
@@ -47,8 +46,7 @@ export function validateAIUsageData(data: AIUsageData): ValidationResult {
       message: 'Input tokens is required',
       value: data.inputTokens,
     })
-  }
-  else if (!Number.isInteger(data.inputTokens) || data.inputTokens < 0) {
+  } else if (!Number.isInteger(data.inputTokens) || data.inputTokens < 0) {
     errors.push({
       field: 'inputTokens',
       message: 'Input tokens must be a non-negative integer',
@@ -63,8 +61,7 @@ export function validateAIUsageData(data: AIUsageData): ValidationResult {
       message: 'Output tokens is required',
       value: data.outputTokens,
     })
-  }
-  else if (!Number.isInteger(data.outputTokens) || data.outputTokens < 0) {
+  } else if (!Number.isInteger(data.outputTokens) || data.outputTokens < 0) {
     errors.push({
       field: 'outputTokens',
       message: 'Output tokens must be a non-negative integer',
@@ -79,22 +76,19 @@ export function validateAIUsageData(data: AIUsageData): ValidationResult {
       message: 'Cost is required',
       value: data.cost,
     })
-  }
-  else if (typeof data.cost !== 'number' || isNaN(data.cost)) {
+  } else if (typeof data.cost !== 'number' || isNaN(data.cost)) {
     errors.push({
       field: 'cost',
       message: 'Cost must be a valid number',
       value: data.cost,
     })
-  }
-  else if (data.cost < 0) {
+  } else if (data.cost < 0) {
     errors.push({
       field: 'cost',
       message: 'Cost must be non-negative',
       value: data.cost,
     })
-  }
-  else if (data.cost >= 10000) {
+  } else if (data.cost >= 10000) {
     errors.push({
       field: 'cost',
       message: 'Cost exceeds maximum value (9999.999999)',
@@ -110,8 +104,7 @@ export function validateAIUsageData(data: AIUsageData): ValidationResult {
         message: 'Data type must be a string',
         value: data.dataType,
       })
-    }
-    else if (data.dataType.length > 50) {
+    } else if (data.dataType.length > 50) {
       errors.push({
         field: 'dataType',
         message: 'Data type exceeds 50 characters',
@@ -128,8 +121,7 @@ export function validateAIUsageData(data: AIUsageData): ValidationResult {
         message: 'Operation ID must be a string',
         value: data.operationId,
       })
-    }
-    else if (data.operationId.length > 100) {
+    } else if (data.operationId.length > 100) {
       errors.push({
         field: 'operationId',
         message: 'Operation ID exceeds 100 characters',
@@ -146,8 +138,7 @@ export function validateAIUsageData(data: AIUsageData): ValidationResult {
         message: 'Endpoint must be a string',
         value: data.endpoint,
       })
-    }
-    else if (data.endpoint.length > 100) {
+    } else if (data.endpoint.length > 100) {
       errors.push({
         field: 'endpoint',
         message: 'Endpoint exceeds 100 characters',
@@ -174,8 +165,7 @@ export function validateAIUsageData(data: AIUsageData): ValidationResult {
       message: 'Success flag is required',
       value: data.success,
     })
-  }
-  else if (typeof data.success !== 'boolean') {
+  } else if (typeof data.success !== 'boolean') {
     errors.push({
       field: 'success',
       message: 'Success must be a boolean',

@@ -2,6 +2,8 @@ import { prisma } from '~/server/utils/prisma'
 import { svenskaSpelApi } from './svenska-spel-api'
 import type { DrawData, DrawEventData, ProviderIdData } from '~/types'
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- Complex API data transformations */
+
 /**
  * Service for syncing draw and match data from Svenska Spel API to database
  */
@@ -9,14 +11,18 @@ export class DrawSyncService {
   /**
    * Categorize error type for better debugging
    */
-  private categorizeError(error: unknown): { category: string, message: string } {
+  private categorizeError(error: unknown): { category: string; message: string } {
     if (error instanceof Error) {
       const message = error.message.toLowerCase()
 
       if (message.includes('timeout') || message.includes('econnaborted')) {
         return { category: 'TIMEOUT', message: error.message }
       }
-      if (message.includes('econnrefused') || message.includes('enotfound') || message.includes('fetch failed')) {
+      if (
+        message.includes('econnrefused') ||
+        message.includes('enotfound') ||
+        message.includes('fetch failed')
+      ) {
         return { category: 'CONNECTION', message: error.message }
       }
       if (message.includes('401') || message.includes('403') || message.includes('unauthorized')) {
@@ -42,7 +48,11 @@ export class DrawSyncService {
    * Sync only draw metadata (status, close_time) without processing matches
    * Used outside active betting window to detect new coupons with minimal API usage
    */
-  async syncDrawMetadataOnly(): Promise<{ success: boolean, drawsProcessed: number, error?: string }> {
+  async syncDrawMetadataOnly(): Promise<{
+    success: boolean
+    drawsProcessed: number
+    error?: string
+  }> {
     try {
       console.log('[Draw Sync] Starting metadata-only sync...')
 
@@ -66,7 +76,9 @@ export class DrawSyncService {
             },
             create: {
               draw_number: drawData.drawNumber,
-              draw_date: drawData.drawDate ? new Date(drawData.drawDate) : new Date(drawData.regCloseTime),
+              draw_date: drawData.drawDate
+                ? new Date(drawData.drawDate)
+                : new Date(drawData.regCloseTime),
               close_time: new Date(drawData.regCloseTime),
               status: drawData.drawState,
               product_id: drawData.productId,
@@ -74,16 +86,17 @@ export class DrawSyncService {
             },
           })
           drawsProcessed++
-        }
-        catch (error) {
-          console.warn(`[Draw Sync] Error updating metadata for draw ${drawData.drawNumber}:`, error)
+        } catch (error) {
+          console.warn(
+            `[Draw Sync] Error updating metadata for draw ${drawData.drawNumber}:`,
+            error
+          )
         }
       }
 
       console.log(`[Draw Sync] Metadata-only sync complete: ${drawsProcessed} draws updated`)
       return { success: true, drawsProcessed }
-    }
-    catch (error) {
+    } catch (error) {
       const { category, message } = this.categorizeError(error)
       console.error(`[Draw Sync] Error in metadata-only sync [${category}]:`, message)
       return {
@@ -97,7 +110,12 @@ export class DrawSyncService {
   /**
    * Sync current draws from API
    */
-  async syncCurrentDraws(): Promise<{ success: boolean, drawsProcessed: number, matchesProcessed: number, error?: string }> {
+  async syncCurrentDraws(): Promise<{
+    success: boolean
+    drawsProcessed: number
+    matchesProcessed: number
+    error?: string
+  }> {
     try {
       console.log('[Draw Sync] Starting sync of current draws...')
 
@@ -121,14 +139,15 @@ export class DrawSyncService {
         if (result.success) {
           drawsProcessed++
           matchesProcessed += result.matchesProcessed
-        }
-        else {
+        } else {
           errors.push(`Draw ${drawData.drawNumber}: ${result.error}`)
         }
       }
 
       const totalDraws = draws.length
-      console.log(`[Draw Sync] Sync complete: ${drawsProcessed}/${totalDraws} draws, ${matchesProcessed} matches`)
+      console.log(
+        `[Draw Sync] Sync complete: ${drawsProcessed}/${totalDraws} draws, ${matchesProcessed} matches`
+      )
 
       if (errors.length > 0) {
         console.warn(`[Draw Sync] Encountered ${errors.length} errors during sync:`, errors)
@@ -141,8 +160,7 @@ export class DrawSyncService {
         matchesProcessed,
         error: errors.length > 0 ? `Partial success: ${errors.length} draws failed` : undefined,
       }
-    }
-    catch (error) {
+    } catch (error) {
       const { category, message } = this.categorizeError(error)
       console.error(`[Draw Sync] Error syncing current draws [${category}]:`, message)
       return {
@@ -157,7 +175,9 @@ export class DrawSyncService {
   /**
    * Sync a specific historic draw
    */
-  async syncHistoricDraw(drawNumber: number): Promise<{ success: boolean, matchesProcessed: number, error?: string }> {
+  async syncHistoricDraw(
+    drawNumber: number
+  ): Promise<{ success: boolean; matchesProcessed: number; error?: string }> {
     try {
       console.log(`[Draw Sync] Syncing historic draw ${drawNumber}...`)
 
@@ -165,7 +185,9 @@ export class DrawSyncService {
       const result = await this.processDraw(draw)
 
       if (result.success) {
-        console.log(`[Draw Sync] Successfully synced historic draw ${drawNumber} with ${result.matchesProcessed} matches`)
+        console.log(
+          `[Draw Sync] Successfully synced historic draw ${drawNumber} with ${result.matchesProcessed} matches`
+        )
       }
 
       return {
@@ -173,8 +195,7 @@ export class DrawSyncService {
         matchesProcessed: result.matchesProcessed,
         error: result.error,
       }
-    }
-    catch (error) {
+    } catch (error) {
       const { category, message } = this.categorizeError(error)
       console.error(`[Draw Sync] Error syncing historic draw ${drawNumber} [${category}]:`, message)
       return {
@@ -218,8 +239,7 @@ export class DrawSyncService {
     if (typeof countryData === 'string') {
       // If country is just a string, we can't create it without an ID
       return
-    }
-    else if (typeof countryData === 'object' && countryData.id) {
+    } else if (typeof countryData === 'object' && countryData.id) {
       countryId = countryData.id
       countryName = countryData.name
     }
@@ -251,11 +271,9 @@ export class DrawSyncService {
     let countryId: number
     if (typeof leagueData.country === 'object' && leagueData.country?.id) {
       countryId = leagueData.country.id
-    }
-    else if (leagueData.countryId) {
+    } else if (leagueData.countryId) {
       countryId = leagueData.countryId
-    }
-    else {
+    } else {
       // Default country ID if not provided (we'll need to handle this)
       countryId = 0
     }
@@ -278,14 +296,18 @@ export class DrawSyncService {
   /**
    * Process raw draw data (public wrapper for use by backfill service)
    */
-  async processDrawData(drawData: DrawData): Promise<{ success: boolean, matchesProcessed: number, error?: string }> {
+  async processDrawData(
+    drawData: DrawData
+  ): Promise<{ success: boolean; matchesProcessed: number; error?: string }> {
     return this.processDraw(drawData)
   }
 
   /**
    * Process a single draw and its matches
    */
-  private async processDraw(drawData: DrawData): Promise<{ success: boolean, matchesProcessed: number, error?: string }> {
+  private async processDraw(
+    drawData: DrawData
+  ): Promise<{ success: boolean; matchesProcessed: number; error?: string }> {
     try {
       // Upsert draw
       const draw = await prisma.draws.upsert({
@@ -293,16 +315,22 @@ export class DrawSyncService {
         update: {
           status: drawData.drawState,
           close_time: new Date(drawData.regCloseTime),
-          net_sale: drawData.currentNetSale ? parseFloat(drawData.currentNetSale.replace(',', '')) : null,
+          net_sale: drawData.currentNetSale
+            ? parseFloat(drawData.currentNetSale.replace(',', ''))
+            : null,
           raw_data: drawData as any,
           updated_at: new Date(),
         },
         create: {
           draw_number: drawData.drawNumber,
-          draw_date: drawData.drawDate ? new Date(drawData.drawDate) : new Date(drawData.regCloseTime),
+          draw_date: drawData.drawDate
+            ? new Date(drawData.drawDate)
+            : new Date(drawData.regCloseTime),
           close_time: new Date(drawData.regCloseTime),
           status: drawData.drawState,
-          net_sale: drawData.currentNetSale ? parseFloat(drawData.currentNetSale.replace(',', '')) : null,
+          net_sale: drawData.currentNetSale
+            ? parseFloat(drawData.currentNetSale.replace(',', ''))
+            : null,
           product_id: drawData.productId,
           raw_data: drawData as any,
           // week_number and year are now auto-generated from draw_date
@@ -319,8 +347,7 @@ export class DrawSyncService {
       }
 
       return { success: true, matchesProcessed }
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`[Draw Sync] Error processing draw ${drawData.drawNumber}:`, error)
       return {
         success: false,
@@ -337,8 +364,10 @@ export class DrawSyncService {
     const matchData = event.match
 
     // Extract team names - participants can have type 'home'/'away' or just be ordered
-    const homeParticipant = matchData.participants.find(p => p.type === 'home') || matchData.participants[0]
-    const awayParticipant = matchData.participants.find(p => p.type === 'away') || matchData.participants[1]
+    const homeParticipant =
+      matchData.participants.find(p => p.type === 'home') || matchData.participants[0]
+    const awayParticipant =
+      matchData.participants.find(p => p.type === 'away') || matchData.participants[1]
 
     if (!homeParticipant?.id || !awayParticipant?.id) {
       console.warn(`[Draw Sync] Missing team IDs for match ${matchData.matchId}`)
@@ -399,8 +428,10 @@ export class DrawSyncService {
         result_away: resultAway,
         outcome,
         coverage: matchData.coverage ?? null,
-        betRadar_id: matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'BetRadar')?.id ?? null,
-        kambi_id: matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'Kambi')?.id ?? null,
+        betRadar_id:
+          matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'BetRadar')?.id ?? null,
+        kambi_id:
+          matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'Kambi')?.id ?? null,
         raw_data: matchData as any,
         updated_at: new Date(),
       },
@@ -418,8 +449,10 @@ export class DrawSyncService {
         result_away: resultAway,
         outcome,
         coverage: matchData.coverage ?? null,
-        betRadar_id: matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'BetRadar')?.id ?? null,
-        kambi_id: matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'Kambi')?.id ?? null,
+        betRadar_id:
+          matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'BetRadar')?.id ?? null,
+        kambi_id:
+          matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'Kambi')?.id ?? null,
         raw_data: matchData as any,
       },
     })
@@ -467,8 +500,7 @@ export class DrawSyncService {
           data: tips as any,
         },
       })
-    }
-    catch (error) {
+    } catch (error) {
       console.warn('[Draw Sync] Error storing expert tips:', error)
     }
   }
@@ -495,8 +527,7 @@ export class DrawSyncService {
           data: metrics as any,
         },
       })
-    }
-    catch (error) {
+    } catch (error) {
       console.warn('[Draw Sync] Error storing bet metrics:', error)
     }
   }
@@ -523,8 +554,7 @@ export class DrawSyncService {
           data: data as any,
         },
       })
-    }
-    catch (error) {
+    } catch (error) {
       console.warn('[Draw Sync] Error storing Svenska Folket data:', error)
     }
   }
@@ -533,9 +563,14 @@ export class DrawSyncService {
    * Process match odds - stores start odds, current odds, and favourite odds separately
    */
   private async processMatchOdds(matchId: number, event: DrawEventData): Promise<void> {
-    const parseSwedishFloat = (value: string | undefined) => value ? parseFloat(value.replace(',', '.')) : NaN
+    const parseSwedishFloat = (value: string | undefined) =>
+      value ? parseFloat(value.replace(',', '.')) : NaN
 
-    const processAndStoreOdds = async (oddsData: any | null | undefined, type: 'current' | 'start' | 'favourite', collectedAt: Date) => {
+    const processAndStoreOdds = async (
+      oddsData: any | null | undefined,
+      type: 'current' | 'start' | 'favourite',
+      collectedAt: Date
+    ) => {
       if (!oddsData) return
 
       const homeOdds = parseSwedishFloat(oddsData.one)
@@ -547,10 +582,10 @@ export class DrawSyncService {
         return
       }
 
-      const totalImplied = (1 / homeOdds) + (1 / drawOdds) + (1 / awayOdds)
-      const homeProb = ((1 / homeOdds) / totalImplied) * 100
-      const drawProb = ((1 / drawOdds) / totalImplied) * 100
-      const awayProb = ((1 / awayOdds) / totalImplied) * 100
+      const totalImplied = 1 / homeOdds + 1 / drawOdds + 1 / awayOdds
+      const homeProb = (1 / homeOdds / totalImplied) * 100
+      const drawProb = (1 / drawOdds / totalImplied) * 100
+      const awayProb = (1 / awayOdds / totalImplied) * 100
 
       // Svenska Folket data
       const svenskaFolketHome = event.svenskaFolket?.one

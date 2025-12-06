@@ -1,0 +1,413 @@
+{
+  "R-systems": [
+    {
+      "id": "R-0-7-16-12",
+      "type": "R",
+      "helgarderingar": 0,
+      "halvgarderingar": 7,
+      "rows": 16,
+      "guarantee": 12
+    },
+    {
+      "id": "R-0-11-16-10",
+      "type": "R",
+      "helgarderingar": 0,
+      "halvgarderingar": 11,
+      "rows": 16,
+      "guarantee": 10
+    },
+    {
+      "id": "R-2-5-12-11",
+      "type": "R",
+      "helgarderingar": 2,
+      "halvgarderingar": 5,
+      "rows": 12,
+      "guarantee": 11
+    },
+    {
+      "id": "R-3-3-24-12",
+      "type": "R",
+      "helgarderingar": 3,
+      "halvgarderingar": 3,
+      "rows": 24,
+      "guarantee": 12
+    },
+    {
+      "id": "R-4-0-9-12",
+      "type": "R",
+      "helgarderingar": 4,
+      "halvgarderingar": 0,
+      "rows": 9,
+      "guarantee": 12
+    },
+    {
+      "id": "R-4-4-24-11",
+      "type": "R",
+      "helgarderingar": 4,
+      "halvgarderingar": 4,
+      "rows": 24,
+      "guarantee": 11
+    },
+    {
+      "id": "R-4-4-144-12",
+      "type": "R",
+      "helgarderingar": 4,
+      "halvgarderingar": 4,
+      "rows": 144,
+      "guarantee": 12
+    },
+    {
+      "id": "R-4-5-48-11",
+      "type": "R",
+      "helgarderingar": 4,
+      "halvgarderingar": 5,
+      "rows": 48,
+      "guarantee": 11
+    },
+    {
+      "id": "R-4-6-24-10",
+      "type": "R",
+      "helgarderingar": 4,
+      "halvgarderingar": 6,
+      "rows": 24,
+      "guarantee": 10
+    },
+    {
+      "id": "R-4-6-72-11",
+      "type": "R",
+      "helgarderingar": 4,
+      "halvgarderingar": 6,
+      "rows": 72,
+      "guarantee": 11
+    },
+    {
+      "id": "R-4-7-48-10",
+      "type": "R",
+      "helgarderingar": 4,
+      "halvgarderingar": 7,
+      "rows": 48,
+      "guarantee": 10
+    },
+    {
+      "id": "R-4-7-144-11",
+      "type": "R",
+      "helgarderingar": 4,
+      "halvgarderingar": 7,
+      "rows": 144,
+      "guarantee": 11
+    },
+    {
+      "id": "R-5-0-18-11",
+      "type": "R",
+      "helgarderingar": 5,
+      "halvgarderingar": 0,
+      "rows": 18,
+      "guarantee": 11
+    },
+    {
+      "id": "R-5-3-36-11",
+      "type": "R",
+      "helgarderingar": 5,
+      "halvgarderingar": 3,
+      "rows": 36,
+      "guarantee": 11
+    },
+    {
+      "id": "R-5-5-108-11",
+      "type": "R",
+      "helgarderingar": 5,
+      "halvgarderingar": 5,
+      "rows": 108,
+      "guarantee": 11
+    },
+    {
+      "id": "R-6-3-24-10",
+      "type": "R",
+      "helgarderingar": 6,
+      "halvgarderingar": 3,
+      "rows": 24,
+      "guarantee": 10
+    },
+    {
+      "id": "R-6-3-72-11",
+      "type": "R",
+      "helgarderingar": 6,
+      "halvgarderingar": 3,
+      "rows": 72,
+      "guarantee": 11
+    },
+    {
+      "id": "R-6-4-44-10",
+      "type": "R",
+      "helgarderingar": 6,
+      "halvgarderingar": 4,
+      "rows": 44,
+      "guarantee": 10
+    },
+    {
+      "id": "R-7-0-36-11",
+      "type": "R",
+      "helgarderingar": 7,
+      "halvgarderingar": 0,
+      "rows": 36,
+      "guarantee": 11
+    },
+    {
+      "id": "R-7-2-34-10",
+      "type": "R",
+      "helgarderingar": 7,
+      "halvgarderingar": 2,
+      "rows": 34,
+      "guarantee": 10
+    },
+    {
+      "id": "R-7-2-108-11",
+      "type": "R",
+      "helgarderingar": 7,
+      "halvgarderingar": 2,
+      "rows": 108,
+      "guarantee": 11
+    },
+    {
+      "id": "R-8-0-27-10",
+      "type": "R",
+      "helgarderingar": 8,
+      "halvgarderingar": 0,
+      "rows": 27,
+      "guarantee": 10
+    },
+    {
+      "id": "R-8-0-81-11",
+      "type": "R",
+      "helgarderingar": 8,
+      "halvgarderingar": 0,
+      "rows": 81,
+      "guarantee": 11
+    },
+    {
+      "id": "R-8-2-324-11",
+      "type": "R",
+      "helgarderingar": 8,
+      "halvgarderingar": 2,
+      "rows": 324,
+      "guarantee": 11
+    },
+    {
+      "id": "R-9-0-222-11",
+      "type": "R",
+      "helgarderingar": 9,
+      "halvgarderingar": 0,
+      "rows": 222,
+      "guarantee": 11
+    },
+    {
+      "id": "R-9-0-243-11",
+      "type": "R",
+      "helgarderingar": 9,
+      "halvgarderingar": 0,
+      "rows": 243,
+      "guarantee": 11
+    },
+    {
+      "id": "R-10-0-153-10",
+      "type": "R",
+      "helgarderingar": 10,
+      "halvgarderingar": 0,
+      "rows": 153,
+      "guarantee": 10
+    },
+    {
+      "id": "R-10-0-567-11",
+      "type": "R",
+      "helgarderingar": 10,
+      "halvgarderingar": 0,
+      "rows": 567,
+      "guarantee": 11
+    },
+    {
+      "id": "R-11-0-729-11",
+      "type": "R",
+      "helgarderingar": 11,
+      "halvgarderingar": 0,
+      "rows": 729,
+      "guarantee": 11
+    }
+  ],
+  "U-systems": [
+    {
+      "id": "U-0-7-10",
+      "type": "U",
+      "helgarderingar": 0,
+      "halvgarderingar": 7,
+      "rows": 10
+    },
+    {
+      "id": "U-0-10-38",
+      "type": "U",
+      "helgarderingar": 0,
+      "halvgarderingar": 10,
+      "rows": 38
+    },
+    {
+      "id": "U-0-11-65",
+      "type": "U",
+      "helgarderingar": 0,
+      "halvgarderingar": 11,
+      "rows": 65
+    },
+    {
+      "id": "U-3-6-20",
+      "type": "U",
+      "helgarderingar": 3,
+      "halvgarderingar": 6,
+      "rows": 20
+    },
+    {
+      "id": "U-3-6-50",
+      "type": "U",
+      "helgarderingar": 3,
+      "halvgarderingar": 6,
+      "rows": 50
+    },
+    {
+      "id": "U-3-7-98",
+      "type": "U",
+      "helgarderingar": 3,
+      "halvgarderingar": 7,
+      "rows": 98
+    },
+    {
+      "id": "U-4-3-66",
+      "type": "U",
+      "helgarderingar": 4,
+      "halvgarderingar": 3,
+      "rows": 66
+    },
+    {
+      "id": "U-4-4-16",
+      "type": "U",
+      "helgarderingar": 4,
+      "halvgarderingar": 4,
+      "rows": 16
+    },
+    {
+      "id": "U-4-4-44",
+      "type": "U",
+      "helgarderingar": 4,
+      "halvgarderingar": 4,
+      "rows": 44
+    },
+    {
+      "id": "U-4-5-30",
+      "type": "U",
+      "helgarderingar": 4,
+      "halvgarderingar": 5,
+      "rows": 30
+    },
+    {
+      "id": "U-4-5-68",
+      "type": "U",
+      "helgarderingar": 4,
+      "halvgarderingar": 5,
+      "rows": 68
+    },
+    {
+      "id": "U-4-7-200",
+      "type": "U",
+      "helgarderingar": 4,
+      "halvgarderingar": 7,
+      "rows": 200
+    },
+    {
+      "id": "U-5-5-44",
+      "type": "U",
+      "helgarderingar": 5,
+      "halvgarderingar": 5,
+      "rows": 44
+    },
+    {
+      "id": "U-5-5-176",
+      "type": "U",
+      "helgarderingar": 5,
+      "halvgarderingar": 5,
+      "rows": 176
+    },
+    {
+      "id": "U-5-6-274",
+      "type": "U",
+      "helgarderingar": 5,
+      "halvgarderingar": 6,
+      "rows": 274
+    },
+    {
+      "id": "U-6-3-36",
+      "type": "U",
+      "helgarderingar": 6,
+      "halvgarderingar": 3,
+      "rows": 36
+    },
+    {
+      "id": "U-6-4-66",
+      "type": "U",
+      "helgarderingar": 6,
+      "halvgarderingar": 4,
+      "rows": 66
+    },
+    {
+      "id": "U-6-4-224",
+      "type": "U",
+      "helgarderingar": 6,
+      "halvgarderingar": 4,
+      "rows": 224
+    },
+    {
+      "id": "U-7-3-100",
+      "type": "U",
+      "helgarderingar": 7,
+      "halvgarderingar": 3,
+      "rows": 100
+    },
+    {
+      "id": "U-7-4-464",
+      "type": "U",
+      "helgarderingar": 7,
+      "halvgarderingar": 4,
+      "rows": 464
+    },
+    {
+      "id": "U-8-2-253",
+      "type": "U",
+      "helgarderingar": 8,
+      "halvgarderingar": 2,
+      "rows": 253
+    },
+    {
+      "id": "U-8-3-598",
+      "type": "U",
+      "helgarderingar": 8,
+      "halvgarderingar": 3,
+      "rows": 598
+    },
+    {
+      "id": "U-9-2-202",
+      "type": "U",
+      "helgarderingar": 9,
+      "halvgarderingar": 2,
+      "rows": 202
+    },
+    {
+      "id": "U-11-0-133",
+      "type": "U",
+      "helgarderingar": 11,
+      "halvgarderingar": 0,
+      "rows": 133
+    },
+    {
+      "id": "U-13-0-105",
+      "type": "U",
+      "helgarderingar": 13,
+      "halvgarderingar": 0,
+      "rows": 105
+    }
+  ]
+}

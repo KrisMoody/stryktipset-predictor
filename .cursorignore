@@ -1,0 +1,5 @@
+# Python virtual environment
+services/ai-scraper/venv/
+services/ai-scraper/__pycache__/
+**/*.pyc
+

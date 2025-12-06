@@ -1,0 +1,3 @@
+# Exclude Python microservice from Nuxt build process
+services/ai-scraper/**
+

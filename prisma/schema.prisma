@@ -1,0 +1,365 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+// Reference tables for normalized data
+
+// Countries
+model countries {
+  id         Int       @id
+  name       String    @unique @db.VarChar(100)
+  iso_code   String?   @db.VarChar(3)
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+
+  // Relations
+  leagues leagues[]
+}
+
+// Leagues/Competitions
+model leagues {
+  id         Int       @id
+  name       String    @db.VarChar(100)
+  country_id Int
+  created_at DateTime  @default(now()) @db.Timestamp(6)
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+
+  // Relations
+  country countries @relation(fields: [country_id], references: [id], onDelete: Restrict)
+  matches matches[]
+
+  @@index([country_id])
+}
+
+// Teams
+model teams {
+  id          Int       @id
+  name        String    @unique @db.VarChar(100)
+  short_name  String?   @db.VarChar(50)
+  medium_name String?   @db.VarChar(50)
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+
+  // Relations
+  home_matches matches[] @relation("HomeTeam")
+  away_matches matches[] @relation("AwayTeam")
+}
+
+// Stryktipset draws (rounds/coupons)
+model draws {
+  id          Int       @id @default(autoincrement())
+  draw_number Int       @unique
+  draw_date   DateTime  @db.Date
+  close_time  DateTime  @db.Timestamp(6)
+  status      String    @db.VarChar(50) // "Open", "Closed", "Completed"
+  net_sale    Decimal?  @db.Decimal(15, 2)
+  product_id  Int?
+  raw_data    Json?     // Store full API response
+  is_current  Boolean   @default(true) // True for active/upcoming draws, false for archived
+  archived_at DateTime? @db.Timestamp(6) // When draw was archived to historic
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  
+  // Relations
+  matches matches[]
+
+  @@index([draw_number])
+  @@index([status])
+  @@index([draw_date])
+  @@index([is_current])
+}
+
+// Individual matches in a draw
+model matches {
+  id                 Int       @id @default(autoincrement())
+  draw_id            Int
+  match_number       Int       // Position in draw (1-13)
+  match_id           Int       // Svenska Spel match ID
+  home_team_id       Int
+  away_team_id       Int
+  league_id          Int
+  start_time         DateTime  @db.Timestamp(6)
+  status             String    @db.VarChar(50) // "Not started", "In progress", "Completed"
+  status_time        DateTime? @db.Timestamp(6) // When status was last updated
+  result_home        Int?
+  result_away        Int?
+  outcome            String?   @db.VarChar(5) // "1", "X", "2"
+  coverage           Int?      // Coverage level from provider
+  betRadar_id        String?   @db.VarChar(100) // BetRadar match ID
+  kambi_id           String?   @db.VarChar(100) // Kambi match ID
+  raw_data           Json?     // Store full match data from API
+  created_at         DateTime  @default(now()) @db.Timestamp(6)
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+
+  // Relations
+  draws              draws                @relation(fields: [draw_id], references: [id], onDelete: Cascade)
+  homeTeam           teams                @relation("HomeTeam", fields: [home_team_id], references: [id], onDelete: Restrict)
+  awayTeam           teams                @relation("AwayTeam", fields: [away_team_id], references: [id], onDelete: Restrict)
+  league             leagues              @relation(fields: [league_id], references: [id], onDelete: Restrict)
+  match_odds         match_odds[]
+  match_scraped_data match_scraped_data[]
+  match_embeddings   match_embeddings[]
+  predictions        predictions[]
+
+  @@unique([draw_id, match_number])
+  @@index([draw_id])
+  @@index([match_id])
+  @@index([home_team_id])
+  @@index([away_team_id])
+  @@index([league_id])
+  @@index([start_time])
+  @@index([betRadar_id])
+  @@index([kambi_id])
+  @@index([home_team_id, away_team_id])
+  @@index([league_id, start_time])
+}
+
+// Odds data for matches
+model match_odds {
+  id                       Int       @id @default(autoincrement())
+  match_id                 Int
+  source                   String    @db.VarChar(50) // "stryktipset", "oddset", etc.
+  type                     String    @db.VarChar(20) // "current", "start", "favourite"
+  home_odds                Decimal   @db.Decimal(10, 2)
+  draw_odds                Decimal   @db.Decimal(10, 2)
+  away_odds                Decimal   @db.Decimal(10, 2)
+  home_probability         Decimal   @db.Decimal(10, 2)
+  draw_probability         Decimal   @db.Decimal(10, 2)
+  away_probability         Decimal   @db.Decimal(10, 2)
+  svenska_folket_home      String?   @db.VarChar(10) // Percentage as string, e.g., "45.2"
+  svenska_folket_draw      String?   @db.VarChar(10)
+  svenska_folket_away      String?   @db.VarChar(10)
+  tio_tidningars_tips_home String?   @db.VarChar(10) // Expert tips percentage
+  tio_tidningars_tips_draw String?   @db.VarChar(10)
+  tio_tidningars_tips_away String?   @db.VarChar(10)
+  collected_at             DateTime  @default(now()) @db.Timestamp(6)
+
+  // Relations
+  match matches @relation(fields: [match_id], references: [id], onDelete: Cascade)
+
+  @@unique([match_id, source, type, collected_at])
+  @@index([match_id])
+  @@index([type])
+  @@index([match_id, type])
+}
+
+// Scraped additional data (xStats, statistics, head-to-head, news)
+model match_scraped_data {
+  id         Int      @id @default(autoincrement())
+  match_id   Int
+  data_type  String   @db.VarChar(50) // "xStats", "statistics", "headToHead", "news"
+  data       Json     // Flexible JSON storage for different data types
+  scraped_at DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  matches matches @relation(fields: [match_id], references: [id], onDelete: Cascade)
+
+  @@unique([match_id, data_type])
+  @@index([match_id])
+  @@index([data_type])
+}
+
+// Vector embeddings for similarity search
+model match_embeddings {
+  id         Int                    @id @default(autoincrement())
+  match_id   Int
+  embedding  Unsupported("vector")? // pgvector type
+  model      String                 @db.VarChar(100) // e.g., "text-embedding-3-small"
+  version    String                 @db.VarChar(50) // Version/timestamp
+  metadata   Json?                  // Additional context about the embedding
+  created_at DateTime               @default(now()) @db.Timestamp(6)
+
+  // Relations
+  matches matches @relation(fields: [match_id], references: [id], onDelete: Cascade)
+
+  @@unique([match_id, model, version])
+  @@index([embedding])
+}
+
+// AI-generated predictions
+model predictions {
+  id                 Int      @id @default(autoincrement())
+  match_id           Int
+  model              String   @db.VarChar(100) // AI model used, e.g., "claude-3-sonnet"
+  model_version      String   @db.VarChar(50)
+  probability_home   Decimal  @db.Decimal(5, 4) // 0.0000 - 1.0000
+  probability_draw   Decimal  @db.Decimal(5, 4)
+  probability_away   Decimal  @db.Decimal(5, 4)
+  predicted_outcome  String   @db.VarChar(5) // "1", "X", "2"
+  confidence         String   @db.VarChar(20) // "high", "medium", "low"
+  is_spik_suitable   Boolean  @default(false)
+  reasoning          String   @db.Text // AI's reasoning
+  key_factors        Json? // Array of key factors
+  similar_matches    Json? // IDs and details of similar historical matches
+  raw_response       Json? // Full AI response for debugging
+  user_context       String?  @db.Text // User-provided context for re-evaluation
+  is_reevaluation    Boolean  @default(false) // Flag indicating this is a re-evaluation
+  created_at         DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  match                  matches                 @relation(fields: [match_id], references: [id], onDelete: Cascade)
+  prediction_performance prediction_performance[]
+
+  @@unique([match_id, model, model_version, created_at])
+  @@index([match_id])
+  @@index([predicted_outcome])
+  @@index([confidence])
+  @@index([match_id, created_at(sort: Desc)])
+}
+
+// Track prediction performance for learning
+model prediction_performance {
+  id                  Int      @id @default(autoincrement())
+  prediction_id       Int
+  actual_outcome      String   @db.VarChar(5) // "1", "X", "2"
+  correctly_predicted Boolean
+  probability_score   Decimal  @db.Decimal(5, 4) // Probability assigned to actual outcome
+  analysis_notes      String?  @db.Text
+  created_at          DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  predictions predictions @relation(fields: [prediction_id], references: [id], onDelete: Cascade)
+
+  @@unique([prediction_id])
+  @@index([prediction_id])
+  @@index([correctly_predicted])
+  @@index([created_at])
+}
+
+// Track scraping operations for monitoring
+model scrape_operations {
+  id                Int       @id @default(autoincrement())
+  match_id          Int?
+  operation_type    String    @db.VarChar(50) // "xStats", "statistics", "headToHead", "news"
+  status            String    @db.VarChar(20) // "success", "failed", "rate_limited"
+  error_message     String?   @db.Text
+  response_code     Int?
+  duration_ms       Int?
+  retry_count       Int       @default(0)
+  started_at        DateTime  @default(now()) @db.Timestamp(6)
+  completed_at      DateTime? @db.Timestamp(6)
+
+  @@index([match_id])
+  @@index([operation_type])
+  @@index([status])
+  @@index([started_at])
+}
+
+// AI usage tracking for cost monitoring
+model ai_usage {
+  id            Int      @id @default(autoincrement())
+  model         String   @db.VarChar(50) // "claude-haiku-4-5", "text-embedding-3-small", etc.
+  input_tokens  Int
+  output_tokens Int
+  cost_usd      Decimal  @db.Decimal(10, 6)
+  data_type     String?  @db.VarChar(50) // "xStats", "statistics", "prediction", "embedding", etc.
+  operation_id  String?  @db.VarChar(100) // Link to specific operation (prediction_id, match_id, etc.)
+  endpoint      String?  @db.VarChar(100) // API endpoint used
+  duration_ms   Int?     // Duration of the operation
+  success       Boolean
+  timestamp     DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([timestamp])
+  @@index([data_type])
+  @@index([model])
+  @@index([operation_id])
+}
+
+// Track backfill operations for monitoring
+model backfill_operations {
+  id               Int       @id @default(autoincrement())
+  operation_type   String    @db.VarChar(50) // "season", "month", "custom"
+  start_date       DateTime  @db.Date
+  end_date         DateTime  @db.Date
+  status           String    @db.VarChar(20) // "running", "completed", "failed", "cancelled"
+  total_draws      Int
+  processed_draws  Int       @default(0)
+  successful_draws Int       @default(0)
+  failed_draws     Int       @default(0)
+  skipped_draws    Int       @default(0)
+  error_log        Json?     // Array of error details
+  config           Json?     // Backfill options used
+  started_at       DateTime  @default(now()) @db.Timestamp(6)
+  completed_at     DateTime? @db.Timestamp(6)
+  cancelled_at     DateTime? @db.Timestamp(6)
+
+  @@index([status])
+  @@index([started_at])
+  @@index([operation_type])
+}
+
+// System performance tracking for R/U betting systems
+model system_performance {
+  id               Int       @id @default(autoincrement())
+  draw_number      Int
+  system_id        String    @db.VarChar(50)  // e.g., "R-4-0-9-12", "U-0-7-10"
+  system_type      String    @db.VarChar(5)   // "R" or "U"
+  rows_count       Int                         // Number of rows in system
+  cost             Int                         // Total cost (1 SEK per row)
+  mg_extensions    Json?                       // MG extensions applied [{matchNumber, type, outcomes}]
+  final_row_count  Int                         // Final rows after MG extensions
+  final_cost       Int                         // Final cost after MG extensions
+
+  // Results (populated after draw completes)
+  correct_row      String?   @db.VarChar(13)  // Actual correct row: "1X21X2X1X21X2"
+  winning_rows     Int?                        // How many rows matched 13 rätt
+  best_score       Int?                        // Highest correct count in any row
+  score_distribution Json?                     // {10: count, 11: count, 12: count, 13: count}
+  payout           Decimal?  @db.Decimal(15, 2) // Total payout received
+  roi              Decimal?  @db.Decimal(10, 4) // Return on investment
+
+  // Metadata
+  analyzed_at      DateTime? @db.Timestamp(6)  // When results were analyzed
+  created_at       DateTime  @default(now()) @db.Timestamp(6)
+
+  @@unique([draw_number, system_id, created_at])
+  @@index([draw_number])
+  @@index([system_id])
+  @@index([system_type])
+  @@index([created_at])
+  @@index([best_score])
+}
+
+// Generated coupon storage for tracking and training
+model generated_coupons {
+  id               Int       @id @default(autoincrement())
+  draw_number      Int
+  system_id        String?   @db.VarChar(50)  // null for AI-based
+  mode             String    @db.VarChar(20)  // "ai", "r-system", "u-system"
+
+  // Status tracking
+  status           String    @db.VarChar(20) @default("generated")  // "generated", "saved", "played", "analyzed"
+  version          Int       @default(1)     // Version number for same draw/mode/system combination
+
+  // Configuration
+  utgangstecken    Json?                      // For U-systems
+  mg_extensions    Json?                      // MG extensions applied
+  selections       Json                        // AI prediction selections
+  rows             Json                        // Generated coupon rows
+  total_cost       Int
+  expected_value   Decimal   @db.Decimal(10, 4)
+  budget           Int?                        // Budget used for AI mode
+
+  // Link to performance
+  performance_id   Int?
+
+  // Status change timestamps
+  saved_at         DateTime? @db.Timestamp(6)
+  played_at        DateTime? @db.Timestamp(6)
+  analyzed_at      DateTime? @db.Timestamp(6)
+  created_at       DateTime  @default(now()) @db.Timestamp(6)
+
+  @@index([draw_number])
+  @@index([system_id])
+  @@index([mode])
+  @@index([status])
+  @@index([created_at])
+  @@index([draw_number, mode, system_id, version])
+}
+

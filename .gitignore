@@ -1,0 +1,42 @@
+# Nuxt
+.nuxt
+.output
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules
+*.log*
+.DS_Store
+
+# Prisma
+prisma/migrations/*_migration.sql
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Testing
+coverage
+.nyc_output
+
+# Playwright
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Scraping
+cookies*.json
+debug/
+*.html
+
+# Python
+services/ai-scraper/venv/
+services/ai-scraper/__pycache__/
+services/ai-scraper/*.pyc
+services/ai-scraper/config.env
+

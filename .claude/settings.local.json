@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx nuxi typecheck:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(npm test:*)",
+      "Bash(cat:*)",
+      "Bash(npm run test:components:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

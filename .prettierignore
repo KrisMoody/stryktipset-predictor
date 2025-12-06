@@ -1,0 +1,14 @@
+.nuxt
+.output
+node_modules
+dist
+.env
+.env.*
+*.log
+coverage
+public
+prisma/migrations
+.vercel
+.github
+*.md
+

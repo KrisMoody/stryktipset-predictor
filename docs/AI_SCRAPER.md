@@ -61,7 +61,7 @@ crawl4ai-setup
 # Create .env file
 cat > .env << EOF
 ANTHROPIC_API_KEY=your_actual_anthropic_api_key_here
-ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+ANTHROPIC_MODEL=claude-haiku-4-5
 BROWSER_HEADLESS=true
 SESSION_ID=svenska-spel-scraper
 LOG_LEVEL=INFO
@@ -265,7 +265,7 @@ AI_SCRAPER_URL=https://ai-scraper-xxxx-ew.a.run.app
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `ANTHROPIC_API_KEY` | Yes | - | Your Anthropic API key |
-| `ANTHROPIC_MODEL` | No | `claude-haiku-4-5-20251001` | Claude model to use |
+| `ANTHROPIC_MODEL` | No | `claude-haiku-4-5` | Claude model to use |
 | `BROWSER_HEADLESS` | No | `true` | Run browser in headless mode |
 | `SESSION_ID` | No | `svenska-spel-scraper` | Session identifier |
 | `LOG_LEVEL` | No | `INFO` | Logging level |

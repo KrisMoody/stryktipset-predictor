@@ -48,7 +48,7 @@ class AIScraper:
             pdf=False
         )
         
-        self.model = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+        self.model = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5")
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
 
     def _build_crawler_config(self, data_type: str) -> CrawlerRunConfig:

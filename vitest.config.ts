@@ -77,6 +77,20 @@ export default defineConfig({
           testTimeout: 30000,
         },
       },
+      {
+        resolve: {
+          alias: {
+            '~': resolve(__dirname, '.'),
+            '@': resolve(__dirname, '.'),
+            '#imports': resolve(__dirname, '.nuxt/imports.d.ts'),
+          },
+        },
+        test: {
+          name: 'api',
+          include: ['tests/api/**/*.test.ts'],
+          environment: 'node',
+        },
+      },
     ],
   },
   resolve: {

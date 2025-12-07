@@ -1,9 +1,8 @@
-import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import type { RealtimeScrapingStatus, ScrapingOperationEvent, ScrapedDataEvent } from '~/types'
 import { getCurrentInstance } from 'vue'
 
 export function useScrapingUpdates(matchId: Ref<number> | number) {
-  const { $supabase } = useNuxtApp() as { $supabase: SupabaseClient | null }
+  const supabase = useSupabaseClient()
   const matchIdRef = isRef(matchId) ? matchId : ref(matchId)
 
   // Reactive state
@@ -16,8 +15,9 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
   })
   const latestOperation = ref<ScrapingOperationEvent | null>(null)
 
-  let operationsChannel: RealtimeChannel | null = null
-  let dataChannel: RealtimeChannel | null = null
+  // Use ReturnType to infer the channel type from the Supabase client
+  let operationsChannel: ReturnType<typeof supabase.channel> | null = null
+  let dataChannel: ReturnType<typeof supabase.channel> | null = null
 
   // Initialize status for common data types
   const initializeStatus = () => {
@@ -36,12 +36,7 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
 
   // Subscribe to scrape_operations table for progress updates
   const subscribeToOperations = () => {
-    if (!$supabase) {
-      console.warn('[useScrapingUpdates] Supabase client not available')
-      return
-    }
-
-    operationsChannel = $supabase
+    operationsChannel = supabase
       .channel(`scrape_operations:${matchIdRef.value}`)
       .on(
         'postgres_changes',
@@ -132,12 +127,7 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
 
   // Subscribe to match_scraped_data table for completion notifications
   const subscribeToScrapedData = () => {
-    if (!$supabase) {
-      console.warn('[useScrapingUpdates] Supabase client not available')
-      return
-    }
-
-    dataChannel = $supabase
+    dataChannel = supabase
       .channel(`match_scraped_data:${matchIdRef.value}`)
       .on(
         'postgres_changes',
@@ -235,12 +225,12 @@ export function useScrapingUpdates(matchId: Ref<number> | number) {
 
   // Cleanup subscriptions
   const cleanup = async () => {
-    if (operationsChannel && $supabase) {
-      await $supabase.removeChannel(operationsChannel)
+    if (operationsChannel) {
+      await supabase.removeChannel(operationsChannel)
       operationsChannel = null
     }
-    if (dataChannel && $supabase) {
-      await $supabase.removeChannel(dataChannel)
+    if (dataChannel) {
+      await supabase.removeChannel(dataChannel)
       dataChannel = null
     }
   }

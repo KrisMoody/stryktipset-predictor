@@ -19,6 +19,7 @@ prisma/migrations/*_migration.sql
 *.swp
 *.swo
 *~
+.mcp.json
 
 # Testing
 coverage

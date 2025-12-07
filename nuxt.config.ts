@@ -8,7 +8,16 @@ export default defineNuxtConfig({
     },
   },
 
-  modules: ['@nuxt/ui', '@nuxt/icon', '@nuxt/eslint'],
+  modules: ['@nuxt/ui', '@nuxt/icon', '@nuxt/eslint', '@nuxtjs/supabase'],
+
+  supabase: {
+    redirect: true,
+    redirectOptions: {
+      login: '/login',
+      callback: '/confirm',
+      exclude: [],
+    },
+  },
 
   devtools: { enabled: true },
 
@@ -28,12 +37,12 @@ export default defineNuxtConfig({
     enableAiScraper: process.env.ENABLE_AI_SCRAPER === 'true',
     aiScraperUrl: process.env.AI_SCRAPER_URL || 'http://localhost:8000',
 
-    // Public keys (client-side accessible)
-    public: {
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      supabaseKey: process.env.SUPABASE_ANON_KEY,
-    },
+    // Auth configuration
+    allowedEmails: process.env.ALLOWED_EMAILS || '',
+
+    // Public keys are now handled by @nuxtjs/supabase module
+    // It reads SUPABASE_URL and SUPABASE_KEY automatically
+    public: {},
   },
   compatibilityDate: '2024-11-01',
   nitro: {
@@ -43,6 +52,8 @@ export default defineNuxtConfig({
   },
   vite: {
     optimizeDeps: {
+      // Fix for @supabase/postgrest-js ESM issue in Nuxt 4
+      include: ['@supabase/postgrest-js'],
       // Only scan these specific directories, exclude everything else including services/
       entries: [
         '.nuxt/**/*',

@@ -37,8 +37,23 @@
           </NuxtLink>
         </nav>
 
-        <!-- Right Side: Color Mode + Mobile Menu -->
+        <!-- Right Side: User Menu + Color Mode + Mobile Menu -->
         <div class="flex items-center gap-2">
+          <!-- User Menu -->
+          <UDropdownMenu v-if="user" :items="userMenuItems">
+            <UButton variant="ghost" class="flex items-center gap-2">
+              <UAvatar
+                :src="user.user_metadata?.avatar_url"
+                :alt="user.email || 'User'"
+                size="xs"
+              />
+              <span class="hidden lg:inline text-sm truncate max-w-32">
+                {{ user.email }}
+              </span>
+              <UIcon name="i-heroicons-chevron-down" class="w-4 h-4" />
+            </UButton>
+          </UDropdownMenu>
+
           <UColorModeButton />
 
           <!-- Mobile Menu Button -->
@@ -89,8 +104,31 @@
 <script setup lang="ts">
 const route = useRoute()
 const { mainNavItems } = useNavigation()
+const user = useSupabaseUser()
+const supabase = useSupabaseClient()
 
 const mobileMenuOpen = ref(false)
+
+const userMenuItems = computed(() => [
+  [
+    {
+      label: user.value?.email || 'User',
+      disabled: true,
+    },
+  ],
+  [
+    {
+      label: 'Sign out',
+      icon: 'i-heroicons-arrow-right-on-rectangle',
+      onSelect: handleLogout,
+    },
+  ],
+])
+
+async function handleLogout() {
+  await supabase.auth.signOut()
+  await navigateTo('/login')
+}
 
 function isActive(to: string): boolean {
   if (to === '/') {

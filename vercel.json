@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "npm run vercel-build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
+  "buildCommand": "yarn vercel-build",
+  "devCommand": "yarn dev",
+  "installCommand": "yarn install",
   "framework": "nuxtjs",
   "outputDirectory": ".output/public",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",

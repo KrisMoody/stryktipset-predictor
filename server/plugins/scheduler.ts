@@ -6,6 +6,12 @@ import { scheduleWindowService } from '../services/schedule-window-service'
 import { progressiveScraper } from '../services/progressive-scraper'
 
 export default defineNitroPlugin(() => {
+  // Skip scheduler in CI/test environments to prevent blocking server startup
+  if (process.env.CI || process.env.NODE_ENV === 'test') {
+    console.log('[Scheduler] Skipping scheduled tasks in CI/test environment')
+    return
+  }
+
   console.log('[Scheduler] Initializing scheduled tasks...')
 
   // Sync current draws daily at midnight - window-aware

@@ -9,16 +9,6 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "build": {
-    "env": {
-      "DATABASE_URL": "@database_url",
-      "SUPABASE_URL": "@supabase_url",
-      "SUPABASE_ANON_KEY": "@supabase_anon_key",
-      "ANTHROPIC_API_KEY": "@anthropic_api_key",
-      "OPENAI_API_KEY": "@openai_api_key",
-      "SVENSKA_SPEL_API_BASE_URL": "@svenska_spel_api_base_url"
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",

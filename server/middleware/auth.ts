@@ -17,6 +17,13 @@ export default defineEventHandler(async event => {
     return
   }
 
+  // Skip auth if Supabase is not configured (e.g., in CI/testing environments)
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_KEY
+  if (!supabaseUrl || !supabaseKey) {
+    return
+  }
+
   try {
     const user = await serverSupabaseUser(event)
 

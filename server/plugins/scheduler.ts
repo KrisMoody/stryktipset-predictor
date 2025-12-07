@@ -1,4 +1,4 @@
-import cron from 'node-cron'
+import { Cron } from 'croner'
 import { drawSyncService } from '../services/draw-sync'
 import { performanceTracker } from '../services/performance-tracker'
 import { drawCacheService } from '../services/draw-cache-service'
@@ -9,7 +9,7 @@ export default defineNitroPlugin(() => {
   console.log('[Scheduler] Initializing scheduled tasks...')
 
   // Sync current draws daily at midnight - window-aware
-  cron.schedule('0 0 * * *', async () => {
+  new Cron('0 0 * * *', async () => {
     const status = scheduleWindowService.getWindowStatus()
     console.log(
       `[Scheduler] Running scheduled draw sync (window: ${status.isActive ? 'active' : 'closed'}, phase: ${status.currentPhase})`
@@ -43,7 +43,7 @@ export default defineNitroPlugin(() => {
   })
 
   // Sunday 6 AM - light sync to detect new coupon opening
-  cron.schedule('0 6 * * 0', async () => {
+  new Cron('0 6 * * 0', async () => {
     console.log('[Scheduler] Running Sunday morning metadata sync to detect new coupon...')
     try {
       const result = await drawSyncService.syncDrawMetadataOnly()
@@ -59,7 +59,7 @@ export default defineNitroPlugin(() => {
   })
 
   // Update prediction performance daily at 3 AM
-  cron.schedule('0 3 * * *', async () => {
+  new Cron('0 3 * * *', async () => {
     console.log('[Scheduler] Running scheduled performance update...')
     try {
       await performanceTracker.updatePerformance()
@@ -71,7 +71,7 @@ export default defineNitroPlugin(() => {
 
   // Progressive scraping: Every 4 hours Tue-Fri (during active window)
   // Refreshes stale match data based on dynamic threshold
-  cron.schedule('0 8,12,16,20 * * 2-5', async () => {
+  new Cron('0 8,12,16,20 * * 2-5', async () => {
     const status = scheduleWindowService.getWindowStatus()
     if (!status.isActive) {
       console.log('[Scheduler] Skipping progressive scrape - outside betting window')
@@ -93,7 +93,7 @@ export default defineNitroPlugin(() => {
 
   // Saturday aggressive scraping: Every 2 hours from 6 AM to 2 PM (before 15:59 spelstopp)
   // Uses shorter threshold (4h) for fresher data on match day
-  cron.schedule('0 6,8,10,12,14 * * 6', async () => {
+  new Cron('0 6,8,10,12,14 * * 6', async () => {
     const status = scheduleWindowService.getWindowStatus()
     if (!status.isActive) {
       console.log('[Scheduler] Skipping Saturday scrape - outside betting window')

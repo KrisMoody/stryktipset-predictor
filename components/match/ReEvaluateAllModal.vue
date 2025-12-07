@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CostEstimation } from '~/server/api/draws/[drawNumber]/estimate-cost.get'
+import type { CostEstimation } from '~/types'
 
 interface Props {
   modelValue: boolean

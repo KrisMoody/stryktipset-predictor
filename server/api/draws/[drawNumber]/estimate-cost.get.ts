@@ -1,17 +1,10 @@
 import { prisma } from '~/server/utils/prisma'
 import { AI_PRICING } from '~/server/constants/ai-pricing'
+import type { CostEstimation } from '~/types'
 
 // Default average tokens based on typical predictions
 const DEFAULT_AVG_INPUT_TOKENS = 2500
 const DEFAULT_AVG_OUTPUT_TOKENS = 800
-
-export interface CostEstimation {
-  estimatedInputTokens: number
-  estimatedOutputTokens: number
-  estimatedCost: number
-  matchCount: number
-  currency: string
-}
 
 export default defineEventHandler(async (event): Promise<CostEstimation> => {
   const drawNumber = parseInt(event.context.params?.drawNumber || '0')

@@ -289,10 +289,12 @@ if (health.healthy) {
 Configured to sync automatically:
 
 ```typescript
+import { Cron } from 'croner'
+
 // Initial sync: 30 seconds after startup
 // Scheduled sync: Every 6 hours
 
-cron.schedule('0 */6 * * *', async () => {
+new Cron('0 */6 * * *', async () => {
   await drawSyncService.syncCurrentDraws()
 })
 ```

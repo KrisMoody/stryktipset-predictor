@@ -465,10 +465,11 @@ const result = await drawLifecycle.checkAndArchiveCompletedDraws()
 Add automated archival:
 
 ```typescript
+import { Cron } from 'croner'
 import { drawLifecycle } from '~/server/services/draw-lifecycle'
 
 // Run daily at 3 AM
-cron.schedule('0 3 * * *', async () => {
+new Cron('0 3 * * *', async () => {
   const result = await drawLifecycle.checkAndArchiveCompletedDraws()
   console.log(`Archived ${result.archived} draws`)
 })

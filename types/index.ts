@@ -905,3 +905,14 @@ export interface ScheduleOperationPermission {
   /** Explanation of why allowed or not */
   reason: string
 }
+
+/**
+ * Cost estimation for AI operations (e.g., re-evaluating predictions)
+ */
+export interface CostEstimation {
+  estimatedInputTokens: number
+  estimatedOutputTokens: number
+  estimatedCost: number
+  matchCount: number
+  currency: string
+}

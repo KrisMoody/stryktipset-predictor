@@ -33,7 +33,7 @@
 
       <!-- Date Range Selector -->
       <div class="flex gap-2">
-        <UButtonGroup size="sm">
+        <UFieldGroup size="sm">
           <UButton
             v-for="preset in datePresets"
             :key="preset.value"
@@ -42,7 +42,7 @@
           >
             {{ preset.label }}
           </UButton>
-        </UButtonGroup>
+        </UFieldGroup>
       </div>
     </div>
 
@@ -423,17 +423,17 @@ function formatNumber(num: number): string {
 }
 
 function getSuccessRateColor(rate: number): string {
-  if (rate >= 95) return 'text-green-600 dark:text-green-400'
-  if (rate >= 85) return 'text-yellow-600 dark:text-yellow-400'
-  return 'text-red-600 dark:text-red-400'
+  if (rate >= 95) return 'text-green-700 dark:text-green-400'
+  if (rate >= 85) return 'text-yellow-700 dark:text-yellow-400'
+  return 'text-red-700 dark:text-red-400'
 }
 
 function getTrendClass(trend: string): string {
   switch (trend) {
     case 'increasing':
-      return 'text-red-600'
+      return 'text-red-700 dark:text-red-400'
     case 'decreasing':
-      return 'text-green-500'
+      return 'text-green-700 dark:text-green-400'
     default:
       return 'text-gray-500'
   }

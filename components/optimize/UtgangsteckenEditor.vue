@@ -20,7 +20,7 @@
           </div>
 
           <div class="flex items-center gap-3">
-            <UButtonGroup size="md">
+            <UFieldGroup size="md">
               <UButton
                 v-for="outcome in ['1', 'X', '2']"
                 :key="outcome"
@@ -34,7 +34,7 @@
               >
                 {{ outcome }}
               </UButton>
-            </UButtonGroup>
+            </UFieldGroup>
 
             <UBadge v-if="aiSuggestion(match)" variant="soft" color="info" size="sm">
               AI: {{ aiSuggestion(match) }}

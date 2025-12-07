@@ -35,8 +35,12 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  icon: undefined,
+  subtitle: undefined,
+  change: undefined,
   format: 'number',
   decimals: 0,
+  colorClass: undefined,
 })
 
 const formattedValue = computed(() => {
@@ -60,8 +64,8 @@ const valueClass = computed(() => {
 
 const changeClass = computed(() => {
   if (props.change === undefined) return ''
-  if (props.change > 0) return 'text-red-600'
-  if (props.change < 0) return 'text-green-500'
+  if (props.change > 0) return 'text-red-700 dark:text-red-400'
+  if (props.change < 0) return 'text-green-700 dark:text-green-400'
   return 'text-gray-500'
 })
 

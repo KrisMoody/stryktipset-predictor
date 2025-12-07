@@ -53,7 +53,7 @@
 
           <div class="flex items-center gap-3">
             <!-- MG Type Selection -->
-            <UButtonGroup size="sm">
+            <UFieldGroup size="sm">
               <UButton
                 :variant="!getMatchExtensionStatus(match.matchNumber) ? 'solid' : 'outline'"
                 :color="!getMatchExtensionStatus(match.matchNumber) ? 'neutral' : 'neutral'"
@@ -77,7 +77,7 @@
               >
                 MG-hel (×3)
               </UButton>
-            </UButtonGroup>
+            </UFieldGroup>
           </div>
         </div>
 
@@ -89,7 +89,7 @@
           <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">
             Select which outcome to add:
           </div>
-          <UButtonGroup size="sm">
+          <UFieldGroup size="sm">
             <UButton
               v-for="outcome in getMissingOutcomes(match.matchNumber)"
               :key="outcome"
@@ -99,7 +99,7 @@
             >
               {{ outcome }}
             </UButton>
-          </UButtonGroup>
+          </UFieldGroup>
         </div>
       </UCard>
     </div>

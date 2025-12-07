@@ -5,7 +5,7 @@
         <h3 class="text-lg font-semibold">
           {{ title }}
         </h3>
-        <UButtonGroup v-if="!hidePeriodSelector" size="xs">
+        <UFieldGroup v-if="!hidePeriodSelector" size="xs">
           <UButton
             v-for="period in periods"
             :key="period.value"
@@ -14,7 +14,7 @@
           >
             {{ period.label }}
           </UButton>
-        </UButtonGroup>
+        </UFieldGroup>
       </div>
     </template>
 

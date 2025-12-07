@@ -20,7 +20,8 @@
       "Bash(yarn format:check:*)",
       "Bash(yarn format:*)",
       "Bash(yarn test:all:*)",
-      "Bash(yarn test:a11y:*)"
+      "Bash(yarn test:a11y:*)",
+      "Bash(npx playwright test:*)"
     ],
     "deny": [],
     "ask": []

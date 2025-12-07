@@ -32,7 +32,7 @@
           </div>
           <div>
             <p class="text-sm text-gray-600 dark:text-gray-400">Correct</p>
-            <p class="text-3xl font-bold text-green-500">
+            <p class="text-3xl font-bold text-green-700 dark:text-green-400">
               {{ stats.correctPredictions }}
             </p>
           </div>
@@ -126,13 +126,13 @@
           </div>
           <div>
             <p class="text-sm text-gray-600 dark:text-gray-400">Successful</p>
-            <p class="text-3xl font-bold text-green-500">
+            <p class="text-3xl font-bold text-green-700 dark:text-green-400">
               {{ scraperHealth.last24Hours.success }}
             </p>
           </div>
           <div>
             <p class="text-sm text-gray-600 dark:text-gray-400">Failed</p>
-            <p class="text-3xl font-bold text-red-500">
+            <p class="text-3xl font-bold text-red-700 dark:text-red-400">
               {{ scraperHealth.last24Hours.failed }}
             </p>
           </div>

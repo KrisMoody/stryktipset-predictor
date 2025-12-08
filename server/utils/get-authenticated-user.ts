@@ -21,7 +21,7 @@ export async function getAuthenticatedUser(event: H3Event): Promise<Authenticate
   }
 
   return {
-    id: user.id,
+    id: user.sub,
     email: user.email || '',
   }
 }

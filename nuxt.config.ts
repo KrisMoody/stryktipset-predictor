@@ -42,6 +42,7 @@ export default defineNuxtConfig({
 
     // Auth configuration
     allowedEmails: process.env.ALLOWED_EMAILS || '',
+    supabaseSecretKey: process.env.SUPABASE_SECRET_KEY || '',
 
     // Bugsnag configuration (server-side)
     bugsnagApiKey: process.env.BUGSNAG_API_KEY || '',

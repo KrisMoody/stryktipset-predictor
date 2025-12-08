@@ -65,6 +65,14 @@
         </label>
       </div>
 
+      <!-- User Management Section -->
+      <div class="mb-8">
+        <h2 class="text-2xl font-semibold mb-4">User Management</h2>
+        <UCard>
+          <AdminUserManagement />
+        </UCard>
+      </div>
+
       <!-- Health Status Cards -->
       <div class="mb-8">
         <h2 class="text-2xl font-semibold mb-4">System Health</h2>

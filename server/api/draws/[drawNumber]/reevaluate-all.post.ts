@@ -1,10 +1,12 @@
 import { predictionService } from '~/server/services/prediction-service'
 import { drawCacheService } from '~/server/services/draw-cache-service'
 import { prisma } from '~/server/utils/prisma'
+import type { PredictionModel } from '~/types'
 
 interface ReEvaluateAllRequest {
   matchIds?: number[]
   contexts?: Record<number, string>
+  model?: PredictionModel
 }
 
 interface ReEvaluateResult {
@@ -45,9 +47,10 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
 
   const matchIds = body?.matchIds || draw.matches.map(m => m.id)
   const contexts = body?.contexts || {}
+  const model = body?.model || 'claude-sonnet-4-5'
 
   console.log(
-    `[Re-evaluate All] Starting re-evaluation for ${matchIds.length} matches in draw ${drawNumber}`
+    `[Re-evaluate All] Starting re-evaluation for ${matchIds.length} matches in draw ${drawNumber} using ${model}`
   )
 
   // Execute predictions in parallel
@@ -57,6 +60,7 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
         await predictionService.predictMatch(matchId, {
           userContext: contexts[matchId],
           isReevaluation: true,
+          model,
         })
         return { matchId, success: true }
       } catch (error) {

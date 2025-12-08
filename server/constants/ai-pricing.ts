@@ -23,6 +23,12 @@ export const AI_PRICING = {
     outputPricePerMillion: 15.0,
     description: 'Claude Sonnet 4.5 - Used for match predictions',
   },
+  CLAUDE_OPUS_4_5: {
+    model: 'claude-opus-4-5',
+    inputPricePerMillion: 15.0,
+    outputPricePerMillion: 75.0,
+    description: 'Claude Opus 4.5 - Premium model for high-stakes predictions',
+  },
 
   // OpenAI models
   TEXT_EMBEDDING_3_SMALL: {
@@ -36,9 +42,25 @@ export const AI_PRICING = {
 export type AIModel = keyof typeof AI_PRICING
 
 /**
- * Calculate cost for AI usage
+ * Cache pricing multipliers for prompt caching
+ * Cache write: 25% more than regular input price
+ * Cache read: 90% less than regular input price (10% of regular)
  */
-export function calculateAICost(model: string, inputTokens: number, outputTokens: number): number {
+export const CACHE_PRICING_MULTIPLIERS = {
+  cacheWriteMultiplier: 1.25, // 25% more expensive to write
+  cacheReadMultiplier: 0.1, // 90% cheaper to read from cache
+} as const
+
+/**
+ * Calculate cost for AI usage with optional cache token support
+ */
+export function calculateAICost(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheCreationTokens: number = 0,
+  cacheReadTokens: number = 0
+): number {
   // Find matching model pricing
   const pricing = Object.values(AI_PRICING).find(p => p.model === model)
 
@@ -47,10 +69,25 @@ export function calculateAICost(model: string, inputTokens: number, outputTokens
     return 0
   }
 
-  const inputCost = (inputTokens / 1_000_000) * pricing.inputPricePerMillion
+  // Regular input tokens (excluding cache tokens)
+  const regularInputTokens = inputTokens - cacheCreationTokens - cacheReadTokens
+  const inputCost = (regularInputTokens / 1_000_000) * pricing.inputPricePerMillion
+
+  // Cache write cost (25% more than regular)
+  const cacheWriteCost =
+    (cacheCreationTokens / 1_000_000) *
+    pricing.inputPricePerMillion *
+    CACHE_PRICING_MULTIPLIERS.cacheWriteMultiplier
+
+  // Cache read cost (90% cheaper than regular)
+  const cacheReadCost =
+    (cacheReadTokens / 1_000_000) *
+    pricing.inputPricePerMillion *
+    CACHE_PRICING_MULTIPLIERS.cacheReadMultiplier
+
   const outputCost = (outputTokens / 1_000_000) * pricing.outputPricePerMillion
 
-  return inputCost + outputCost
+  return inputCost + cacheWriteCost + cacheReadCost + outputCost
 }
 
 /**

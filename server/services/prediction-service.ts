@@ -2,7 +2,7 @@ import { prisma } from '~/server/utils/prisma'
 import { Anthropic } from '@anthropic-ai/sdk'
 import { embeddingsService } from './embeddings-service'
 import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
-import type { PredictionData } from '~/types'
+import type { PredictionData, PredictionModel } from '~/types'
 import { calculateAICost } from '~/server/constants/ai-pricing'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Complex Prisma and AI API data */
@@ -13,6 +13,7 @@ import { calculateAICost } from '~/server/constants/ai-pricing'
 export interface PredictMatchOptions {
   userContext?: string
   isReevaluation?: boolean
+  model?: PredictionModel
 }
 
 /**
@@ -42,7 +43,7 @@ export class PredictionService {
     matchId: number,
     options: PredictMatchOptions = {}
   ): Promise<PredictionData | null> {
-    const { userContext, isReevaluation = false } = options
+    const { userContext, isReevaluation = false, model = 'claude-sonnet-4-5' } = options
 
     try {
       console.log(
@@ -93,7 +94,7 @@ export class PredictionService {
       const context = this.prepareMatchContext(match, similarMatches, teamMatchups, userContext)
 
       // Generate prediction using Claude
-      const prediction = await this.generatePrediction(context, matchId)
+      const prediction = await this.generatePrediction(context, matchId, model)
 
       if (!prediction) {
         throw new Error('Failed to generate prediction')
@@ -362,24 +363,10 @@ export class PredictionService {
   }
 
   /**
-   * Generate prediction using Claude
+   * Static system prompt for predictions - cached to reduce costs
+   * Cache control enables prompt caching: first request caches, subsequent reads from cache
    */
-  private async generatePrediction(
-    context: string,
-    matchId: number
-  ): Promise<PredictionData | null> {
-    const startTime = Date.now()
-    try {
-      const anthropic = this.getAnthropicClient()
-      const message = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 2000,
-        messages: [
-          {
-            role: 'user',
-            content: `You are an expert football analyst specializing in Swedish Stryktipset predictions. Analyze the following match and provide a detailed prediction.
-
-${context}
+  private static readonly PREDICTION_SYSTEM_PROMPT = `You are an expert football analyst specializing in Swedish Stryktipset predictions. Your task is to analyze match data and provide accurate probability predictions.
 
 Please provide your analysis in JSON format with the following structure:
 {
@@ -395,13 +382,41 @@ Please provide your analysis in JSON format with the following structure:
   "confidence": "high" or "medium" or "low"
 }
 
-Important:
+Important guidelines:
 - Probabilities must sum to 1.0
 - Consider all available data: odds, xStats, form, head-to-head, expert consensus (Tio Tidningars Tips), and player availability
 - Pay special attention to key player absences (injuries/suspensions) as they can significantly impact match outcomes
 - A "spik" is suitable when one outcome has >60% probability and high confidence
 - Recommended bet should maximize expected value vs crowd betting patterns
-- Provide clear, actionable reasoning`,
+- Provide clear, actionable reasoning`
+
+  /**
+   * Generate prediction using Claude
+   */
+  private async generatePrediction(
+    context: string,
+    matchId: number,
+    model: PredictionModel = 'claude-sonnet-4-5'
+  ): Promise<PredictionData | null> {
+    const startTime = Date.now()
+    try {
+      const anthropic = this.getAnthropicClient()
+      const message = await anthropic.messages.create({
+        model,
+        max_tokens: 2000,
+        // System prompt with cache_control for prompt caching
+        // The system prompt is static and will be cached for 5 minutes
+        system: [
+          {
+            type: 'text',
+            text: PredictionService.PREDICTION_SYSTEM_PROMPT,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages: [
+          {
+            role: 'user',
+            content: `Analyze the following match and provide a detailed prediction:\n\n${context}`,
           },
         ],
       })
@@ -430,15 +445,30 @@ Important:
         throw new Error('Invalid prediction format from Claude')
       }
 
-      // Track token usage and cost
+      // Track token usage and cost (including cache tokens)
       const inputTokens = message.usage.input_tokens
       const outputTokens = message.usage.output_tokens
-      const cost = calculateAICost('claude-sonnet-4-5', inputTokens, outputTokens)
+      // Extract cache tokens from usage if available (prompt caching)
+      const cacheCreationTokens =
+        'cache_creation_input_tokens' in message.usage
+          ? (message.usage.cache_creation_input_tokens as number)
+          : 0
+      const cacheReadTokens =
+        'cache_read_input_tokens' in message.usage
+          ? (message.usage.cache_read_input_tokens as number)
+          : 0
+      const cost = calculateAICost(
+        model,
+        inputTokens,
+        outputTokens,
+        cacheCreationTokens,
+        cacheReadTokens
+      )
       const duration = Date.now() - startTime
 
       // Record AI usage
       await recordAIUsage({
-        model: 'claude-sonnet-4-5',
+        model,
         inputTokens,
         outputTokens,
         cost,
@@ -451,8 +481,13 @@ Important:
         console.error('[Prediction Service] Failed to record AI usage:', recordError)
       })
 
+      // Log cache usage if present
+      const cacheInfo =
+        cacheCreationTokens > 0 || cacheReadTokens > 0
+          ? ` (cache: ${cacheCreationTokens} write, ${cacheReadTokens} read)`
+          : ''
       console.log(
-        `[Prediction Service] AI usage: ${inputTokens} in, ${outputTokens} out, $${cost.toFixed(6)}, ${duration}ms`
+        `[Prediction Service] AI usage: ${inputTokens} in, ${outputTokens} out, $${cost.toFixed(6)}, ${duration}ms${cacheInfo}`
       )
 
       return prediction
@@ -460,7 +495,7 @@ Important:
       const duration = Date.now() - startTime
       // Record failed attempt
       await recordAIUsage({
-        model: 'claude-sonnet-4-5',
+        model,
         inputTokens: 0,
         outputTokens: 0,
         cost: 0,
@@ -526,6 +561,275 @@ Important:
     if (probabilities.home_win === max) return '1'
     if (probabilities.draw === max) return 'X'
     return '2'
+  }
+
+  // ============================================================
+  // BATCH PREDICTION METHODS (Anthropic Batch API - 50% discount)
+  // ============================================================
+
+  /**
+   * Create a batch of predictions for multiple matches
+   * Uses Anthropic Batch API for 50% cost savings
+   * Results are available within 24 hours
+   */
+  async createPredictionBatch(
+    drawNumber: number,
+    matchIds: number[],
+    options: { model?: PredictionModel; contexts?: Record<number, string> } = {}
+  ): Promise<{ batchId: string; matchCount: number }> {
+    const model = options.model || 'claude-sonnet-4-5'
+
+    console.log(
+      `[Prediction Service] Creating batch for ${matchIds.length} matches in draw ${drawNumber} using ${model}`
+    )
+
+    try {
+      const anthropic = this.getAnthropicClient()
+
+      // Prepare all match contexts
+      const requests = await Promise.all(
+        matchIds.map(async matchId => {
+          const match = await prisma.matches.findUnique({
+            where: { id: matchId },
+            include: {
+              draws: true,
+              homeTeam: true,
+              awayTeam: true,
+              league: { include: { country: true } },
+              match_odds: {
+                where: { type: 'current' },
+                orderBy: { collected_at: 'desc' },
+                take: 1,
+              },
+              match_scraped_data: true,
+            },
+          })
+
+          if (!match) {
+            throw new Error(`Match ${matchId} not found`)
+          }
+
+          const context = this.prepareMatchContext(match, [], [], options.contexts?.[matchId])
+
+          return {
+            custom_id: `match_${matchId}`,
+            params: {
+              model,
+              max_tokens: 2000,
+              system: [
+                {
+                  type: 'text' as const,
+                  text: PredictionService.PREDICTION_SYSTEM_PROMPT,
+                },
+              ],
+              messages: [
+                {
+                  role: 'user' as const,
+                  content: `Analyze the following match and provide a detailed prediction:\n\n${context}`,
+                },
+              ],
+            },
+          }
+        })
+      )
+
+      // Create the batch
+      const batch = await anthropic.messages.batches.create({ requests })
+
+      // Store batch reference in database
+      await prisma.prediction_batches.create({
+        data: {
+          batch_id: batch.id,
+          draw_number: drawNumber,
+          match_ids: matchIds,
+          model,
+          status: batch.processing_status,
+        },
+      })
+
+      console.log(`[Prediction Service] Batch ${batch.id} created for ${matchIds.length} matches`)
+
+      return { batchId: batch.id, matchCount: matchIds.length }
+    } catch (error) {
+      console.error('[Prediction Service] Error creating batch:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Check batch status and process results if complete
+   */
+  async checkBatchStatus(batchId: string): Promise<{
+    status: string
+    requestCounts?: {
+      processing: number
+      succeeded: number
+      errored: number
+      canceled: number
+      expired: number
+    }
+    resultsProcessed?: boolean
+  }> {
+    const anthropic = this.getAnthropicClient()
+
+    try {
+      const batch = await anthropic.messages.batches.retrieve(batchId)
+
+      // Update status in database
+      await prisma.prediction_batches.update({
+        where: { batch_id: batchId },
+        data: {
+          status: batch.processing_status,
+          completed_at: batch.processing_status === 'ended' ? new Date() : null,
+        },
+      })
+
+      let resultsProcessed = false
+
+      // Process results if batch is complete
+      if (batch.processing_status === 'ended' && batch.results_url) {
+        const dbBatch = await prisma.prediction_batches.findUnique({
+          where: { batch_id: batchId },
+        })
+
+        // Only process if we haven't already
+        if (dbBatch && !dbBatch.results) {
+          await this.processBatchResults(batchId, batch.results_url)
+          resultsProcessed = true
+        }
+      }
+
+      return {
+        status: batch.processing_status,
+        requestCounts: batch.request_counts,
+        resultsProcessed,
+      }
+    } catch (error) {
+      console.error(`[Prediction Service] Error checking batch ${batchId}:`, error)
+      throw error
+    }
+  }
+
+  /**
+   * Process batch results and save predictions
+   */
+  private async processBatchResults(batchId: string, resultsUrl: string): Promise<void> {
+    console.log(`[Prediction Service] Processing results for batch ${batchId}`)
+
+    try {
+      // Fetch results from the URL
+      const response = await fetch(resultsUrl)
+      const text = await response.text()
+
+      // Parse JSONL format (one JSON object per line)
+      const lines = text.trim().split('\n')
+      const results: any[] = []
+
+      for (const line of lines) {
+        if (line.trim()) {
+          const result = JSON.parse(line)
+          results.push(result)
+
+          // Process each successful result
+          if (result.result?.type === 'succeeded') {
+            const matchId = parseInt(result.custom_id.replace('match_', ''))
+            const message = result.result.message
+
+            // Extract prediction from response
+            const content = message.content?.[0]
+            if (content?.type === 'text') {
+              const jsonMatch =
+                content.text.match(/```json\n?([\s\S]*?)\n?```/) ||
+                content.text.match(/({[\s\S]*})/)
+
+              if (jsonMatch?.[1]) {
+                const prediction: PredictionData = JSON.parse(jsonMatch[1])
+
+                // Save prediction
+                await this.savePrediction(matchId, prediction, { isReevaluation: true })
+
+                // Record AI usage (50% discount for batch)
+                const inputTokens = message.usage?.input_tokens || 0
+                const outputTokens = message.usage?.output_tokens || 0
+                const cost =
+                  calculateAICost(result.result.message.model, inputTokens, outputTokens) * 0.5 // 50% batch discount
+
+                await recordAIUsage({
+                  model: result.result.message.model,
+                  inputTokens,
+                  outputTokens,
+                  cost,
+                  dataType: 'prediction_batch',
+                  operationId: `batch_${batchId}_match_${matchId}`,
+                  endpoint: 'messages.batches',
+                  duration: 0,
+                  success: true,
+                }).catch(err => console.error('Failed to record batch AI usage:', err))
+
+                console.log(`[Prediction Service] Batch: Saved prediction for match ${matchId}`)
+              }
+            }
+          } else if (result.result?.type === 'errored') {
+            console.error(
+              `[Prediction Service] Batch error for ${result.custom_id}:`,
+              result.result.error
+            )
+          }
+        }
+      }
+
+      // Store results in database
+      await prisma.prediction_batches.update({
+        where: { batch_id: batchId },
+        data: { results: results as any },
+      })
+
+      console.log(`[Prediction Service] Batch ${batchId}: Processed ${results.length} results`)
+    } catch (error) {
+      console.error(`[Prediction Service] Error processing batch results:`, error)
+
+      // Update batch with error
+      await prisma.prediction_batches.update({
+        where: { batch_id: batchId },
+        data: {
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error processing results',
+        },
+      })
+
+      throw error
+    }
+  }
+
+  /**
+   * Get all batches for a draw
+   */
+  async getBatchesForDraw(drawNumber: number) {
+    return prisma.prediction_batches.findMany({
+      where: { draw_number: drawNumber },
+      orderBy: { created_at: 'desc' },
+    })
+  }
+
+  /**
+   * Cancel a batch
+   */
+  async cancelBatch(batchId: string): Promise<void> {
+    const anthropic = this.getAnthropicClient()
+
+    try {
+      await anthropic.messages.batches.cancel(batchId)
+
+      await prisma.prediction_batches.update({
+        where: { batch_id: batchId },
+        data: { status: 'canceling' },
+      })
+
+      console.log(`[Prediction Service] Batch ${batchId} cancellation requested`)
+    } catch (error) {
+      console.error(`[Prediction Service] Error canceling batch ${batchId}:`, error)
+      throw error
+    }
   }
 }
 

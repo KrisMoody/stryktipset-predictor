@@ -1,6 +1,6 @@
 import { prisma } from '~/server/utils/prisma'
-import { AI_PRICING } from '~/server/constants/ai-pricing'
-import type { CostEstimation } from '~/types'
+import { AI_PRICING, getModelPricing } from '~/server/constants/ai-pricing'
+import type { CostEstimation, PredictionModel } from '~/types'
 
 // Default average tokens based on typical predictions
 const DEFAULT_AVG_INPUT_TOKENS = 2500
@@ -8,6 +8,8 @@ const DEFAULT_AVG_OUTPUT_TOKENS = 800
 
 export default defineEventHandler(async (event): Promise<CostEstimation> => {
   const drawNumber = parseInt(event.context.params?.drawNumber || '0')
+  const query = getQuery(event)
+  const model = (query.model as PredictionModel) || 'claude-sonnet-4-5'
 
   // Get match count for the draw
   const draw = await prisma.draws.findUnique({
@@ -50,10 +52,11 @@ export default defineEventHandler(async (event): Promise<CostEstimation> => {
   const totalInputTokens = avgInputTokens * matchCount
   const totalOutputTokens = avgOutputTokens * matchCount
 
-  const sonnetPricing = AI_PRICING.CLAUDE_SONNET_4_5
+  // Get pricing for the selected model
+  const pricing = getModelPricing(model) || AI_PRICING.CLAUDE_SONNET_4_5
   const estimatedCost =
-    (totalInputTokens / 1_000_000) * sonnetPricing.inputPricePerMillion +
-    (totalOutputTokens / 1_000_000) * sonnetPricing.outputPricePerMillion
+    (totalInputTokens / 1_000_000) * pricing.inputPricePerMillion +
+    (totalOutputTokens / 1_000_000) * pricing.outputPricePerMillion
 
   return {
     estimatedInputTokens: totalInputTokens,
@@ -61,5 +64,6 @@ export default defineEventHandler(async (event): Promise<CostEstimation> => {
     estimatedCost: Math.round(estimatedCost * 1000000) / 1000000, // 6 decimal places
     matchCount,
     currency: 'USD',
+    model,
   }
 })

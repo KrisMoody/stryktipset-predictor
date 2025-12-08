@@ -314,6 +314,11 @@ export interface NewsArticle {
 }
 
 /**
+ * AI Prediction model options
+ */
+export type PredictionModel = 'claude-sonnet-4-5' | 'claude-opus-4-5'
+
+/**
  * AI Prediction structure
  */
 export interface PredictionData {
@@ -915,4 +920,5 @@ export interface CostEstimation {
   estimatedCost: number
   matchCount: number
   currency: string
+  model?: PredictionModel
 }

@@ -2,6 +2,7 @@ export interface NavigationItem {
   label: string
   to: string
   icon?: string
+  adminOnly?: boolean
 }
 
 export interface BreadcrumbItem {
@@ -12,14 +13,17 @@ export interface BreadcrumbItem {
 
 export function useNavigation() {
   const route = useRoute()
+  const { isAdmin } = useUserProfile()
 
-  const mainNavItems: NavigationItem[] = [
+  const allNavItems: NavigationItem[] = [
     { label: 'Dashboard', to: '/', icon: 'i-heroicons-home' },
     { label: 'Analytics', to: '/analytics', icon: 'i-heroicons-chart-bar' },
     { label: 'AI Metrics', to: '/ai-dashboard', icon: 'i-heroicons-cpu-chip' },
     { label: 'Performance', to: '/performance', icon: 'i-heroicons-chart-pie' },
-    { label: 'Admin', to: '/admin', icon: 'i-heroicons-cog-6-tooth' },
+    { label: 'Admin', to: '/admin', icon: 'i-heroicons-cog-6-tooth', adminOnly: true },
   ]
+
+  const mainNavItems = computed(() => allNavItems.filter(item => !item.adminOnly || isAdmin.value))
 
   const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
     const items: BreadcrumbItem[] = [{ label: 'Dashboard', to: '/', icon: 'i-heroicons-home' }]

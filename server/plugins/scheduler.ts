@@ -4,6 +4,7 @@ import { performanceTracker } from '../services/performance-tracker'
 import { drawCacheService } from '../services/draw-cache-service'
 import { scheduleWindowService } from '../services/schedule-window-service'
 import { progressiveScraper } from '../services/progressive-scraper'
+import { captureOperationError } from '../utils/bugsnag-helpers'
 
 export default defineNitroPlugin(() => {
   // Skip scheduler in CI/test environments to prevent blocking server startup
@@ -45,6 +46,12 @@ export default defineNitroPlugin(() => {
       }
     } catch (error) {
       console.error('[Scheduler] Unexpected error in scheduled draw sync:', error)
+
+      captureOperationError(error, {
+        operation: 'scheduled_task',
+        service: 'draw-sync',
+        metadata: { schedule: 'daily-midnight', windowActive: status.isActive },
+      })
     }
   })
 
@@ -61,6 +68,12 @@ export default defineNitroPlugin(() => {
       }
     } catch (error) {
       console.error('[Scheduler] Unexpected error in Sunday metadata sync:', error)
+
+      captureOperationError(error, {
+        operation: 'scheduled_task',
+        service: 'draw-sync',
+        metadata: { schedule: 'sunday-6am' },
+      })
     }
   })
 
@@ -72,6 +85,12 @@ export default defineNitroPlugin(() => {
       console.log('[Scheduler] Performance update completed successfully')
     } catch (error) {
       console.error('[Scheduler] Error in scheduled performance update:', error)
+
+      captureOperationError(error, {
+        operation: 'scheduled_task',
+        service: 'performance-tracker',
+        metadata: { schedule: 'daily-3am' },
+      })
     }
   })
 
@@ -94,6 +113,12 @@ export default defineNitroPlugin(() => {
       )
     } catch (error) {
       console.error('[Scheduler] Error in progressive scrape:', error)
+
+      captureOperationError(error, {
+        operation: 'scheduled_task',
+        service: 'progressive-scraper',
+        metadata: { schedule: 'tue-fri-4h', phase: status.currentPhase },
+      })
     }
   })
 
@@ -116,6 +141,12 @@ export default defineNitroPlugin(() => {
       )
     } catch (error) {
       console.error('[Scheduler] Error in Saturday scrape:', error)
+
+      captureOperationError(error, {
+        operation: 'scheduled_task',
+        service: 'progressive-scraper',
+        metadata: { schedule: 'saturday-2h', phase: status.currentPhase },
+      })
     }
   })
 

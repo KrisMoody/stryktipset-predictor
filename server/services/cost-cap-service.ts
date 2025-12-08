@@ -1,5 +1,6 @@
 import { prisma } from '~/server/utils/prisma'
 import { createLogger } from '~/server/utils/logger'
+import { captureOperationError } from '~/server/utils/bugsnag-helpers'
 
 const logger = createLogger('CostCapService')
 
@@ -51,23 +52,35 @@ class CostCapService {
    * Get or create a user profile from Supabase user ID
    */
   async getOrCreateUserProfile(userId: string, email: string): Promise<UserProfile> {
-    let profile = await prisma.user_profiles.findUnique({
-      where: { user_id: userId },
-    })
-
-    if (!profile) {
-      logger.info('Creating new user profile', { userId, email })
-      profile = await prisma.user_profiles.create({
-        data: {
-          user_id: userId,
-          email,
-          is_admin: false,
-          cost_cap_usd: 1.0, // Default $1/week
-        },
+    try {
+      let profile = await prisma.user_profiles.findUnique({
+        where: { user_id: userId },
       })
-    }
 
-    return this.mapProfile(profile)
+      if (!profile) {
+        logger.info('Creating new user profile', { userId, email })
+        profile = await prisma.user_profiles.create({
+          data: {
+            user_id: userId,
+            email,
+            is_admin: false,
+            cost_cap_usd: 1.0, // Default $1/week
+          },
+        })
+      }
+
+      return this.mapProfile(profile)
+    } catch (error) {
+      logger.error('Failed to get or create user profile', error, { userId, email })
+
+      captureOperationError(error, {
+        operation: 'cost_cap',
+        service: 'cost-cap-service',
+        metadata: { action: 'getOrCreateUserProfile', userId, email },
+      })
+
+      throw error
+    }
   }
 
   /**

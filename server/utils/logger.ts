@@ -1,3 +1,6 @@
+import Bugsnag from '@bugsnag/js'
+import type { Event as BugsnagEvent } from '@bugsnag/js'
+
 export enum LogLevel {
   DEBUG = 'debug',
   INFO = 'info',
@@ -7,6 +10,17 @@ export enum LogLevel {
 
 interface LogContext {
   [key: string]: unknown
+}
+
+/**
+ * Check if Bugsnag is initialized
+ */
+function isBugsnagReady(): boolean {
+  try {
+    return Bugsnag.isStarted()
+  } catch {
+    return false
+  }
 }
 
 class Logger {
@@ -34,6 +48,17 @@ class Logger {
 
   warn(message: string, context?: LogContext): void {
     console.warn(this.formatMessage(LogLevel.WARN, message, context))
+
+    // Report warnings to Bugsnag as well (with warning severity)
+    if (isBugsnagReady()) {
+      Bugsnag.notify(new Error(message), (event: BugsnagEvent) => {
+        event.severity = 'warning'
+        event.context = this.serviceName
+        if (context) {
+          event.addMetadata('logger', context)
+        }
+      })
+    }
   }
 
   error(message: string, error?: Error | unknown, context?: LogContext): void {
@@ -49,6 +74,34 @@ class Logger {
           : error,
     }
     console.error(this.formatMessage(LogLevel.ERROR, message, errorContext))
+
+    // Report errors to Bugsnag
+    if (isBugsnagReady() && error) {
+      const errorObj = error instanceof Error ? error : new Error(message)
+
+      Bugsnag.notify(errorObj, (event: BugsnagEvent) => {
+        event.context = this.serviceName
+
+        if (context) {
+          event.addMetadata('logger', context)
+        }
+
+        // Set severity based on error patterns
+        const errorMessage = errorObj.message.toLowerCase()
+        if (
+          errorMessage.includes('rate limit') ||
+          errorMessage.includes('429') ||
+          errorMessage.includes('too many requests')
+        ) {
+          event.severity = 'warning'
+        } else if (
+          errorMessage.includes('circuit breaker') ||
+          errorMessage.includes('temporarily unavailable')
+        ) {
+          event.severity = 'warning'
+        }
+      })
+    }
   }
 }
 

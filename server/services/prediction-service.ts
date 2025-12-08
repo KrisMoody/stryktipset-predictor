@@ -2,6 +2,7 @@ import { prisma } from '~/server/utils/prisma'
 import { Anthropic } from '@anthropic-ai/sdk'
 import { embeddingsService } from './embeddings-service'
 import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
+import { captureAIError } from '~/server/utils/bugsnag-helpers'
 import type { PredictionData, PredictionModel } from '~/types'
 import { calculateAICost } from '~/server/constants/ai-pricing'
 
@@ -496,6 +497,15 @@ Important guidelines:
       return prediction
     } catch (error) {
       const duration = Date.now() - startTime
+
+      // Report to Bugsnag with AI context
+      captureAIError(error, {
+        model,
+        operation: 'prediction',
+        matchId,
+        dataType: 'prediction',
+      })
+
       // Record failed attempt
       await recordAIUsage({
         userId,
@@ -656,6 +666,14 @@ Important guidelines:
       return { batchId: batch.id, matchCount: matchIds.length }
     } catch (error) {
       console.error('[Prediction Service] Error creating batch:', error)
+
+      // Report batch creation error to Bugsnag
+      captureAIError(error, {
+        model,
+        operation: 'batch_creation',
+        dataType: 'prediction_batch',
+      })
+
       throw error
     }
   }

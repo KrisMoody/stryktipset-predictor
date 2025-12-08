@@ -3,6 +3,7 @@ import { createLogger } from './logger'
 import { validateAIUsageData, sanitizeAIUsageData, type AIUsageData } from './ai-usage-validator'
 import { aiUsageMetrics } from './ai-usage-metrics'
 import { failedWritesQueue } from './failed-writes-queue'
+import { captureDatabaseError } from './bugsnag-helpers'
 
 const logger = createLogger('AIUsageRecorder')
 
@@ -110,6 +111,18 @@ export async function recordAIUsage(
   })
 
   logger.error('All retry attempts exhausted', lastError, { data, attempts: opts.maxRetries })
+
+  // Report to Bugsnag (as warning since it's queued for retry)
+  captureDatabaseError(lastError || new Error(errorMsg), {
+    operation: 'ai_usage_insert',
+    table: 'ai_usage',
+    retryCount: opts.maxRetries,
+    data: {
+      model: data.model,
+      dataType: data.dataType,
+      cost: data.cost,
+    },
+  })
 
   // Add to failed writes queue for later retry
   failedWritesQueue.add(data, errorMsg)

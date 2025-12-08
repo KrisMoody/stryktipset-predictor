@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "yarn vercel-build",
+  "buildCommand": "yarn vercel-build && node scripts/upload-source-maps.js",
   "devCommand": "yarn dev",
   "installCommand": "yarn install",
   "framework": "nuxtjs",

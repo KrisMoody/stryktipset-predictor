@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Complex API response structures */
 import type { DrawData, MultifetchResponse, DrawResultData, AvailableDrawsData } from '~/types'
+import { captureOperationError } from '~/server/utils/bugsnag-helpers'
 
 /**
  * Client for interacting with Svenska Spel API
@@ -48,6 +49,13 @@ export class SvenskaSpelApiClient {
       return response
     } catch (error) {
       console.error('[Svenska Spel API] Error fetching current draws:', error)
+
+      captureOperationError(error, {
+        operation: 'api_call',
+        service: 'svenska-spel',
+        metadata: { endpoint: 'draws', method: 'GET' },
+      })
+
       throw new Error(`Failed to fetch current draws: ${error}`)
     }
   }
@@ -89,6 +97,13 @@ export class SvenskaSpelApiClient {
       return response
     } catch (error) {
       console.error(`[Svenska Spel API] Error fetching draw ${drawNumber}:`, error)
+
+      captureOperationError(error, {
+        operation: 'api_call',
+        service: 'svenska-spel',
+        metadata: { endpoint: `draws/${drawNumber}`, method: 'GET', drawNumber },
+      })
+
       throw new Error(`Failed to fetch draw ${drawNumber}: ${error}`)
     }
   }
@@ -180,6 +195,13 @@ export class SvenskaSpelApiClient {
       return result
     } catch (error) {
       console.error(`[Svenska Spel API] Error fetching draw ${drawNumber} via multifetch:`, error)
+
+      captureOperationError(error, {
+        operation: 'api_call',
+        service: 'svenska-spel',
+        metadata: { endpoint: 'multifetch', method: 'GET', drawNumber },
+      })
+
       throw new Error(`Failed to fetch draw ${drawNumber} via multifetch: ${error}`)
     }
   }
@@ -250,6 +272,13 @@ export class SvenskaSpelApiClient {
       return results
     } catch (error) {
       console.error(`[Svenska Spel API] Error in batch multifetch:`, error)
+
+      captureOperationError(error, {
+        operation: 'api_call',
+        service: 'svenska-spel',
+        metadata: { endpoint: 'multifetch-batch', method: 'GET', drawCount: drawNumbers.length },
+      })
+
       throw new Error(`Failed to batch fetch draws: ${error}`)
     }
   }
@@ -281,6 +310,13 @@ export class SvenskaSpelApiClient {
       return response
     } catch (error) {
       console.error(`[Svenska Spel API] Error fetching result for draw ${drawNumber}:`, error)
+
+      captureOperationError(error, {
+        operation: 'api_call',
+        service: 'svenska-spel',
+        metadata: { endpoint: `draws/${drawNumber}/result`, method: 'GET', drawNumber },
+      })
+
       throw new Error(`Failed to fetch result for draw ${drawNumber}: ${error}`)
     }
   }
@@ -334,6 +370,13 @@ export class SvenskaSpelApiClient {
         `[Svenska Spel API] Error fetching available draws for ${year}-${month}:`,
         error
       )
+
+      captureOperationError(error, {
+        operation: 'api_call',
+        service: 'svenska-spel',
+        metadata: { endpoint: 'datepicker', method: 'GET', year, month },
+      })
+
       throw new Error(`Failed to fetch available draws: ${error}`)
     }
   }

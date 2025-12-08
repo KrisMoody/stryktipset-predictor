@@ -10,6 +10,7 @@ import { urlManager, type UrlBuildContext } from './utils/url-manager'
 import { scraperAnalytics } from './scraper-analytics'
 import { isRateLimitError } from './scraper-config'
 import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
+import { captureScrapingError } from '~/server/utils/bugsnag-helpers'
 import type { ScrapeOptions, ScrapeResult, ScrapingMethod, UrlPattern } from '~/types'
 
 /**
@@ -188,6 +189,14 @@ export class ScraperServiceV3 {
     } catch (error) {
       console.error(`[Scraper Service V3] Fatal error:`, error)
 
+      // Report fatal error to Bugsnag
+      captureScrapingError(error, {
+        matchId: options.matchId,
+        dataType: 'all',
+        method: 'unknown',
+        duration: Date.now() - startTime,
+      })
+
       return [
         {
           success: false,
@@ -339,6 +348,14 @@ export class ScraperServiceV3 {
         } catch (domError) {
           console.error(`[Scraper Service V3] DOM scraping error for ${dataType}:`, domError)
           error = domError instanceof Error ? domError.message : 'DOM scraping error'
+
+          // Report DOM scraping error to Bugsnag
+          captureScrapingError(domError, {
+            matchId: options.matchId,
+            dataType,
+            method: 'tab_clicking',
+            duration: Date.now() - startTime,
+          })
         }
       }
 
@@ -423,6 +440,14 @@ export class ScraperServiceV3 {
       const isRateLimited = this.isRateLimitErrorResult(errorMessage)
 
       console.error(`[Scraper Service V3] Error scraping ${dataType}:`, error)
+
+      // Report to Bugsnag (rate limits are captured as warnings)
+      captureScrapingError(error, {
+        matchId: options.matchId,
+        dataType,
+        method,
+        duration,
+      })
 
       // Log failure
       await prisma.scrape_operations.create({

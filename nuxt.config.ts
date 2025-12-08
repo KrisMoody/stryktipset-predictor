@@ -43,12 +43,24 @@ export default defineNuxtConfig({
     // Auth configuration
     allowedEmails: process.env.ALLOWED_EMAILS || '',
 
+    // Bugsnag configuration (server-side)
+    bugsnagApiKey: process.env.BUGSNAG_API_KEY || '',
+    bugsnagReleaseStage: process.env.BUGSNAG_RELEASE_STAGE || 'production',
+    bugsnagAppVersion:
+      process.env.VERCEL_GIT_COMMIT_SHA || process.env.npm_package_version || '1.0.0',
+
     // Public keys are now handled by @nuxtjs/supabase module
     // It reads SUPABASE_URL and SUPABASE_KEY automatically
     public: {
       // Auth redirect URL - set to http://localhost:3000 for local development
       // If not set, falls back to window.location.origin
       authRedirectUrl: process.env.AUTH_REDIRECT_URL || '',
+
+      // Bugsnag configuration (client-side)
+      bugsnagApiKey: process.env.BUGSNAG_API_KEY || '',
+      bugsnagReleaseStage: process.env.BUGSNAG_RELEASE_STAGE || 'production',
+      bugsnagAppVersion:
+        process.env.VERCEL_GIT_COMMIT_SHA || process.env.npm_package_version || '1.0.0',
     },
   },
   compatibilityDate: '2024-11-01',
@@ -77,6 +89,11 @@ export default defineNuxtConfig({
         // Exclude Python venv from file watching
         ignored: ['**/services/ai-scraper/**', '**/*.pyc'],
       },
+    },
+    build: {
+      // Generate source maps for production (hidden = not referenced in output)
+      // These are uploaded to Bugsnag for better stack traces
+      sourcemap: process.env.NODE_ENV === 'production' ? 'hidden' : true,
     },
   },
   typescript: {

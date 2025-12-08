@@ -45,7 +45,11 @@ export default defineNuxtConfig({
 
     // Public keys are now handled by @nuxtjs/supabase module
     // It reads SUPABASE_URL and SUPABASE_KEY automatically
-    public: {},
+    public: {
+      // Auth redirect URL - set to http://localhost:3000 for local development
+      // If not set, falls back to window.location.origin
+      authRedirectUrl: process.env.AUTH_REDIRECT_URL || '',
+    },
   },
   compatibilityDate: '2024-11-01',
   nitro: {

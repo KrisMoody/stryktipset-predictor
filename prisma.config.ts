@@ -7,6 +7,7 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    url: env('DATABASE_URL'),
+    // Use direct URL for migrations (non-pooler connection required for DDL)
+    url: env('DATABASE_DIRECT_URL'),
   },
 })

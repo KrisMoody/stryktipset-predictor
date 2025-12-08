@@ -1,4 +1,5 @@
 export interface AIUsageData {
+  userId?: string
   model: string
   inputTokens: number
   outputTokens: number

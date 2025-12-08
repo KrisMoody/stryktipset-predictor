@@ -1,11 +1,31 @@
 import { scraperServiceV2 } from '~/server/services/scraper/scraper-service-v2'
 import { getScraperServiceV3 } from '~/server/services/scraper/scraper-service-v3'
+import { costCapService } from '~/server/services/cost-cap-service'
+import { getAuthenticatedUser } from '~/server/utils/get-authenticated-user'
+import { prisma } from '~/server/utils/prisma'
 
 export default defineEventHandler(async event => {
   try {
     const config = useRuntimeConfig()
     const matchId = parseInt(event.context.params?.id || '0')
     const body = await readBody(event)
+
+    // Get authenticated user and check cost cap (only for AI scraping)
+    const user = await getAuthenticatedUser(event)
+    const capCheck = await costCapService.checkUserCostCap(user.id, user.email)
+
+    // Only enforce cost cap if AI scraper is enabled (V3 with AI)
+    if (config.enableScraperV3 && config.enableAiScraper && !capCheck.allowed) {
+      throw createError({
+        statusCode: 403,
+        message: capCheck.reason,
+        data: {
+          currentSpending: capCheck.currentSpending,
+          capAmount: capCheck.capAmount,
+          remainingBudget: capCheck.remainingBudget,
+        },
+      })
+    }
 
     // Get match details
     const match = await prisma.matches.findUnique({
@@ -41,6 +61,7 @@ export default defineEventHandler(async event => {
       drawNumber: match.draws.draw_number,
       matchNumber: match.match_number,
       dataTypes,
+      userId: user.id,
     })
 
     return {

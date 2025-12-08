@@ -57,6 +57,7 @@ export async function recordAIUsage(
     try {
       await prisma.ai_usage.create({
         data: {
+          user_id: data.userId,
           model: data.model,
           input_tokens: data.inputTokens,
           output_tokens: data.outputTokens,

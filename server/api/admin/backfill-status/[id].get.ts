@@ -1,10 +1,13 @@
 import { prisma } from '~/server/utils/prisma'
+import { requireAdmin } from '~/server/utils/require-admin'
 
 /**
  * API endpoint to check backfill operation status
  * GET /api/admin/backfill-status/:id
  */
 export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   try {
     const id = getRouterParam(event, 'id')
 

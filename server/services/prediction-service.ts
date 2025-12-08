@@ -11,6 +11,7 @@ import { calculateAICost } from '~/server/constants/ai-pricing'
  * Options for generating a prediction
  */
 export interface PredictMatchOptions {
+  userId?: string
   userContext?: string
   isReevaluation?: boolean
   model?: PredictionModel
@@ -43,7 +44,7 @@ export class PredictionService {
     matchId: number,
     options: PredictMatchOptions = {}
   ): Promise<PredictionData | null> {
-    const { userContext, isReevaluation = false, model = 'claude-sonnet-4-5' } = options
+    const { userId, userContext, isReevaluation = false, model = 'claude-sonnet-4-5' } = options
 
     try {
       console.log(
@@ -94,7 +95,7 @@ export class PredictionService {
       const context = this.prepareMatchContext(match, similarMatches, teamMatchups, userContext)
 
       // Generate prediction using Claude
-      const prediction = await this.generatePrediction(context, matchId, model)
+      const prediction = await this.generatePrediction(context, matchId, model, userId)
 
       if (!prediction) {
         throw new Error('Failed to generate prediction')
@@ -396,7 +397,8 @@ Important guidelines:
   private async generatePrediction(
     context: string,
     matchId: number,
-    model: PredictionModel = 'claude-sonnet-4-5'
+    model: PredictionModel = 'claude-sonnet-4-5',
+    userId?: string
   ): Promise<PredictionData | null> {
     const startTime = Date.now()
     try {
@@ -468,6 +470,7 @@ Important guidelines:
 
       // Record AI usage
       await recordAIUsage({
+        userId,
         model,
         inputTokens,
         outputTokens,
@@ -495,6 +498,7 @@ Important guidelines:
       const duration = Date.now() - startTime
       // Record failed attempt
       await recordAIUsage({
+        userId,
         model,
         inputTokens: 0,
         outputTokens: 0,

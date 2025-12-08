@@ -1,4 +1,5 @@
 import { prisma } from '~/server/utils/prisma'
+import { requireAdmin } from '~/server/utils/require-admin'
 import {
   seasonBackfillService,
   type SeasonBackfillOptions,
@@ -23,6 +24,8 @@ interface BackfillSeasonRequest {
  * POST /api/admin/backfill-season
  */
 export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   try {
     // Parse and validate request body
     const body = await readBody<BackfillSeasonRequest>(event)

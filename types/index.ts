@@ -494,6 +494,7 @@ export interface ScrapeOptions {
   dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news')[]
   timeout?: number
   retries?: number
+  userId?: string
 }
 
 /**

@@ -1,5 +1,7 @@
 import { predictionService } from '~/server/services/prediction-service'
 import { drawCacheService } from '~/server/services/draw-cache-service'
+import { costCapService } from '~/server/services/cost-cap-service'
+import { getAuthenticatedUser } from '~/server/utils/get-authenticated-user'
 import { prisma } from '~/server/utils/prisma'
 import type { PredictionModel } from '~/types'
 
@@ -24,6 +26,22 @@ export interface ReEvaluateAllResponse {
 
 export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> => {
   const startTime = Date.now()
+
+  // Get authenticated user and check cost cap
+  const user = await getAuthenticatedUser(event)
+  const capCheck = await costCapService.checkUserCostCap(user.id, user.email)
+
+  if (!capCheck.allowed) {
+    throw createError({
+      statusCode: 403,
+      message: capCheck.reason,
+      data: {
+        currentSpending: capCheck.currentSpending,
+        capAmount: capCheck.capAmount,
+        remainingBudget: capCheck.remainingBudget,
+      },
+    })
+  }
 
   const drawNumber = parseInt(event.context.params?.drawNumber || '0')
   const body = await readBody<ReEvaluateAllRequest>(event).catch((): ReEvaluateAllRequest => ({}))
@@ -58,6 +76,7 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
     matchIds.map(async (matchId: number): Promise<ReEvaluateResult> => {
       try {
         await predictionService.predictMatch(matchId, {
+          userId: user.id,
           userContext: contexts[matchId],
           isReevaluation: true,
           model,

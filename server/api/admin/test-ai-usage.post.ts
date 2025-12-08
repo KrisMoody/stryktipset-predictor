@@ -1,6 +1,9 @@
 import { testAIUsageWrite } from '../../utils/test-ai-usage-write'
+import { requireAdmin } from '~/server/utils/require-admin'
 
-export default defineEventHandler(async _event => {
+export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   try {
     const result = await testAIUsageWrite()
 

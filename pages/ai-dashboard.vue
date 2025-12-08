@@ -2,224 +2,242 @@
   <UContainer class="py-8">
     <AppBreadcrumb />
 
-    <!-- Header -->
-    <div class="mb-8">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h1 class="text-4xl font-bold mb-2">AI Metrics Dashboard</h1>
-          <p class="text-gray-600 dark:text-gray-400">
-            Monitor AI usage, costs, and optimization opportunities
-          </p>
-        </div>
-        <div class="flex gap-2">
-          <UButton
-            icon="i-heroicons-arrow-path"
-            variant="outline"
-            :loading="refreshing"
-            @click="refreshData"
-          >
-            Refresh
-          </UButton>
-          <UButton
-            icon="i-heroicons-arrow-down-tray"
-            variant="outline"
-            :loading="exporting"
-            @click="exportData"
-          >
-            Export CSV
-          </UButton>
-        </div>
-      </div>
-
-      <!-- Date Range Selector -->
-      <div class="flex gap-2">
-        <UFieldGroup size="sm">
-          <UButton
-            v-for="preset in datePresets"
-            :key="preset.value"
-            :variant="selectedPreset === preset.value ? 'solid' : 'ghost'"
-            @click="selectPreset(preset.value)"
-          >
-            {{ preset.label }}
-          </UButton>
-        </UFieldGroup>
-      </div>
+    <!-- Loading state -->
+    <div v-if="profileLoading" class="flex justify-center py-16">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="flex justify-center py-12">
-      <div class="text-center">
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"
-        />
-        <p class="text-gray-600 dark:text-gray-400">Loading AI metrics...</p>
-      </div>
+    <!-- Access Denied -->
+    <div v-else-if="accessDenied" class="text-center py-16">
+      <UIcon name="i-heroicons-shield-exclamation" class="w-16 h-16 text-red-500 mx-auto mb-4" />
+      <h1 class="text-2xl font-bold mb-2">Access Denied</h1>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">
+        You don't have permission to access this page.
+      </p>
+      <UButton to="/" color="primary">Go to Home</UButton>
     </div>
 
-    <!-- Dashboard Content -->
-    <div v-else class="space-y-6">
-      <!-- Summary Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <AiMetricsCostCard
-          title="Total Cost"
-          :value="overview?.totalCost || 0"
-          format="currency"
-          :decimals="2"
-          icon="i-heroicons-currency-dollar"
-          :subtitle="`${overview?.totalRequests || 0} total requests`"
-        />
-        <AiMetricsCostCard
-          title="Total Tokens"
-          :value="overview?.totalTokens || 0"
-          format="number"
-          icon="i-heroicons-cube"
-          :subtitle="`${formatNumber(overview?.totalInputTokens || 0)} in / ${formatNumber(overview?.totalOutputTokens || 0)} out`"
-        />
-        <AiMetricsCostCard
-          title="Success Rate"
-          :value="overview?.successRate || 0"
-          format="percentage"
-          :decimals="1"
-          icon="i-heroicons-check-circle"
-          :color-class="getSuccessRateColor(overview?.successRate || 0)"
-        />
-        <AiMetricsCostCard
-          title="Avg Cost/Request"
-          :value="overview?.averageCostPerRequest || 0"
-          format="currency"
-          :decimals="6"
-          icon="i-heroicons-calculator"
-        />
-      </div>
-
-      <!-- Budget Analysis -->
-      <UCard v-if="budget">
-        <template #header>
-          <h2 class="text-2xl font-semibold">Budget & Forecasting</h2>
-        </template>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Admin Content -->
+    <template v-else>
+      <!-- Header -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
           <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Current Month</p>
-            <p class="text-3xl font-bold">${{ budget.currentMonthSpending.toFixed(2) }}</p>
-            <p class="text-xs text-gray-500 mt-1">
-              Daily avg: ${{ budget.dailyAverageSpending.toFixed(2) }}
+            <h1 class="text-4xl font-bold mb-2">AI Metrics Dashboard</h1>
+            <p class="text-gray-600 dark:text-gray-400">
+              Monitor AI usage, costs, and optimization opportunities
             </p>
           </div>
-          <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Projected Monthly</p>
-            <p class="text-3xl font-bold">${{ budget.projectedMonthlySpending.toFixed(2) }}</p>
-            <p class="text-xs" :class="getTrendClass(budget.trend)">
-              {{ getTrendLabel(budget.trend) }}
-              ({{ budget.percentageChange > 0 ? '+' : ''
-              }}{{ budget.percentageChange.toFixed(1) }}%)
-            </p>
-          </div>
-          <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Last Month</p>
-            <p class="text-3xl font-bold">${{ budget.lastMonthSpending.toFixed(2) }}</p>
-            <p class="text-xs text-gray-500 mt-1">
-              {{ budget.remainingDaysInMonth }} days remaining
-            </p>
-          </div>
-        </div>
-      </UCard>
-
-      <!-- Cost Trends Chart -->
-      <AiMetricsCostChart
-        title="Cost Trends"
-        :chart-data="currentTrendData"
-        :selected-period="chartPeriod"
-        data-key="cost"
-        @period-change="handlePeriodChange"
-      />
-
-      <!-- Cost Breakdowns -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AiMetricsModelBreakdown
-          title="Cost by AI Model"
-          :data="costs?.byModel || null"
-          :loading="loadingCosts"
-        />
-        <AiMetricsModelBreakdown
-          title="Cost by Operation Type"
-          :data="costs?.byOperation || null"
-          :loading="loadingCosts"
-        />
-      </div>
-
-      <!-- Token Efficiency -->
-      <UCard v-if="efficiency">
-        <template #header>
-          <h2 class="text-2xl font-semibold">Token Efficiency</h2>
-        </template>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Prediction</p>
-            <p class="text-2xl font-bold">
-              {{ formatNumber(efficiency.averageTokensPerPrediction) }}
-            </p>
-            <p class="text-xs text-gray-500">
-              ${{ efficiency.costPerPrediction.toFixed(4) }} per prediction
-            </p>
-          </div>
-          <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Scrape</p>
-            <p class="text-2xl font-bold">
-              {{ formatNumber(efficiency.averageTokensPerScrape) }}
-            </p>
-            <p class="text-xs text-gray-500">
-              ${{ efficiency.costPerScrape.toFixed(4) }} per scrape
-            </p>
-          </div>
-          <div>
-            <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Embedding</p>
-            <p class="text-2xl font-bold">
-              {{ formatNumber(efficiency.averageTokensPerEmbedding) }}
-            </p>
-            <p class="text-xs text-gray-500">
-              ${{ efficiency.costPerEmbedding.toFixed(6) }} per embedding
-            </p>
-          </div>
-        </div>
-
-        <!-- Most Expensive Operations -->
-        <div v-if="efficiency.mostExpensiveOperations.length > 0">
-          <h3 class="text-lg font-semibold mb-4">Most Expensive Operations</h3>
-          <div class="space-y-2">
-            <div
-              v-for="op in efficiency.mostExpensiveOperations.slice(0, 5)"
-              :key="op.operationId"
-              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+          <div class="flex gap-2">
+            <UButton
+              icon="i-heroicons-arrow-path"
+              variant="outline"
+              :loading="refreshing"
+              @click="refreshData"
             >
-              <div>
-                <p class="font-medium">
-                  {{ op.operationId }}
-                </p>
-                <p class="text-xs text-gray-500">{{ op.dataType }} • {{ op.model }}</p>
-              </div>
-              <div class="text-right">
-                <p class="font-semibold">${{ op.cost.toFixed(4) }}</p>
-                <p class="text-xs text-gray-500">{{ formatNumber(op.tokens) }} tokens</p>
+              Refresh
+            </UButton>
+            <UButton
+              icon="i-heroicons-arrow-down-tray"
+              variant="outline"
+              :loading="exporting"
+              @click="exportData"
+            >
+              Export CSV
+            </UButton>
+          </div>
+        </div>
+
+        <!-- Date Range Selector -->
+        <div class="flex gap-2">
+          <UFieldGroup size="sm">
+            <UButton
+              v-for="preset in datePresets"
+              :key="preset.value"
+              :variant="selectedPreset === preset.value ? 'solid' : 'ghost'"
+              @click="selectPreset(preset.value)"
+            >
+              {{ preset.label }}
+            </UButton>
+          </UFieldGroup>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="flex justify-center py-12">
+        <div class="text-center">
+          <div
+            class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"
+          />
+          <p class="text-gray-600 dark:text-gray-400">Loading AI metrics...</p>
+        </div>
+      </div>
+
+      <!-- Dashboard Content -->
+      <div v-else class="space-y-6">
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <AiMetricsCostCard
+            title="Total Cost"
+            :value="overview?.totalCost || 0"
+            format="currency"
+            :decimals="2"
+            icon="i-heroicons-currency-dollar"
+            :subtitle="`${overview?.totalRequests || 0} total requests`"
+          />
+          <AiMetricsCostCard
+            title="Total Tokens"
+            :value="overview?.totalTokens || 0"
+            format="number"
+            icon="i-heroicons-cube"
+            :subtitle="`${formatNumber(overview?.totalInputTokens || 0)} in / ${formatNumber(overview?.totalOutputTokens || 0)} out`"
+          />
+          <AiMetricsCostCard
+            title="Success Rate"
+            :value="overview?.successRate || 0"
+            format="percentage"
+            :decimals="1"
+            icon="i-heroicons-check-circle"
+            :color-class="getSuccessRateColor(overview?.successRate || 0)"
+          />
+          <AiMetricsCostCard
+            title="Avg Cost/Request"
+            :value="overview?.averageCostPerRequest || 0"
+            format="currency"
+            :decimals="6"
+            icon="i-heroicons-calculator"
+          />
+        </div>
+
+        <!-- Budget Analysis -->
+        <UCard v-if="budget">
+          <template #header>
+            <h2 class="text-2xl font-semibold">Budget & Forecasting</h2>
+          </template>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Current Month</p>
+              <p class="text-3xl font-bold">${{ budget.currentMonthSpending.toFixed(2) }}</p>
+              <p class="text-xs text-gray-500 mt-1">
+                Daily avg: ${{ budget.dailyAverageSpending.toFixed(2) }}
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Projected Monthly</p>
+              <p class="text-3xl font-bold">${{ budget.projectedMonthlySpending.toFixed(2) }}</p>
+              <p class="text-xs" :class="getTrendClass(budget.trend)">
+                {{ getTrendLabel(budget.trend) }}
+                ({{ budget.percentageChange > 0 ? '+' : ''
+                }}{{ budget.percentageChange.toFixed(1) }}%)
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Last Month</p>
+              <p class="text-3xl font-bold">${{ budget.lastMonthSpending.toFixed(2) }}</p>
+              <p class="text-xs text-gray-500 mt-1">
+                {{ budget.remainingDaysInMonth }} days remaining
+              </p>
+            </div>
+          </div>
+        </UCard>
+
+        <!-- Cost Trends Chart -->
+        <AiMetricsCostChart
+          title="Cost Trends"
+          :chart-data="currentTrendData"
+          :selected-period="chartPeriod"
+          data-key="cost"
+          @period-change="handlePeriodChange"
+        />
+
+        <!-- Cost Breakdowns -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AiMetricsModelBreakdown
+            title="Cost by AI Model"
+            :data="costs?.byModel || null"
+            :loading="loadingCosts"
+          />
+          <AiMetricsModelBreakdown
+            title="Cost by Operation Type"
+            :data="costs?.byOperation || null"
+            :loading="loadingCosts"
+          />
+        </div>
+
+        <!-- Token Efficiency -->
+        <UCard v-if="efficiency">
+          <template #header>
+            <h2 class="text-2xl font-semibold">Token Efficiency</h2>
+          </template>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Prediction</p>
+              <p class="text-2xl font-bold">
+                {{ formatNumber(efficiency.averageTokensPerPrediction) }}
+              </p>
+              <p class="text-xs text-gray-500">
+                ${{ efficiency.costPerPrediction.toFixed(4) }} per prediction
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Scrape</p>
+              <p class="text-2xl font-bold">
+                {{ formatNumber(efficiency.averageTokensPerScrape) }}
+              </p>
+              <p class="text-xs text-gray-500">
+                ${{ efficiency.costPerScrape.toFixed(4) }} per scrape
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Avg Tokens/Embedding</p>
+              <p class="text-2xl font-bold">
+                {{ formatNumber(efficiency.averageTokensPerEmbedding) }}
+              </p>
+              <p class="text-xs text-gray-500">
+                ${{ efficiency.costPerEmbedding.toFixed(6) }} per embedding
+              </p>
+            </div>
+          </div>
+
+          <!-- Most Expensive Operations -->
+          <div v-if="efficiency.mostExpensiveOperations.length > 0">
+            <h3 class="text-lg font-semibold mb-4">Most Expensive Operations</h3>
+            <div class="space-y-2">
+              <div
+                v-for="op in efficiency.mostExpensiveOperations.slice(0, 5)"
+                :key="op.operationId"
+                class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              >
+                <div>
+                  <p class="font-medium">
+                    {{ op.operationId }}
+                  </p>
+                  <p class="text-xs text-gray-500">{{ op.dataType }} • {{ op.model }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="font-semibold">${{ op.cost.toFixed(4) }}</p>
+                  <p class="text-xs text-gray-500">{{ formatNumber(op.tokens) }} tokens</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </UCard>
+        </UCard>
 
-      <!-- Optimization Recommendations -->
-      <div v-if="recommendations && recommendations.length > 0">
-        <h2 class="text-2xl font-semibold mb-4">Optimization Recommendations</h2>
-        <div class="grid grid-cols-1 gap-4">
-          <AiMetricsOptimizationAlert
-            v-for="rec in recommendations"
-            :key="rec.id"
-            :recommendation="rec"
-          />
+        <!-- Optimization Recommendations -->
+        <div v-if="recommendations && recommendations.length > 0">
+          <h2 class="text-2xl font-semibold mb-4">Optimization Recommendations</h2>
+          <div class="grid grid-cols-1 gap-4">
+            <AiMetricsOptimizationAlert
+              v-for="rec in recommendations"
+              :key="rec.id"
+              :recommendation="rec"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </UContainer>
 </template>
 
@@ -231,6 +249,11 @@ import type {
   BudgetAnalysis,
   OptimizationRecommendation,
 } from '~/types'
+import { useUserProfile } from '~/composables/useUserProfile'
+
+// Admin access check
+const { isAdmin, fetchProfile, loading: profileLoading } = useUserProfile()
+const accessDenied = ref(false)
 
 // Types for serialized API responses (Date fields become strings over HTTP)
 interface AIMetricsOverviewResponse {
@@ -322,6 +345,13 @@ const currentTrendData = computed(() => {
 
 // Load data on mount
 onMounted(async () => {
+  // Check admin access first
+  await fetchProfile()
+  if (!isAdmin.value) {
+    accessDenied.value = true
+    return
+  }
+
   await loadAllData()
 })
 

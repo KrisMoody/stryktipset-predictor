@@ -1,8 +1,12 @@
 import { drawSyncService } from '~/server/services/draw-sync'
 import { drawCacheService } from '~/server/services/draw-cache-service'
 import { scheduleWindowService } from '~/server/services/schedule-window-service'
+import { requireAdmin } from '~/server/utils/require-admin'
 
 export default defineEventHandler(async event => {
+  // Require admin access
+  await requireAdmin(event)
+
   try {
     // Read body for adminOverride flag
     const body = await readBody(event).catch(() => ({}))

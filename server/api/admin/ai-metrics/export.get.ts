@@ -1,7 +1,10 @@
 import { prisma } from '~/server/utils/prisma'
+import { requireAdmin } from '~/server/utils/require-admin'
 import type { AIMetricsExportData } from '~/types'
 
 export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   try {
     const query = getQuery(event)
 

@@ -1,7 +1,10 @@
 import { failedWritesQueue } from '../../utils/failed-writes-queue'
 import { retryFailedWrites } from '../../utils/ai-usage-recorder'
+import { requireAdmin } from '~/server/utils/require-admin'
 
 export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   try {
     const query = getQuery(event)
     const action = query.action as string | undefined

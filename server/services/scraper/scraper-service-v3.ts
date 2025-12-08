@@ -258,6 +258,7 @@ export class ScraperServiceV3 {
                 const totalCost = inputCost + outputCost
 
                 await recordAIUsage({
+                  userId: options.userId,
                   model: 'claude-haiku-4-5',
                   inputTokens: aiResult.tokens.input,
                   outputTokens: aiResult.tokens.output,
@@ -293,6 +294,7 @@ export class ScraperServiceV3 {
                 const totalCost = inputCost + outputCost
 
                 await recordAIUsage({
+                  userId: options.userId,
                   model: 'claude-haiku-4-5',
                   inputTokens: aiResult.tokens.input,
                   outputTokens: aiResult.tokens.output,

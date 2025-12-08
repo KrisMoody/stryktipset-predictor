@@ -1,7 +1,10 @@
 import { aiMetricsService } from '~/server/services/ai-metrics-service'
+import { requireAdmin } from '~/server/utils/require-admin'
 import type { DateRangeFilter } from '~/types'
 
 export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   try {
     const query = getQuery(event)
 

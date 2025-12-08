@@ -3,8 +3,12 @@
  */
 
 import { prisma } from '~/server/utils/prisma'
+import { requireAdmin } from '~/server/utils/require-admin'
 
-export default defineEventHandler(async _event => {
+export default defineEventHandler(async event => {
+  // Require admin access
+  await requireAdmin(event)
+
   try {
     // Get AI usage statistics
     const aiUsageStats = await prisma.ai_usage.groupBy({

@@ -1,6 +1,9 @@
 import { aiUsageMetrics } from '../../utils/ai-usage-metrics'
+import { requireAdmin } from '~/server/utils/require-admin'
 
-export default defineEventHandler(async _event => {
+export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   try {
     const metrics = aiUsageMetrics.getMetrics()
 

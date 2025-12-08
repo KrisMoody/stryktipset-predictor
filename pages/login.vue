@@ -46,43 +46,6 @@
           </template>
         </UAlert>
 
-        <!-- Divider -->
-        <div class="relative my-6">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-300 dark:border-gray-700" />
-          </div>
-          <div class="relative flex justify-center text-sm">
-            <span class="px-2 bg-white dark:bg-gray-800 text-gray-500"> Or continue with </span>
-          </div>
-        </div>
-
-        <!-- OAuth Providers -->
-        <div class="space-y-3">
-          <UButton
-            block
-            size="lg"
-            variant="outline"
-            :loading="loadingProvider === 'google'"
-            :disabled="loading"
-            @click="handleOAuth('google')"
-          >
-            <UIcon name="i-lucide-mail" class="w-5 h-5 mr-2" />
-            Continue with Google
-          </UButton>
-
-          <UButton
-            block
-            size="lg"
-            variant="outline"
-            :loading="loadingProvider === 'github'"
-            :disabled="loading"
-            @click="handleOAuth('github')"
-          >
-            <UIcon name="i-lucide-github" class="w-5 h-5 mr-2" />
-            Continue with GitHub
-          </UButton>
-        </div>
-
         <!-- Error Message -->
         <UAlert v-if="error" color="error" icon="i-heroicons-exclamation-triangle" class="mt-4">
           <template #title>Authentication Error</template>
@@ -104,10 +67,10 @@ definePageMeta({
 
 const supabase = useSupabaseClient()
 const user = useSupabaseUser()
+const config = useRuntimeConfig()
 
 const email = ref('')
 const loading = ref(false)
-const loadingProvider = ref<string | null>(null)
 const error = ref<string | null>(null)
 const magicLinkSent = ref(false)
 
@@ -130,10 +93,12 @@ async function handleMagicLink() {
   magicLinkSent.value = false
 
   try {
+    // Use configured redirect URL or fall back to current origin
+    const baseUrl = config.public.authRedirectUrl || window.location.origin
     const { error: authError } = await supabase.auth.signInWithOtp({
       email: email.value,
       options: {
-        emailRedirectTo: `${window.location.origin}/confirm`,
+        emailRedirectTo: `${baseUrl}/confirm`,
       },
     })
 
@@ -147,29 +112,6 @@ async function handleMagicLink() {
     console.error('Magic link error:', e)
   } finally {
     loading.value = false
-  }
-}
-
-async function handleOAuth(provider: 'google' | 'github') {
-  loadingProvider.value = provider
-  error.value = null
-
-  try {
-    const { error: authError } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/confirm`,
-      },
-    })
-
-    if (authError) {
-      error.value = authError.message
-    }
-  } catch (e) {
-    error.value = 'An unexpected error occurred. Please try again.'
-    console.error('OAuth error:', e)
-  } finally {
-    loadingProvider.value = null
   }
 }
 </script>

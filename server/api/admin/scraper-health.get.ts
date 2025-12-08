@@ -1,6 +1,9 @@
 import { scraperService } from '~/server/services/scraper/scraper-service'
+import { requireAdmin } from '~/server/utils/require-admin'
 
-export default defineEventHandler(async _event => {
+export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   try {
     const health = await scraperService.getHealthMetrics()
 

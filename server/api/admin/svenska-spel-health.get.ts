@@ -1,10 +1,13 @@
 import { svenskaSpelApi } from '~/server/services/svenska-spel-api'
+import { requireAdmin } from '~/server/utils/require-admin'
 
 /**
  * Health check endpoint for Svenska Spel API
  * Tests connectivity and response time
  */
-export default defineEventHandler(async _event => {
+export default defineEventHandler(async event => {
+  await requireAdmin(event)
+
   const startTime = Date.now()
 
   try {

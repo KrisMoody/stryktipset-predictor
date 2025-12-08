@@ -1,6 +1,6 @@
 import { requireAdmin } from '~/server/utils/require-admin'
 import { getAuthenticatedUser } from '~/server/utils/get-authenticated-user'
-import { inviteUserByEmail } from '~/server/utils/supabase-admin'
+import { inviteUserByEmail, resendInvitation } from '~/server/utils/supabase-admin'
 import { costCapService } from '~/server/services/cost-cap-service'
 
 /**
@@ -34,8 +34,8 @@ export default defineEventHandler(async event => {
   if (existingProfile) {
     // Check if this is a pending invitation that hasn't been accepted
     if (existingProfile.userId === null) {
-      // Allow re-sending invitation
-      const result = await inviteUserByEmail(email)
+      // Allow re-sending invitation using the resend function
+      const result = await resendInvitation(email)
       if (!result.success) {
         throw createError({
           statusCode: 500,

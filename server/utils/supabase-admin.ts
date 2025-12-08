@@ -90,6 +90,53 @@ export async function inviteUserByEmail(email: string): Promise<InviteUserResult
 }
 
 /**
+ * Resend invitation to an existing user who hasn't confirmed yet
+ * Uses signInWithOtp to send a new magic link email
+ */
+export async function resendInvitation(email: string): Promise<InviteUserResult> {
+  try {
+    const supabase = getSupabaseAdmin()
+    const config = useRuntimeConfig()
+
+    const redirectTo = config.public?.siteUrl
+      ? `${config.public.siteUrl}/confirm`
+      : process.env.NUXT_PUBLIC_SITE_URL
+        ? `${process.env.NUXT_PUBLIC_SITE_URL}/confirm`
+        : undefined
+
+    // Use signInWithOtp to send a magic link email
+    // This works for both new and existing users
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectTo,
+        shouldCreateUser: false, // Don't create if doesn't exist
+      },
+    })
+
+    if (error) {
+      logger.error('Failed to resend invitation', error, { email })
+      return {
+        success: false,
+        error: error.message,
+      }
+    }
+
+    logger.info('Invitation resent successfully', { email })
+
+    return {
+      success: true,
+    }
+  } catch (error) {
+    logger.error('Error resending invitation', error, { email })
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
  * Delete a user from Supabase Auth (use with caution)
  */
 export async function deleteUser(userId: string): Promise<{ success: boolean; error?: string }> {

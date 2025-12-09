@@ -255,11 +255,12 @@ const isActionAllowed = computed(() => {
 const syncing = ref(false)
 const generatingPredictions = ref<Record<number, boolean>>({})
 
-// Load schedule status
+// Load schedule status for the selected game type
 async function loadScheduleStatus() {
   try {
     const result = await $fetch<{ success: boolean; status?: ScheduleWindowStatus }>(
-      '/api/schedule/status'
+      '/api/schedule/status',
+      { query: { gameType: selectedGameType.value } }
     )
     if (result.success && result.status) {
       scheduleStatus.value = result.status
@@ -268,6 +269,11 @@ async function loadScheduleStatus() {
     console.error('Error loading schedule status:', error)
   }
 }
+
+// Watch for game type changes and reload schedule status
+watch(selectedGameType, () => {
+  loadScheduleStatus()
+})
 
 // Load schedule status on mount and refresh every minute
 onMounted(async () => {

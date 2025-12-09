@@ -1,11 +1,13 @@
 import NodeCache from 'node-cache'
+import { scheduleWindowService } from './schedule-window-service'
 
 /**
- * Core caching service with day-aware TTL logic
+ * Core caching service with deadline-aware TTL logic
  *
- * Implements in-memory caching with automatic TTL based on day of week:
- * - Saturday: 5 minutes (coupon deadline day, need fresh data)
- * - Other days: 24 hours (weekday traffic, stale data acceptable)
+ * Implements in-memory caching with automatic TTL based on nearest draw deadline:
+ * - Late phase (<12h to deadline): 5 minutes (need fresh data)
+ * - Mid phase (12-36h): 1 hour (moderate freshness)
+ * - Early/Closed: 24 hours (stale data acceptable)
  */
 class CacheService {
   private cache: NodeCache
@@ -36,31 +38,37 @@ class CacheService {
   }
 
   /**
-   * Get current day-aware TTL in seconds based on Stockholm timezone
+   * Get current TTL in seconds based on nearest draw deadline proximity
    *
-   * @returns TTL in seconds (300 for Saturday, 86400 for other days)
+   * Uses the schedule window service to determine current phase:
+   * - Late phase (<12h): 300s (5 minutes)
+   * - Mid phase (12-36h): 3600s (1 hour)
+   * - Early/Closed (>36h or no draws): 86400s (24 hours)
+   *
+   * @returns TTL in seconds
    */
   getCacheTTL(): number {
     try {
-      // Get current time in Stockholm timezone
-      const stockholmTime = new Date().toLocaleString('en-US', {
-        timeZone: 'Europe/Stockholm',
-      })
-      const swedenDate = new Date(stockholmTime)
-      const dayOfWeek = swedenDate.getDay() // 0 = Sunday, 6 = Saturday
+      const status = scheduleWindowService.getWindowStatus()
 
-      const ttl = dayOfWeek === 6 ? 300 : 86400 // 5 minutes on Saturday, 24 hours otherwise
+      let ttl: number
+      switch (status.currentPhase) {
+        case 'late':
+          ttl = 300 // 5 minutes
+          break
+        case 'mid':
+          ttl = 3600 // 1 hour
+          break
+        case 'early':
+        case 'closed':
+        default:
+          ttl = 86400 // 24 hours
+          break
+      }
 
-      const dayName = [
-        'Sunday',
-        'Monday',
-        'Tuesday',
-        'Wednesday',
-        'Thursday',
-        'Friday',
-        'Saturday',
-      ][dayOfWeek]
-      console.log(`[Cache] Day-aware TTL: ${dayName} → ${ttl}s (${ttl / 60}min)`)
+      console.log(
+        `[Cache] Deadline-aware TTL: phase=${status.currentPhase} → ${ttl}s (${ttl / 60}min)`
+      )
 
       return ttl
     } catch (error) {
@@ -95,7 +103,7 @@ class CacheService {
    *
    * @param key Cache key
    * @param value Value to cache
-   * @param ttl Optional TTL in seconds (uses day-aware TTL if not provided)
+   * @param ttl Optional TTL in seconds (uses deadline-aware TTL if not provided)
    */
   set<T>(key: string, value: T, ttl?: number): void {
     try {

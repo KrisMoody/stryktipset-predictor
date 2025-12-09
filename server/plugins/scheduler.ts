@@ -5,6 +5,7 @@ import { drawCacheService } from '../services/draw-cache-service'
 import { scheduleWindowService } from '../services/schedule-window-service'
 import { progressiveScraper } from '../services/progressive-scraper'
 import { captureOperationError } from '../utils/bugsnag-helpers'
+import { getAllGameTypes } from '../constants/game-configs'
 
 export default defineNitroPlugin(() => {
   // Skip scheduler in CI/test environments to prevent blocking server startup
@@ -13,39 +14,77 @@ export default defineNitroPlugin(() => {
     return
   }
 
-  console.log('[Scheduler] Initializing scheduled tasks...')
+  console.log('[Scheduler] Initializing multi-game scheduled tasks...')
 
-  // Sync current draws daily at midnight - window-aware
+  /**
+   * Sync all game types
+   */
+  const syncAllGameTypes = async (
+    mode: 'full' | 'metadata'
+  ): Promise<{ total: number; errors: string[] }> => {
+    const gameTypes = getAllGameTypes()
+    let total = 0
+    const errors: string[] = []
+
+    for (const gameType of gameTypes) {
+      try {
+        const result =
+          mode === 'full'
+            ? await drawSyncService.syncCurrentDraws(gameType)
+            : await drawSyncService.syncDrawMetadataOnly(gameType)
+
+        if (result.success) {
+          total += result.drawsProcessed
+          const matchInfo =
+            mode === 'full' && 'matchesProcessed' in result
+              ? `, ${result.matchesProcessed} matches`
+              : ''
+          console.log(`[Scheduler] Synced ${gameType}: ${result.drawsProcessed} draws${matchInfo}`)
+        } else {
+          errors.push(`${gameType}: ${result.error}`)
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        errors.push(`${gameType}: ${errorMsg}`)
+        console.error(`[Scheduler] Error syncing ${gameType}:`, error)
+      }
+    }
+
+    return { total, errors }
+  }
+
+  // Refresh schedule window cache every 5 minutes
+  new Cron('*/5 * * * *', async () => {
+    try {
+      await scheduleWindowService.refreshActiveDrawsCache()
+    } catch (error) {
+      console.error('[Scheduler] Error refreshing schedule cache:', error)
+    }
+  })
+
+  // Sync all game types daily at midnight
   new Cron('0 0 * * *', async () => {
-    const status = scheduleWindowService.getWindowStatus()
+    const status = await scheduleWindowService.getWindowStatusAsync()
     console.log(
-      `[Scheduler] Running scheduled draw sync (window: ${status.isActive ? 'active' : 'closed'}, phase: ${status.currentPhase})`
+      `[Scheduler] Running midnight sync for all games (window: ${status.isActive ? 'active' : 'closed'}, phase: ${status.currentPhase})`
     )
 
     try {
-      if (status.isActive) {
-        // Full sync during active window
-        const result = await drawSyncService.syncCurrentDraws()
-        if (result.success) {
-          console.log(
-            `[Scheduler] Full sync completed: ${result.drawsProcessed} draws, ${result.matchesProcessed} matches`
-          )
-          drawCacheService.invalidateAllDrawCache()
-        } else {
-          console.error(`[Scheduler] Full sync failed: ${result.error}`)
-        }
+      const mode = status.isActive ? 'full' : 'metadata'
+      const { total, errors } = await syncAllGameTypes(mode)
+
+      if (errors.length === 0) {
+        console.log(`[Scheduler] Midnight sync completed: ${total} draws total`)
       } else {
-        // Metadata-only sync outside window
-        const result = await drawSyncService.syncDrawMetadataOnly()
-        if (result.success) {
-          console.log(`[Scheduler] Metadata sync completed: ${result.drawsProcessed} draws`)
-          drawCacheService.invalidateAllDrawCache()
-        } else {
-          console.error(`[Scheduler] Metadata sync failed: ${result.error}`)
-        }
+        console.warn(
+          `[Scheduler] Midnight sync completed with errors: ${total} draws, ${errors.length} failures`
+        )
       }
+
+      drawCacheService.invalidateAllDrawCache()
+      await scheduleWindowService.forceRefreshCache()
     } catch (error) {
-      console.error('[Scheduler] Unexpected error in scheduled draw sync:', error)
+      console.error('[Scheduler] Unexpected error in midnight sync:', error)
 
       captureOperationError(error, {
         operation: 'scheduled_task',
@@ -55,24 +94,29 @@ export default defineNitroPlugin(() => {
     }
   })
 
-  // Sunday 6 AM - light sync to detect new coupon opening
-  new Cron('0 6 * * 0', async () => {
-    console.log('[Scheduler] Running Sunday morning metadata sync to detect new coupon...')
+  // Morning sync at 6 AM for all games (catches overnight draw openings)
+  new Cron('0 6 * * *', async () => {
+    console.log('[Scheduler] Running 6 AM sync for all games...')
     try {
-      const result = await drawSyncService.syncDrawMetadataOnly()
-      if (result.success) {
-        console.log(`[Scheduler] Sunday metadata sync completed: ${result.drawsProcessed} draws`)
-        drawCacheService.invalidateAllDrawCache()
+      const { total, errors } = await syncAllGameTypes('full')
+
+      if (errors.length === 0) {
+        console.log(`[Scheduler] 6 AM sync completed: ${total} draws total`)
       } else {
-        console.error(`[Scheduler] Sunday metadata sync failed: ${result.error}`)
+        console.warn(
+          `[Scheduler] 6 AM sync completed with errors: ${total} draws, ${errors.length} failures`
+        )
       }
+
+      drawCacheService.invalidateAllDrawCache()
+      await scheduleWindowService.forceRefreshCache()
     } catch (error) {
-      console.error('[Scheduler] Unexpected error in Sunday metadata sync:', error)
+      console.error('[Scheduler] Unexpected error in 6 AM sync:', error)
 
       captureOperationError(error, {
         operation: 'scheduled_task',
         service: 'draw-sync',
-        metadata: { schedule: 'sunday-6am' },
+        metadata: { schedule: 'daily-6am' },
       })
     }
   })
@@ -94,85 +138,96 @@ export default defineNitroPlugin(() => {
     }
   })
 
-  // Progressive scraping: Every 4 hours Tue-Fri (during active window)
-  // Refreshes stale match data based on dynamic threshold
-  new Cron('0 8,12,16,20 * * 2-5', async () => {
-    const status = scheduleWindowService.getWindowStatus()
+  // Dynamic scraping: Every hour, decide based on deadline proximity
+  // - Late phase (< 12h): scrape every hour
+  // - Mid phase (12-36h): scrape every 2 hours
+  // - Early phase (> 36h): scrape every 4 hours
+  // - Closed: skip
+  new Cron('0 * * * *', async () => {
+    const status = await scheduleWindowService.getWindowStatusAsync()
+
     if (!status.isActive) {
-      console.log('[Scheduler] Skipping progressive scrape - outside betting window')
+      // No active draws, skip scraping
+      return
+    }
+
+    const hour = new Date().getHours()
+
+    // Determine if we should scrape based on phase
+    let shouldScrape = false
+    switch (status.currentPhase) {
+      case 'late':
+        // Scrape every hour in late phase
+        shouldScrape = true
+        break
+      case 'mid':
+        // Scrape every 2 hours in mid phase
+        shouldScrape = hour % 2 === 0
+        break
+      case 'early':
+        // Scrape every 4 hours in early phase
+        shouldScrape = hour % 4 === 0
+        break
+    }
+
+    if (!shouldScrape) {
       return
     }
 
     console.log(
-      `[Scheduler] Running progressive scrape (phase: ${status.currentPhase}, threshold: ${status.dataRefreshThreshold}h)`
+      `[Scheduler] Running dynamic scrape (phase: ${status.currentPhase}, ` +
+        `threshold: ${status.dataRefreshThreshold}h, active draws: ${status.activeDraws.length})`
     )
+
     try {
       const result = await progressiveScraper.queueStaleMatches(status.dataRefreshThreshold)
       console.log(
-        `[Scheduler] Progressive scrape complete: ${result.queued} queued, ${result.skipped} skipped`
+        `[Scheduler] Dynamic scrape complete: ${result.queued} queued, ${result.skipped} skipped`
       )
     } catch (error) {
-      console.error('[Scheduler] Error in progressive scrape:', error)
+      console.error('[Scheduler] Error in dynamic scrape:', error)
 
       captureOperationError(error, {
         operation: 'scheduled_task',
         service: 'progressive-scraper',
-        metadata: { schedule: 'tue-fri-4h', phase: status.currentPhase },
-      })
-    }
-  })
-
-  // Saturday aggressive scraping: Every 2 hours from 6 AM to 2 PM (before 15:59 spelstopp)
-  // Uses shorter threshold (4h) for fresher data on match day
-  new Cron('0 6,8,10,12,14 * * 6', async () => {
-    const status = scheduleWindowService.getWindowStatus()
-    if (!status.isActive) {
-      console.log('[Scheduler] Skipping Saturday scrape - outside betting window')
-      return
-    }
-
-    console.log(
-      `[Scheduler] Running Saturday aggressive scrape (phase: ${status.currentPhase}, threshold: ${status.dataRefreshThreshold}h)`
-    )
-    try {
-      const result = await progressiveScraper.queueStaleMatches(status.dataRefreshThreshold)
-      console.log(
-        `[Scheduler] Saturday scrape complete: ${result.queued} queued, ${result.skipped} skipped`
-      )
-    } catch (error) {
-      console.error('[Scheduler] Error in Saturday scrape:', error)
-
-      captureOperationError(error, {
-        operation: 'scheduled_task',
-        service: 'progressive-scraper',
-        metadata: { schedule: 'saturday-2h', phase: status.currentPhase },
+        metadata: {
+          schedule: 'hourly-dynamic',
+          phase: status.currentPhase,
+          activeDraws: status.activeDraws.length,
+        },
       })
     }
   })
 
   // Initial sync on startup (after 30 seconds to allow server warmup)
   const runInitialSync = async (attempt = 1, maxAttempts = 3) => {
-    console.log(`[Scheduler] Running initial draw sync (attempt ${attempt}/${maxAttempts})...`)
+    console.log(
+      `[Scheduler] Running initial sync for all games (attempt ${attempt}/${maxAttempts})...`
+    )
     try {
-      const result = await drawSyncService.syncCurrentDraws()
-      if (result.success) {
-        console.log(
-          `[Scheduler] Initial sync completed: ${result.drawsProcessed} draws, ${result.matchesProcessed} matches`
-        )
-      } else {
-        console.warn(`[Scheduler] Initial sync had issues: ${result.error}`)
+      const { total, errors } = await syncAllGameTypes('full')
 
-        // Retry if we haven't reached max attempts and got no draws
-        if (attempt < maxAttempts && result.drawsProcessed === 0) {
-          const retryDelay = attempt * 15000 // 15s, 30s
-          console.log(`[Scheduler] Retrying initial sync in ${retryDelay / 1000} seconds...`)
-          setTimeout(() => runInitialSync(attempt + 1, maxAttempts), retryDelay)
-        }
+      if (total > 0 || errors.length === 0) {
+        console.log(
+          `[Scheduler] Initial sync completed: ${total} draws${
+            errors.length > 0 ? ` (${errors.length} games had errors)` : ''
+          }`
+        )
+        drawCacheService.invalidateAllDrawCache()
+        await scheduleWindowService.forceRefreshCache()
+      } else if (attempt < maxAttempts) {
+        // No draws synced and we have retries left
+        const retryDelay = attempt * 15000 // 15s, 30s
+        console.log(`[Scheduler] Retrying initial sync in ${retryDelay / 1000} seconds...`)
+        setTimeout(() => runInitialSync(attempt + 1, maxAttempts), retryDelay)
+      } else {
+        console.error(
+          '[Scheduler] Initial sync failed after all retry attempts. Scheduled syncs will continue.'
+        )
       }
     } catch (error) {
       console.error(`[Scheduler] Error in initial sync (attempt ${attempt}):`, error)
 
-      // Retry if we haven't reached max attempts
       if (attempt < maxAttempts) {
         const retryDelay = attempt * 15000 // 15s, 30s
         console.log(`[Scheduler] Retrying initial sync in ${retryDelay / 1000} seconds...`)
@@ -187,15 +242,13 @@ export default defineNitroPlugin(() => {
 
   setTimeout(() => runInitialSync(), 30000) // Start after 30 seconds
 
-  console.log('[Scheduler] Scheduled tasks initialized:')
-  console.log(
-    '  - Draw sync: Daily at midnight (window-aware: full sync if active, metadata-only if closed)'
-  )
-  console.log('  - Sunday sync: 6 AM (metadata-only to detect new coupon)')
+  console.log('[Scheduler] Multi-game scheduled tasks initialized:')
+  console.log('  - Cache refresh: Every 5 minutes')
+  console.log('  - Draw sync: Daily at midnight and 6 AM (all game types)')
   console.log('  - Performance update: Daily at 3 AM')
-  console.log('  - Progressive scrape: Tue-Fri at 8:00, 12:00, 16:00, 20:00 (stale data refresh)')
-  console.log(
-    '  - Saturday scrape: 6:00, 8:00, 10:00, 12:00, 14:00 (aggressive refresh before spelstopp)'
-  )
+  console.log('  - Dynamic scrape: Hourly (frequency based on deadline proximity)')
+  console.log('    - Late phase (<12h): every hour')
+  console.log('    - Mid phase (12-36h): every 2 hours')
+  console.log('    - Early phase (>36h): every 4 hours')
   console.log('  - Initial sync: 30 seconds after startup (with retry logic)')
 })

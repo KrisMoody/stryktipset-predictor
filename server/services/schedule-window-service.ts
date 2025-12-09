@@ -1,13 +1,33 @@
 /**
  * Schedule Window Service
  *
- * Manages the Stryktipset betting window schedule:
- * - Active window: Tuesday 00:00 → Saturday 15:59 (Stockholm timezone)
- * - Outside window: Sunday, Monday, Saturday after 16:00
+ * Manages betting window scheduling for all game types (Stryktipset, Europatipset, Topptipset)
+ * based on actual draw deadlines (close_time) from the database.
  *
- * Provides progressive scraping intensity based on proximity to spelstopp.
+ * - Uses per-draw deadline proximity instead of fixed day-of-week patterns
+ * - Phases: early (>36h), mid (12-36h), late (<12h), closed (no active draws)
+ * - Provides progressive scraping intensity based on proximity to spelstopp
  */
 
+import type { GameType } from '~/types/game-types'
+import { prisma } from '~/server/utils/prisma'
+
+/**
+ * Status for an individual draw
+ */
+export interface DrawScheduleStatus {
+  drawNumber: number
+  gameType: GameType
+  closeTime: Date
+  hoursUntilClose: number
+  phase: 'early' | 'mid' | 'late' | 'closed'
+  scrapingIntensity: 'normal' | 'aggressive' | 'very_aggressive'
+  dataRefreshThreshold: number
+}
+
+/**
+ * Global schedule window status (backward compatible + new fields)
+ */
 export interface ScheduleWindowStatus {
   isActive: boolean
   currentPhase: 'early' | 'mid' | 'late' | 'closed'
@@ -19,6 +39,9 @@ export interface ScheduleWindowStatus {
   dataRefreshThreshold: number // Hours
   reason: string
   stockholmTime: string
+  // New fields for multi-draw awareness
+  activeDraws: DrawScheduleStatus[]
+  nearestDraw: DrawScheduleStatus | null
 }
 
 export interface ScheduleOperationPermission {
@@ -26,20 +49,23 @@ export interface ScheduleOperationPermission {
   reason: string
 }
 
-// Window configuration
-const WINDOW_OPEN_DAY = 2 // Tuesday
-const WINDOW_OPEN_HOUR = 0
-const WINDOW_OPEN_MINUTE = 0
-
-const WINDOW_CLOSE_DAY = 6 // Saturday
-const WINDOW_CLOSE_HOUR = 15
-const WINDOW_CLOSE_MINUTE = 59
-
 // Intensity thresholds (hours before close)
-const LATE_PHASE_HOURS = 12 // Saturday morning
-const MID_PHASE_HOURS = 36 // Friday
+const LATE_PHASE_HOURS = 12
+const MID_PHASE_HOURS = 36
+
+// Cache configuration
+const CACHE_DURATION_MS = 5 * 60 * 1000 // 5 minutes
+
+interface ActiveDraw {
+  gameType: string
+  drawNumber: number
+  closeTime: Date
+}
 
 class ScheduleWindowService {
+  private activeDrawsCache: ActiveDraw[] = []
+  private cacheExpiry: Date = new Date(0)
+
   /**
    * Get current time in Stockholm timezone
    */
@@ -51,111 +77,83 @@ class ScheduleWindowService {
   }
 
   /**
-   * Get the next spelstopp time (Saturday 15:59)
+   * Fetch active draws from database
    */
-  getNextCloseTime(fromDate?: Date): Date {
-    const now = fromDate || this.getStockholmTime()
-    const close = new Date(now)
-
-    // Set to Saturday 15:59:59
-    close.setHours(WINDOW_CLOSE_HOUR, WINDOW_CLOSE_MINUTE, 59, 999)
-
-    // Find next Saturday
-    const daysUntilSaturday = (WINDOW_CLOSE_DAY - close.getDay() + 7) % 7
-    close.setDate(close.getDate() + daysUntilSaturday)
-
-    // If we're past this Saturday's close time, get next week's
-    if (close <= now) {
-      close.setDate(close.getDate() + 7)
-    }
-
-    return close
+  private async getActiveDrawsFromDB(): Promise<ActiveDraw[]> {
+    const now = new Date()
+    const draws = await prisma.draws.findMany({
+      where: {
+        status: 'Open',
+        close_time: { gt: now },
+      },
+      select: {
+        game_type: true,
+        draw_number: true,
+        close_time: true,
+      },
+      orderBy: { close_time: 'asc' },
+    })
+    return draws
+      .filter(d => d.close_time !== null)
+      .map(d => ({
+        gameType: d.game_type,
+        drawNumber: d.draw_number,
+        closeTime: d.close_time as Date,
+      }))
   }
 
   /**
-   * Get the next window open time (Tuesday 00:00)
+   * Get cached active draws (synchronous for hot paths)
    */
-  getNextOpenTime(fromDate?: Date): Date {
-    const now = fromDate || this.getStockholmTime()
-    const open = new Date(now)
-
-    // Set to Tuesday 00:00:00
-    open.setHours(WINDOW_OPEN_HOUR, WINDOW_OPEN_MINUTE, 0, 0)
-
-    // Find next Tuesday
-    const daysUntilTuesday = (WINDOW_OPEN_DAY - open.getDay() + 7) % 7
-    open.setDate(open.getDate() + daysUntilTuesday)
-
-    // If we're past this Tuesday's open time but still in the window, get next week's
-    if (open <= now) {
-      // Check if we're still in the active window (before Saturday 16:00)
-      const closeTime = this.getNextCloseTime(now)
-      if (now < closeTime && now.getDay() >= WINDOW_OPEN_DAY && now.getDay() <= WINDOW_CLOSE_DAY) {
-        // We're in the window, next open is next week
-        open.setDate(open.getDate() + 7)
-      } else if (daysUntilTuesday === 0) {
-        // It's Tuesday but we've passed 00:00, get next Tuesday
-        open.setDate(open.getDate() + 7)
-      }
-    }
-
-    return open
+  private getCachedActiveDraws(): ActiveDraw[] {
+    return this.activeDrawsCache
   }
 
   /**
-   * Check if currently within the active betting window
+   * Refresh the active draws cache from database
+   * Should be called periodically by the scheduler
    */
-  isInActiveWindow(): boolean {
-    const now = this.getStockholmTime()
-    const dayOfWeek = now.getDay() // 0=Sunday, 6=Saturday
-    const hour = now.getHours()
-    const minute = now.getMinutes()
-
-    // Sunday (0) or Monday (1) - outside window
-    if (dayOfWeek === 0 || dayOfWeek === 1) {
-      return false
+  async refreshActiveDrawsCache(): Promise<void> {
+    const now = new Date()
+    if (now < this.cacheExpiry) {
+      return // Cache still valid
     }
 
-    // Saturday (6) - check if before 16:00
-    if (dayOfWeek === WINDOW_CLOSE_DAY) {
-      if (hour > WINDOW_CLOSE_HOUR) {
-        return false
-      }
-      if (hour === WINDOW_CLOSE_HOUR && minute > WINDOW_CLOSE_MINUTE) {
-        return false
-      }
+    try {
+      this.activeDrawsCache = await this.getActiveDrawsFromDB()
+      this.cacheExpiry = new Date(Date.now() + CACHE_DURATION_MS)
+      console.log(`[ScheduleWindow] Cache refreshed: ${this.activeDrawsCache.length} active draws`)
+    } catch (error) {
+      console.error('[ScheduleWindow] Failed to refresh cache:', error)
+      // Keep stale cache on error, but try again sooner
+      this.cacheExpiry = new Date(Date.now() + 60 * 1000) // Retry in 1 minute
     }
-
-    // Tuesday (2) through Friday (5) or Saturday before 16:00 - active
-    return true
   }
 
   /**
-   * Get the current phase based on time until close
+   * Force cache refresh (ignores expiry)
    */
-  getCurrentPhase(): 'early' | 'mid' | 'late' | 'closed' {
-    if (!this.isInActiveWindow()) {
-      return 'closed'
-    }
-
-    const now = this.getStockholmTime()
-    const closeTime = this.getNextCloseTime(now)
-    const hoursUntilClose = (closeTime.getTime() - now.getTime()) / (1000 * 60 * 60)
-
-    if (hoursUntilClose <= LATE_PHASE_HOURS) {
-      return 'late' // Saturday morning - very aggressive
-    }
-    if (hoursUntilClose <= MID_PHASE_HOURS) {
-      return 'mid' // Friday - aggressive
-    }
-    return 'early' // Tuesday-Thursday - normal
+  async forceRefreshCache(): Promise<void> {
+    this.cacheExpiry = new Date(0)
+    await this.refreshActiveDrawsCache()
   }
 
   /**
-   * Get scraping intensity based on current phase
+   * Calculate phase based on hours until close
    */
-  getScrapingIntensity(): 'normal' | 'aggressive' | 'very_aggressive' {
-    const phase = this.getCurrentPhase()
+  private getPhaseForHoursUntilClose(hours: number): 'early' | 'mid' | 'late' | 'closed' {
+    if (hours <= 0) return 'closed'
+    if (hours <= LATE_PHASE_HOURS) return 'late'
+    if (hours <= MID_PHASE_HOURS) return 'mid'
+    return 'early'
+  }
+
+  /**
+   * Get scraping intensity from phase
+   */
+  private intensityFromPhase(
+    phase: 'early' | 'mid' | 'late' | 'closed'
+  ): 'normal' | 'aggressive' | 'very_aggressive' {
     switch (phase) {
       case 'late':
         return 'very_aggressive'
@@ -167,90 +165,153 @@ class ScheduleWindowService {
   }
 
   /**
+   * Get data refresh threshold from phase
+   */
+  private thresholdFromPhase(phase: 'early' | 'mid' | 'late' | 'closed'): number {
+    switch (phase) {
+      case 'late':
+        return 4 // Refresh data older than 4 hours
+      case 'mid':
+        return 12 // Refresh data older than 12 hours
+      default:
+        return 24 // Refresh data older than 24 hours
+    }
+  }
+
+  /**
+   * Get schedule status for an individual draw
+   */
+  getDrawScheduleStatus(draw: ActiveDraw): DrawScheduleStatus {
+    const now = this.getStockholmTime()
+    const hoursUntilClose = (draw.closeTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+    const phase = this.getPhaseForHoursUntilClose(hoursUntilClose)
+
+    return {
+      drawNumber: draw.drawNumber,
+      gameType: draw.gameType as GameType,
+      closeTime: draw.closeTime,
+      hoursUntilClose,
+      phase,
+      scrapingIntensity: this.intensityFromPhase(phase),
+      dataRefreshThreshold: this.thresholdFromPhase(phase),
+    }
+  }
+
+  /**
+   * Get the next close time (nearest active draw deadline)
+   */
+  getNextCloseTime(_fromDate?: Date): Date | null {
+    const now = this.getStockholmTime()
+    const draws = this.getCachedActiveDraws()
+    const futureDraw = draws.find(d => d.closeTime > now)
+    return futureDraw?.closeTime || null
+  }
+
+  /**
+   * Check if currently within an active betting window (any draw is open)
+   */
+  isInActiveWindow(): boolean {
+    const now = this.getStockholmTime()
+    const draws = this.getCachedActiveDraws()
+    return draws.some(draw => draw.closeTime > now)
+  }
+
+  /**
+   * Get the current phase based on nearest deadline
+   */
+  getCurrentPhase(): 'early' | 'mid' | 'late' | 'closed' {
+    const now = this.getStockholmTime()
+    const draws = this.getCachedActiveDraws()
+
+    if (draws.length === 0) return 'closed'
+
+    const nearestDraw = draws.find(d => d.closeTime > now)
+    if (!nearestDraw) return 'closed'
+
+    const hoursUntilClose = (nearestDraw.closeTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+    return this.getPhaseForHoursUntilClose(hoursUntilClose)
+  }
+
+  /**
+   * Get scraping intensity based on current phase
+   */
+  getScrapingIntensity(): 'normal' | 'aggressive' | 'very_aggressive' {
+    return this.intensityFromPhase(this.getCurrentPhase())
+  }
+
+  /**
    * Get data refresh threshold in hours based on current phase
    */
   getDataRefreshThreshold(): number {
-    const phase = this.getCurrentPhase()
-    switch (phase) {
-      case 'late':
-        return 4 // Refresh data older than 4 hours on Saturday morning
-      case 'mid':
-        return 12 // Refresh data older than 12 hours on Friday
-      default:
-        return 24 // Refresh data older than 24 hours Tue-Thu
-    }
+    return this.thresholdFromPhase(this.getCurrentPhase())
   }
 
   /**
-   * Get human-readable status reason
+   * Generate human-readable status reason
    */
-  getStatusReason(): string {
-    const now = this.getStockholmTime()
-    const dayOfWeek = now.getDay()
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
-    if (!this.isInActiveWindow()) {
-      if (dayOfWeek === 0) {
-        return 'Sunday - new coupon may be opening. Light sync only.'
-      }
-      if (dayOfWeek === 1) {
-        return 'Monday - waiting for Tuesday match list publication.'
-      }
-      if (dayOfWeek === 6) {
-        return 'Saturday after spelstopp - betting window closed.'
-      }
-      return 'Outside betting window.'
+  private generateReason(nearestDraw: DrawScheduleStatus | null): string {
+    if (!nearestDraw) {
+      return 'No active draws. Normal operations.'
     }
 
-    const phase = this.getCurrentPhase()
-    const closeTime = this.getNextCloseTime(now)
-    const hoursUntilClose = Math.floor((closeTime.getTime() - now.getTime()) / (1000 * 60 * 60))
+    const h = Math.floor(nearestDraw.hoursUntilClose)
+    const game = nearestDraw.gameType.charAt(0).toUpperCase() + nearestDraw.gameType.slice(1)
 
-    switch (phase) {
+    switch (nearestDraw.phase) {
       case 'late':
-        return `${dayNames[dayOfWeek]} - ${hoursUntilClose}h until spelstopp. Aggressive data refresh.`
+        return `${game} #${nearestDraw.drawNumber} closes in ${h}h. Aggressive data refresh.`
       case 'mid':
-        return `${dayNames[dayOfWeek]} - betting tips being published. Moderate refresh rate.`
+        return `${game} #${nearestDraw.drawNumber} closes in ${h}h. Moderate refresh rate.`
       case 'early':
-        return `${dayNames[dayOfWeek]} - match list published. Normal operations.`
+        return `${game} #${nearestDraw.drawNumber} - ${h}h until close. Normal operations.`
       default:
-        return 'Active betting window.'
+        return 'Outside active window.'
     }
   }
 
   /**
-   * Get complete window status
+   * Get complete window status (sync version using cache)
+   * @param gameType - Optional game type to filter by. If not provided, returns status for nearest deadline across all games.
    */
-  getWindowStatus(): ScheduleWindowStatus {
+  getWindowStatus(gameType?: GameType): ScheduleWindowStatus {
     const now = this.getStockholmTime()
-    const isActive = this.isInActiveWindow()
-    const phase = this.getCurrentPhase()
+    const draws = this.getCachedActiveDraws()
 
-    let closeTime: Date | null = null
-    let openTime: Date | null = null
-    let minutesUntilClose: number | null = null
-    let minutesUntilOpen: number | null = null
+    // Filter by game type if specified
+    const filteredDraws = gameType ? draws.filter(d => d.gameType === gameType) : draws
 
-    if (isActive) {
-      closeTime = this.getNextCloseTime(now)
-      minutesUntilClose = Math.floor((closeTime.getTime() - now.getTime()) / (1000 * 60))
-    } else {
-      openTime = this.getNextOpenTime(now)
-      minutesUntilOpen = Math.floor((openTime.getTime() - now.getTime()) / (1000 * 60))
-    }
+    const activeDrawStatuses = filteredDraws
+      .filter(d => d.closeTime > now)
+      .map(d => this.getDrawScheduleStatus(d))
+
+    const nearestDraw = activeDrawStatuses[0] || null
+    const isActive = activeDrawStatuses.length > 0
 
     return {
       isActive,
-      currentPhase: phase,
-      closeTime,
-      openTime,
-      minutesUntilClose,
-      minutesUntilOpen,
-      scrapingIntensity: this.getScrapingIntensity(),
-      dataRefreshThreshold: this.getDataRefreshThreshold(),
-      reason: this.getStatusReason(),
+      currentPhase: nearestDraw?.phase || 'closed',
+      closeTime: nearestDraw?.closeTime || null,
+      openTime: null, // Could be enhanced to query upcoming draws
+      minutesUntilClose: nearestDraw
+        ? Math.floor((nearestDraw.closeTime.getTime() - now.getTime()) / (1000 * 60))
+        : null,
+      minutesUntilOpen: null,
+      scrapingIntensity: nearestDraw?.scrapingIntensity || 'normal',
+      dataRefreshThreshold: nearestDraw?.dataRefreshThreshold || 24,
+      reason: this.generateReason(nearestDraw),
       stockholmTime: now.toISOString(),
+      activeDraws: activeDrawStatuses,
+      nearestDraw,
     }
+  }
+
+  /**
+   * Get complete window status (async version that refreshes cache first)
+   * @param gameType - Optional game type to filter by
+   */
+  async getWindowStatusAsync(gameType?: GameType): Promise<ScheduleWindowStatus> {
+    await this.refreshActiveDrawsCache()
+    return this.getWindowStatus(gameType)
   }
 
   /**
@@ -285,7 +346,7 @@ class ScheduleWindowService {
 
     return {
       allowed: false,
-      reason: `${this.getStatusReason()} Enable admin override to proceed.`,
+      reason: `${this.generateReason(null)} Enable admin override to proceed.`,
     }
   }
 }

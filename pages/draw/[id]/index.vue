@@ -594,11 +594,12 @@ const isActionAllowed = computed(() => {
   return scheduleStatus.value.isActive || adminOverride.value
 })
 
-// Load schedule status
+// Load schedule status for the current game type
 async function loadScheduleStatus() {
   try {
     const result = await $fetch<{ success: boolean; status?: ScheduleWindowStatus }>(
-      '/api/schedule/status'
+      '/api/schedule/status',
+      { query: { gameType: gameType.value } }
     )
     if (result.success && result.status) {
       scheduleStatus.value = result.status

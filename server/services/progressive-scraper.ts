@@ -5,32 +5,40 @@ import { scraperService } from './scraper/scraper-service'
 /**
  * Progressive scraper service that queues matches for scraping based on data staleness.
  * Works with the schedule window service to refresh data more aggressively
- * as we approach spelstopp on Saturday.
+ * as we approach each draw's spelstopp deadline.
+ *
+ * Supports per-draw threshold calculation for multi-game scenarios where
+ * different draws (Stryktipset, Europatipset, Topptipset) may have different
+ * deadlines and require different refresh intensities.
  */
 class ProgressiveScraper {
   private isRunning = false
 
   /**
-   * Queue matches from current draws that have stale data
-   * @param thresholdHours - Data older than this threshold will be refreshed
+   * Queue matches from current draws that have stale data.
+   * Uses per-draw threshold calculation when no explicit threshold is provided.
+   *
+   * @param defaultThresholdHours - Optional default threshold; if not provided, uses per-draw calculation
    * @returns Number of matches queued for scraping
    */
-  async queueStaleMatches(thresholdHours: number): Promise<{ queued: number; skipped: number }> {
+  async queueStaleMatches(
+    defaultThresholdHours?: number
+  ): Promise<{ queued: number; skipped: number }> {
     if (this.isRunning) {
       console.log('[Progressive Scraper] Already running, skipping...')
       return { queued: 0, skipped: 0 }
     }
 
     this.isRunning = true
-    const status = scheduleWindowService.getWindowStatus()
+    const globalStatus = scheduleWindowService.getWindowStatus()
 
     console.log(
-      `[Progressive Scraper] Starting stale match scan (threshold: ${thresholdHours}h, phase: ${status.currentPhase})`
+      `[Progressive Scraper] Starting stale match scan (` +
+        `default threshold: ${defaultThresholdHours ?? 'per-draw'}, ` +
+        `active draws: ${globalStatus.activeDraws.length})`
     )
 
     try {
-      const thresholdTime = new Date(Date.now() - thresholdHours * 60 * 60 * 1000)
-
       // Get all matches from current open draws
       const currentDraws = await prisma.draws.findMany({
         where: {
@@ -61,9 +69,38 @@ class ProgressiveScraper {
       ]
 
       for (const draw of currentDraws) {
-        console.log(
-          `[Progressive Scraper] Checking draw #${draw.draw_number} (${draw.matches.length} matches)`
-        )
+        // Calculate per-draw threshold based on its individual deadline
+        let thresholdHours = defaultThresholdHours
+
+        if (thresholdHours === undefined && draw.close_time) {
+          // Get this draw's specific schedule status
+          const drawStatus = scheduleWindowService.getDrawScheduleStatus({
+            gameType: draw.game_type,
+            drawNumber: draw.draw_number,
+            closeTime: draw.close_time,
+          })
+          thresholdHours = drawStatus.dataRefreshThreshold
+
+          console.log(
+            `[Progressive Scraper] Draw ${draw.game_type}#${draw.draw_number}: ` +
+              `${drawStatus.hoursUntilClose.toFixed(1)}h to close, ` +
+              `phase=${drawStatus.phase}, threshold=${thresholdHours}h`
+          )
+        } else if (thresholdHours === undefined) {
+          // Fallback if no close_time (shouldn't happen for open draws)
+          thresholdHours = 24
+          console.log(
+            `[Progressive Scraper] Draw ${draw.game_type}#${draw.draw_number}: ` +
+              `no close_time, using default threshold=${thresholdHours}h`
+          )
+        } else {
+          console.log(
+            `[Progressive Scraper] Draw ${draw.game_type}#${draw.draw_number}: ` +
+              `using provided threshold=${thresholdHours}h (${draw.matches.length} matches)`
+          )
+        }
+
+        const thresholdTime = new Date(Date.now() - thresholdHours * 60 * 60 * 1000)
 
         for (const match of draw.matches) {
           // Check which data types need refreshing
@@ -144,7 +181,9 @@ class ProgressiveScraper {
       ]
 
       for (const draw of currentDraws) {
-        console.log(`[Progressive Scraper] Queueing all matches from draw #${draw.draw_number}`)
+        console.log(
+          `[Progressive Scraper] Queueing all matches from ${draw.game_type}#${draw.draw_number}`
+        )
 
         for (const match of draw.matches) {
           try {

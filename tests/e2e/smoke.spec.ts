@@ -14,8 +14,8 @@ test.describe('Smoke Tests - Core Functionality', () => {
     // Wait for page to hydrate
     await expect(page.locator('body')).toBeVisible()
 
-    // Check for navigation elements
-    await expect(page.getByRole('navigation')).toBeVisible()
+    // Check for header element (contains navigation)
+    await expect(page.locator('header')).toBeVisible()
 
     // Verify page doesn't show error states
     await expect(page.locator('body')).not.toContainText('500')
@@ -124,12 +124,11 @@ test.describe('Smoke Tests - Mobile Responsiveness', () => {
     // Page should load
     await expect(page.locator('body')).toBeVisible()
 
-    // Check for mobile menu or navigation
-    const mobileMenu = page.locator(
-      '[data-testid="mobile-menu"], [class*="mobile"], button[aria-label*="menu" i]'
-    )
-    // Either mobile menu exists or regular nav is visible
-    const nav = page.getByRole('navigation')
-    expect((await mobileMenu.isVisible()) || (await nav.isVisible())).toBeTruthy()
+    // Check for header (always visible) and mobile menu button
+    await expect(page.locator('header')).toBeVisible()
+
+    // Mobile menu button should be visible on small screens
+    const mobileMenuButton = page.locator('button[aria-controls="mobile-navigation"]')
+    await expect(mobileMenuButton).toBeVisible()
   })
 })

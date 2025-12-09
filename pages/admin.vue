@@ -302,6 +302,118 @@
         </div>
       </div>
 
+      <!-- Draw Management -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-semibold">Draw Management</h2>
+          <UButton
+            size="xs"
+            variant="ghost"
+            icon="i-heroicons-arrow-path"
+            :loading="loadingCurrentDraws"
+            @click="loadCurrentDraws"
+          >
+            Refresh
+          </UButton>
+        </div>
+        <UCard>
+          <div v-if="loadingCurrentDraws" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
+          </div>
+          <div v-else-if="currentDraws?.draws?.length" class="space-y-3">
+            <div
+              v-for="draw in currentDraws.draws"
+              :key="draw.draw_number"
+              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+            >
+              <div class="flex items-center gap-4">
+                <div>
+                  <p class="font-medium">Draw #{{ draw.draw_number }}</p>
+                  <p class="text-xs text-gray-500">
+                    {{ formatDateShort(draw.draw_date) }}
+                  </p>
+                </div>
+                <UBadge :color="getStatusColor(draw.status)" variant="subtle" size="sm">
+                  {{ draw.status }}
+                </UBadge>
+                <span class="text-xs text-gray-500">
+                  Results: {{ draw.matchesWithResults }}/{{ draw.totalMatches }}
+                </span>
+              </div>
+              <UButton
+                size="xs"
+                color="warning"
+                variant="soft"
+                icon="i-heroicons-archive-box"
+                @click="openArchiveModal(draw)"
+              >
+                Archive
+              </UButton>
+            </div>
+          </div>
+          <div v-else class="text-center py-8 text-gray-500">No current draws found</div>
+        </UCard>
+      </div>
+
+      <!-- Archive Confirmation Modal -->
+      <UModal v-model:open="archiveModalOpen">
+        <template #content>
+          <UCard>
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-archive-box" class="w-5 h-5 text-warning-500" />
+                <h3 class="font-semibold">Archive Draw #{{ drawToArchive?.draw_number }}</h3>
+              </div>
+            </template>
+
+            <div class="space-y-4">
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                Are you sure you want to archive this draw? This will:
+              </p>
+              <ul class="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1">
+                <li>Set the draw as historic (not current)</li>
+                <li>Change scraping URLs to use historic endpoints</li>
+                <li>Remove it from current draws list</li>
+              </ul>
+
+              <div
+                v-if="drawToArchive?.status !== 'Completed'"
+                class="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"
+              >
+                <p class="text-sm text-yellow-700 dark:text-yellow-400">
+                  <strong>Warning:</strong> This draw has status "{{ drawToArchive?.status }}" (not
+                  "Completed").
+                </p>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <UCheckbox id="force-archive" v-model="forceArchive" />
+                <label
+                  for="force-archive"
+                  class="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
+                >
+                  Force archive (bypass status validation)
+                </label>
+              </div>
+            </div>
+
+            <template #footer>
+              <div class="flex justify-end gap-2">
+                <UButton variant="ghost" @click="archiveModalOpen = false"> Cancel </UButton>
+                <UButton
+                  color="warning"
+                  :loading="archiving"
+                  :disabled="drawToArchive?.status !== 'Completed' && !forceArchive"
+                  @click="archiveDraw"
+                >
+                  Archive Draw
+                </UButton>
+              </div>
+            </template>
+          </UCard>
+        </template>
+      </UModal>
+
       <!-- Backfill Operations -->
       <div v-if="backfillOperations.length > 0" class="mb-8">
         <h2 class="text-2xl font-semibold mb-4">Active Backfill Operations</h2>
@@ -783,6 +895,16 @@ const loadingAiUsageMetrics = ref(false)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
 const aiUsageMetrics = ref<any>(null)
 
+// Draw Management states
+const loadingCurrentDraws = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
+const currentDraws = ref<any>(null)
+const archiveModalOpen = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
+const drawToArchive = ref<any>(null)
+const forceArchive = ref(false)
+const archiving = ref(false)
+
 // Schedule status
 async function loadScheduleStatus() {
   try {
@@ -814,6 +936,7 @@ onMounted(async () => {
     loadAiMetrics(),
     loadScraperMetrics(),
     loadAiUsageMetrics(),
+    loadCurrentDraws(),
   ])
 
   // Refresh schedule status every minute
@@ -1049,6 +1172,67 @@ async function loadAiUsageMetrics() {
   } finally {
     loadingAiUsageMetrics.value = false
   }
+}
+
+// Draw Management functions
+async function loadCurrentDraws() {
+  loadingCurrentDraws.value = true
+  try {
+    currentDraws.value = await $fetch('/api/admin/draws/current')
+  } catch (error) {
+    console.error('Error loading current draws:', error)
+    currentDraws.value = { success: false, error: 'Failed to load' }
+  } finally {
+    loadingCurrentDraws.value = false
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
+function openArchiveModal(draw: any) {
+  drawToArchive.value = draw
+  forceArchive.value = false
+  archiveModalOpen.value = true
+}
+
+async function archiveDraw() {
+  if (!drawToArchive.value) return
+
+  archiving.value = true
+  try {
+    const result = await $fetch(`/api/admin/draws/${drawToArchive.value.draw_number}/archive`, {
+      method: 'PATCH',
+      body: { force: forceArchive.value },
+    })
+
+    if (result.success) {
+      archiveModalOpen.value = false
+      drawToArchive.value = null
+      // Reload the draws list
+      await loadCurrentDraws()
+    }
+  } catch (error) {
+    console.error('Error archiving draw:', error)
+  } finally {
+    archiving.value = false
+  }
+}
+
+function getStatusColor(status: string): 'success' | 'warning' | 'error' | 'neutral' {
+  switch (status) {
+    case 'Open':
+      return 'success'
+    case 'Closed':
+      return 'warning'
+    case 'Completed':
+      return 'neutral'
+    default:
+      return 'neutral'
+  }
+}
+
+function formatDateShort(date: string): string {
+  if (!date) return 'N/A'
+  return new Date(date).toLocaleDateString('sv-SE')
 }
 
 // Helper functions for AI metrics

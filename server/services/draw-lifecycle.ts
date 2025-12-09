@@ -191,6 +191,85 @@ export class DrawLifecycleService {
       return 0
     }
   }
+
+  /**
+   * Manually archive a draw (admin action)
+   * @param drawNumber - The draw number to archive
+   * @param force - If true, bypass validation checks and archive regardless of status
+   */
+  async manualArchiveDraw(
+    drawNumber: number,
+    force: boolean = false
+  ): Promise<{
+    success: boolean
+    error?: string
+    wasForced?: boolean
+  }> {
+    try {
+      const draw = await prisma.draws.findUnique({
+        where: { draw_number: drawNumber },
+        select: {
+          draw_number: true,
+          status: true,
+          is_current: true,
+        },
+      })
+
+      if (!draw) {
+        return {
+          success: false,
+          error: 'Draw not found',
+        }
+      }
+
+      if (!draw.is_current) {
+        return {
+          success: false,
+          error: 'Draw is already archived',
+        }
+      }
+
+      // If not forcing, validate that draw is completed
+      if (!force && draw.status !== 'Completed') {
+        return {
+          success: false,
+          error: `Cannot archive: draw status is "${draw.status}", not "Completed". Use force option to override.`,
+        }
+      }
+
+      // Log force archive for audit
+      if (force && draw.status !== 'Completed') {
+        console.warn(
+          `[Draw Lifecycle] Force archiving draw ${drawNumber} with status "${draw.status}" (admin override)`
+        )
+      }
+
+      console.log(
+        `[Draw Lifecycle] Manually archiving draw ${drawNumber}${force ? ' (forced)' : ''}`
+      )
+
+      await prisma.draws.update({
+        where: { draw_number: drawNumber },
+        data: {
+          is_current: false,
+          archived_at: new Date(),
+        },
+      })
+
+      console.log(`[Draw Lifecycle] Draw ${drawNumber} manually archived successfully`)
+
+      return {
+        success: true,
+        wasForced: force && draw.status !== 'Completed',
+      }
+    } catch (error) {
+      console.error(`[Draw Lifecycle] Error manually archiving draw ${drawNumber}:`, error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  }
 }
 
 // Export singleton instance

@@ -23,7 +23,7 @@ class DrawCacheService {
   /**
    * Get current draws with caching
    *
-   * Returns list of draws with status 'Open' or 'Closed', limited to 5 most recent.
+   * Returns list of current (non-archived) draws with active status, limited to 5 most recent.
    * Includes all relations: matches, teams, leagues, predictions, odds.
    */
   async getCachedCurrentDraws() {
@@ -32,8 +32,9 @@ class DrawCacheService {
 
       const draws = await prisma.draws.findMany({
         where: {
+          is_current: true,
           status: {
-            in: ['Open', 'Closed'],
+            in: ['Open', 'Closed', 'Ready'],
           },
         },
         include: {

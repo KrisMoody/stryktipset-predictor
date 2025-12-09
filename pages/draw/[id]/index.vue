@@ -42,6 +42,16 @@
                 <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-1" />
                 Re-evaluate All
               </UButton>
+              <UButton
+                v-if="isAdmin && draw.is_current"
+                size="sm"
+                color="warning"
+                variant="soft"
+                icon="i-heroicons-archive-box"
+                @click="openArchiveModal"
+              >
+                Archive
+              </UButton>
               <UBadge :color="getStatusColor(draw.status)" variant="subtle" size="lg">
                 {{ draw.status }}
               </UBadge>
@@ -487,11 +497,71 @@
       @update:model-value="reEvaluateAllModal = $event"
       @confirmed="handleReEvaluateAllConfirmed"
     />
+
+    <!-- Archive Confirmation Modal -->
+    <UModal v-model:open="archiveModalOpen">
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon name="i-heroicons-archive-box" class="w-5 h-5 text-warning-500" />
+              <h3 class="font-semibold">Archive Draw #{{ draw?.draw_number }}</h3>
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              Are you sure you want to archive this draw? This will:
+            </p>
+            <ul class="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1">
+              <li>Set the draw as historic (not current)</li>
+              <li>Change scraping URLs to use historic endpoints</li>
+              <li>Remove it from current draws list</li>
+            </ul>
+
+            <div
+              v-if="draw?.status !== 'Completed'"
+              class="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"
+            >
+              <p class="text-sm text-yellow-700 dark:text-yellow-400">
+                <strong>Warning:</strong> This draw has status "{{ draw?.status }}" (not
+                "Completed").
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <UCheckbox id="force-archive-draw" v-model="forceArchive" />
+              <label
+                for="force-archive-draw"
+                class="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
+              >
+                Force archive (bypass status validation)
+              </label>
+            </div>
+          </div>
+
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton variant="ghost" @click="archiveModalOpen = false"> Cancel </UButton>
+              <UButton
+                color="warning"
+                :loading="archiving"
+                :disabled="draw?.status !== 'Completed' && !forceArchive"
+                @click="archiveDraw"
+              >
+                Archive Draw
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { RealtimeScrapingStatus, ScheduleWindowStatus } from '~/types'
+import { useUserProfile } from '~/composables/useUserProfile'
 
 const route = useRoute()
 const drawId = route.params.id as string
@@ -500,9 +570,17 @@ useHead({
   title: `Draw #${drawId} - Stryktipset AI Predictor`,
 })
 
+// Admin access check
+const { isAdmin, fetchProfile } = useUserProfile()
+
 // Schedule window states
 const scheduleStatus = ref<ScheduleWindowStatus | null>(null)
 const adminOverride = ref(false)
+
+// Archive modal states
+const archiveModalOpen = ref(false)
+const forceArchive = ref(false)
+const archiving = ref(false)
 
 // Computed property for action buttons
 const isActionAllowed = computed(() => {
@@ -524,9 +602,9 @@ async function loadScheduleStatus() {
   }
 }
 
-// Load schedule status on mount and refresh every minute
+// Load schedule status and profile on mount
 onMounted(async () => {
-  await loadScheduleStatus()
+  await Promise.all([loadScheduleStatus(), fetchProfile()])
   setInterval(loadScheduleStatus, 60000)
 })
 
@@ -699,6 +777,7 @@ interface Draw {
   draw_date: string
   close_time: string
   status: string
+  is_current: boolean
   matches?: Match[]
 }
 
@@ -893,6 +972,34 @@ const getScrapingStatusColor = (status: RealtimeScrapingStatus['status']) => {
       return 'warning'
     default:
       return 'neutral'
+  }
+}
+
+// Archive draw function (admin only)
+function openArchiveModal() {
+  forceArchive.value = false
+  archiveModalOpen.value = true
+}
+
+async function archiveDraw() {
+  if (!draw.value) return
+
+  archiving.value = true
+  try {
+    const result = await $fetch(`/api/admin/draws/${draw.value.draw_number}/archive`, {
+      method: 'PATCH',
+      body: { force: forceArchive.value },
+    })
+
+    if (result.success) {
+      archiveModalOpen.value = false
+      // Refresh to show updated is_current status
+      await refresh()
+    }
+  } catch (error) {
+    console.error('Error archiving draw:', error)
+  } finally {
+    archiving.value = false
   }
 }
 

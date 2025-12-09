@@ -6,11 +6,13 @@ import type {
   CouponRow,
   MGExtension,
 } from '~/types'
+import type { GameType } from '~/types/game-types'
 
 interface SaveCouponParams {
   drawNumber: number
+  gameType?: GameType
   systemId: string | null
-  mode: 'ai' | 'r-system' | 'u-system'
+  mode: 'ai' | 'r-system' | 'u-system' | 't-system'
   utgangstecken?: Record<number, string> | null
   mgExtensions?: MGExtension[] | null
   selections: CouponSelection[]
@@ -18,6 +20,7 @@ interface SaveCouponParams {
   totalCost: number
   expectedValue: number
   budget?: number | null
+  stake?: number
   performanceId?: number | null
 }
 
@@ -27,10 +30,13 @@ export class CouponPersistenceService {
    * Auto-increments version for same draw/mode/system combination
    */
   async saveCoupon(params: SaveCouponParams): Promise<PersistedCoupon> {
-    // Get next version number for this draw/mode/system combination
+    const gameType = params.gameType || 'stryktipset'
+
+    // Get next version number for this draw/mode/system/gameType combination
     const latestCoupon = await prisma.generated_coupons.findFirst({
       where: {
         draw_number: params.drawNumber,
+        game_type: gameType,
         mode: params.mode,
         system_id: params.systemId,
       },
@@ -42,6 +48,7 @@ export class CouponPersistenceService {
     const saved = await prisma.generated_coupons.create({
       data: {
         draw_number: params.drawNumber,
+        game_type: gameType,
         system_id: params.systemId,
         mode: params.mode,
         status: 'generated',
@@ -53,6 +60,7 @@ export class CouponPersistenceService {
         selections: JSON.parse(JSON.stringify(params.selections)),
         rows: JSON.parse(JSON.stringify(params.rows)),
         total_cost: params.totalCost,
+        stake: params.stake ?? 1,
         expected_value: params.expectedValue,
         budget: params.budget ?? null,
         performance_id: params.performanceId ?? null,
@@ -91,11 +99,14 @@ export class CouponPersistenceService {
   }
 
   /**
-   * Get all coupons for a draw
+   * Get all coupons for a draw, optionally filtered by game type
    */
-  async getCouponsForDraw(drawNumber: number): Promise<PersistedCoupon[]> {
+  async getCouponsForDraw(drawNumber: number, gameType?: GameType): Promise<PersistedCoupon[]> {
     const coupons = await prisma.generated_coupons.findMany({
-      where: { draw_number: drawNumber },
+      where: {
+        draw_number: drawNumber,
+        ...(gameType && { game_type: gameType }),
+      },
       orderBy: { created_at: 'desc' },
     })
 
@@ -147,8 +158,9 @@ export class CouponPersistenceService {
     return {
       id: record.id,
       drawNumber: record.draw_number,
+      gameType: record.game_type as GameType,
       systemId: record.system_id,
-      mode: record.mode as 'ai' | 'r-system' | 'u-system',
+      mode: record.mode as 'ai' | 'r-system' | 'u-system' | 't-system',
       status: record.status as CouponStatus,
       version: record.version,
       utgangstecken: record.utgangstecken as Record<number, string> | null,
@@ -156,6 +168,7 @@ export class CouponPersistenceService {
       selections: record.selections as CouponSelection[],
       rows: record.rows as CouponRow[],
       totalCost: record.total_cost,
+      stake: record.stake ?? 1,
       expectedValue: Number(record.expected_value),
       budget: record.budget,
       performanceId: record.performance_id,

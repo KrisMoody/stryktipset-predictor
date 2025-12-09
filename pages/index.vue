@@ -2,8 +2,15 @@
   <UContainer class="py-8">
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-4xl font-bold mb-2">Stryktipset AI Predictor</h1>
-      <p class="text-gray-600 dark:text-gray-400">AI-powered predictions for Swedish Stryktipset</p>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 class="text-4xl font-bold mb-2">{{ gameDisplayName }} AI Predictor</h1>
+          <p class="text-gray-600 dark:text-gray-400">
+            AI-powered predictions for Swedish {{ gameDisplayName }}
+          </p>
+        </div>
+        <GameSelector v-model="selectedGameType" @change="handleGameTypeChange" />
+      </div>
     </div>
 
     <!-- Schedule Window Status Banner -->
@@ -153,7 +160,12 @@
 
         <template #footer>
           <div class="flex gap-2">
-            <UButton :to="`/draw/${draw.draw_number}`" color="primary"> View Matches </UButton>
+            <UButton
+              :to="{ path: `/draw/${draw.draw_number}`, query: { gameType: selectedGameType } }"
+              color="primary"
+            >
+              View Matches
+            </UButton>
             <UTooltip
               :text="
                 !isActionAllowed
@@ -180,7 +192,10 @@
               "
             >
               <UButton
-                :to="`/draw/${draw.draw_number}/optimize`"
+                :to="{
+                  path: `/draw/${draw.draw_number}/optimize`,
+                  query: { gameType: selectedGameType },
+                }"
                 color="primary"
                 :disabled="!isDrawReady(draw) || !isActionAllowed"
               >
@@ -198,7 +213,7 @@
         <UIcon name="i-heroicons-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
         <h2 class="text-lg font-semibold mb-2">No Active Draws</h2>
         <p class="text-gray-600 dark:text-gray-400 mb-4">
-          There are no active Stryktipset draws at the moment.
+          There are no active {{ gameDisplayName }} draws at the moment.
         </p>
         <UTooltip
           :text="
@@ -216,9 +231,15 @@
 
 <script setup lang="ts">
 import type { ScheduleWindowStatus } from '~/types'
+import type { GameType } from '~/types/game-types'
+import { getGameConfig } from '~/server/constants/game-configs'
+
+// Game type state
+const selectedGameType = ref<GameType>('stryktipset')
+const gameDisplayName = computed(() => getGameConfig(selectedGameType.value).displayName)
 
 useHead({
-  title: 'Stryktipset AI Predictor - Dashboard',
+  title: computed(() => `${gameDisplayName.value} AI Predictor - Dashboard`),
 })
 
 // Schedule window states
@@ -269,7 +290,7 @@ interface DrawData {
   matches?: MatchData[]
 }
 
-// Fetch current draws
+// Fetch current draws based on selected game type
 const {
   data: response,
   pending,
@@ -277,17 +298,30 @@ const {
   refresh,
 } = await useFetch<{
   success: boolean
+  gameType?: GameType
   draws?: DrawData[]
   error?: string
-}>('/api/draws/current')
+}>('/api/draws/current', {
+  query: { gameType: selectedGameType },
+  watch: [selectedGameType],
+})
 
 const draws = computed(() => response.value?.draws || [])
 
-// Sync draws
+// Handle game type change
+async function handleGameTypeChange(gameType: GameType) {
+  selectedGameType.value = gameType
+  // useFetch will auto-refresh due to watch
+}
+
+// Sync draws for the selected game type
 const syncDraws = async () => {
   syncing.value = true
   try {
-    await $fetch('/api/admin/sync', { method: 'POST' })
+    await $fetch('/api/admin/sync', {
+      method: 'POST',
+      query: { gameType: selectedGameType.value },
+    })
     await refresh()
   } catch (err) {
     console.error('Error syncing draws:', err)
@@ -359,7 +393,8 @@ const countMatchesWithPredictions = (draw: DrawData) => {
 }
 
 const isDrawReady = (draw: DrawData) => {
-  if (!draw.matches || draw.matches.length !== 13) return false
+  const expectedMatchCount = getGameConfig(selectedGameType.value).matchCount
+  if (!draw.matches || draw.matches.length !== expectedMatchCount) return false
   return draw.matches.every(m => m.predictions && m.predictions.length > 0)
 }
 

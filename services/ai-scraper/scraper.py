@@ -4,11 +4,13 @@ AI-powered web scraper using Crawl4AI + Claude for Svenska Spel data extraction.
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode, LLMConfig
 from crawl4ai.extraction_strategy import LLMExtractionStrategy
+from crawl4ai.async_dispatcher import MemoryAdaptiveDispatcher
 from schemas import XStatsData, StatisticsData, HeadToHeadData, NewsData, MatchInfoData, TableData, LineupData, DrawAnalysisData, OddsetData
 from config import get_config, get_retry_config, DataTypeConfig
-from typing import Dict, Any
+from typing import Dict, Any, List
 import os
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -24,17 +26,25 @@ If data appears as text, look for labels followed by values.
 
 class AIScraper:
     """AI-powered web scraper using Crawl4AI + Claude"""
-    
+
     def __init__(self):
-        # Browser configuration (reused across all requests)
+        # Browser configuration with full anti-detection (reused across all requests)
+        # See: https://docs.crawl4ai.com/core/browser-config
         self.browser_config = BrowserConfig(
             headless=os.getenv("BROWSER_HEADLESS", "true") == "true",
             viewport_width=1920,
             viewport_height=1080,
             ignore_https_errors=True,
             use_managed_browser=True,
-            browser_type="chromium",  # Explicitly set browser type
-            extra_args=["--disable-blink-features=AutomationControlled"]  # Anti-detection
+            browser_type="chromium",
+            # Anti-detection features from Crawl4AI
+            text_mode=False,  # Keep full rendering for JS-heavy pages
+            light_mode=False,  # Full browser features needed
+            extra_args=[
+                "--disable-blink-features=AutomationControlled",
+                "--disable-features=IsolateOrigins,site-per-process",
+                "--disable-site-isolation-trials",
+            ]
         )
         
         # Base crawler configuration
@@ -491,6 +501,324 @@ class AIScraper:
 
         config = self._build_crawler_config("oddset")
         return await self._execute_scrape(url, config, strategy, "oddset")
+
+    async def scrape_raw_js(self, url: str, js_expression: str) -> Dict[str, Any]:
+        """
+        Scrape raw JavaScript data from a page without AI extraction.
+
+        Uses Crawl4AI's browser to load the page and execute a JS expression
+        to extract embedded data (like window._svs.draw.data.draws).
+
+        Args:
+            url: Page URL to scrape
+            js_expression: JavaScript expression to evaluate
+
+        Returns:
+            Dict with success, data, and error fields
+        """
+        import re
+        import json
+
+        crawler = None
+        try:
+            logger.info(f"[RawJS] Scraping {url}")
+            logger.info(f"[RawJS] Expression: {js_expression}")
+
+            # Config with longer wait for SPAs like Svenska Spel
+            # The page loads a shell first, then fetches data via API
+            config = CrawlerRunConfig(
+                cache_mode=CacheMode.BYPASS,
+                delay_before_return_html=5.0,  # Wait for initial render
+                magic=True,
+                page_timeout=60000,
+                screenshot=False,
+                pdf=False,
+                js_code=f"""
+                    (async () => {{
+                        // Wait for SPA to fully load (Svenska Spel loads data via API)
+                        // Poll for data with exponential backoff
+                        const maxWait = 15000;
+                        const startTime = Date.now();
+
+                        while (Date.now() - startTime < maxWait) {{
+                            try {{
+                                const data = {js_expression};
+
+                                // For Topptipset, the _svs.draw.data.draws object may not have Topptipset data
+                                // Instead, extract draw numbers from the draw selector links in the DOM
+                                const url = window.location.pathname;
+                                if (url.includes('topptipset') && (!data || Object.keys(data).length === 0 || !Object.keys(data).some(k => k.startsWith('25_') || k.startsWith('23_') || k.startsWith('24_')))) {{
+                                    // Try to extract draw numbers from the draw selector links
+                                    const drawLinks = document.querySelectorAll('a[href*="/topptipset/?draw="]');
+                                    if (drawLinks.length > 0) {{
+                                        const draws = {{}};
+                                        drawLinks.forEach(link => {{
+                                            const href = link.getAttribute('href');
+                                            const drawMatch = href.match(/draw=(\d+)/);
+                                            const productMatch = href.match(/product=(\d+)/);
+                                            if (drawMatch && productMatch) {{
+                                                const drawNum = drawMatch[1];
+                                                const productId = productMatch[1];
+                                                // Topptipset product IDs: 23, 24, 25 (variants)
+                                                if (['23', '24', '25'].includes(productId)) {{
+                                                    draws[productId + '_' + drawNum] = {{ model: {{ productId: parseInt(productId), drawNumber: parseInt(drawNum) }} }};
+                                                }}
+                                            }}
+                                        }});
+
+                                        // Also check for the currently selected draw (doesn't have a link)
+                                        const selectedCard = document.querySelector('.pg_draw_card--selected');
+                                        if (selectedCard) {{
+                                            // The current draw doesn't have URL params, need to find it another way
+                                            // Look for the draw info in the page state or extract from coupon
+                                            const currentDrawInfo = window._svs?.tipsen?.getState?.()?.draw;
+                                            if (currentDrawInfo) {{
+                                                const productId = currentDrawInfo.productId || currentDrawInfo.currentProductId;
+                                                const drawNumber = currentDrawInfo.drawNumber || currentDrawInfo.currentDrawNumber;
+                                                if (productId && drawNumber) {{
+                                                    draws[productId + '_' + drawNumber] = {{ model: {{ productId, drawNumber }} }};
+                                                }}
+                                            }}
+                                        }}
+
+                                        if (Object.keys(draws).length > 0) {{
+                                            document.body.setAttribute('data-extracted', JSON.stringify(draws));
+                                            console.log('[Crawl4AI] Extracted Topptipset draws from DOM links');
+                                            return;
+                                        }}
+                                    }}
+                                }}
+
+                                if (data && Object.keys(data).length > 0) {{
+                                    // Check if the URL matches expected product
+                                    const isTopptipset = url.includes('topptipset');
+                                    const isEuropatipset = url.includes('europatipset');
+                                    const isStryktipset = url.includes('stryktipset');
+
+                                    // For Topptipset, accept any of the variant product IDs (23, 24, 25)
+                                    // For Europatipset, wait for productId 2
+                                    // For Stryktipset, wait for productId 1
+                                    let hasExpectedProduct = false;
+                                    const keys = Object.keys(data);
+
+                                    if (isTopptipset) {{
+                                        hasExpectedProduct = keys.some(k => k.startsWith('25_') || k.startsWith('24_') || k.startsWith('23_'));
+                                    }} else if (isEuropatipset) {{
+                                        hasExpectedProduct = keys.some(k => k.startsWith('2_'));
+                                    }} else if (isStryktipset) {{
+                                        hasExpectedProduct = keys.some(k => k.startsWith('1_'));
+                                    }} else {{
+                                        hasExpectedProduct = true; // Unknown product, accept any data
+                                    }}
+
+                                    if (hasExpectedProduct) {{
+                                        document.body.setAttribute('data-extracted', JSON.stringify(data));
+                                        console.log('[Crawl4AI] Found expected product data');
+                                        return;
+                                    }}
+                                }}
+                            }} catch (e) {{
+                                console.log('[Crawl4AI] Waiting for data...', e.message);
+                            }}
+                            await new Promise(r => setTimeout(r, 500));
+                        }}
+
+                        // Timeout - extract whatever we have
+                        try {{
+                            const data = {js_expression};
+                            if (data) {{
+                                document.body.setAttribute('data-extracted', JSON.stringify(data));
+                                console.log('[Crawl4AI] Timeout - extracted available data');
+                            }}
+                        }} catch (e) {{
+                            console.error('[Crawl4AI] Extraction error:', e);
+                        }}
+                    }})();
+                """
+            )
+
+            crawler = AsyncWebCrawler(config=self.browser_config)
+            async with crawler:
+                result = await crawler.arun(url=url, config=config)
+
+                if not result.success:
+                    return {
+                        "success": False,
+                        "data": None,
+                        "error": result.error_message or "Failed to load page"
+                    }
+
+                html = result.html if hasattr(result, 'html') else ""
+
+                # Look for our extracted data in the HTML
+                match = re.search(r'data-extracted="([^"]*)"', html)
+                if match:
+                    try:
+                        raw_data = match.group(1).replace('&quot;', '"')
+                        data = json.loads(raw_data)
+                        logger.info(f"[RawJS] Successfully extracted data from data attribute")
+                        return {
+                            "success": True,
+                            "data": data,
+                            "error": None
+                        }
+                    except json.JSONDecodeError as e:
+                        logger.error(f"[RawJS] JSON decode error: {e}")
+
+                # Fallback: Try to find _svs data in the HTML source
+                svs_match = re.search(r'_svs\.draw\.data\.draws\s*=\s*(\{[^;]+\})', html)
+                if svs_match:
+                    try:
+                        data = json.loads(svs_match.group(1))
+                        logger.info(f"[RawJS] Extracted data from inline script")
+                        return {
+                            "success": True,
+                            "data": data,
+                            "error": None
+                        }
+                    except json.JSONDecodeError:
+                        pass
+
+                logger.warning(f"[RawJS] Could not find data in page (html length: {len(html)})")
+                return {
+                    "success": False,
+                    "data": None,
+                    "error": "Could not extract data from page"
+                }
+
+        except Exception as e:
+            logger.exception(f"[RawJS] Exception during scrape")
+            if crawler is not None:
+                try:
+                    await crawler.crawler_strategy.close()
+                except:
+                    pass
+            return {
+                "success": False,
+                "data": None,
+                "error": str(e)
+            }
+
+    async def scrape_batch(
+        self,
+        requests: List[Dict[str, str]],
+        max_concurrent: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Scrape multiple URLs in parallel using Crawl4AI's arun_many().
+
+        This is more efficient than sequential scraping as it reuses the browser
+        instance and can run multiple requests concurrently.
+
+        Args:
+            requests: List of dicts with 'url' and 'data_type' keys
+            max_concurrent: Maximum concurrent requests (default 3 for rate limiting)
+
+        Returns:
+            List of scrape results in the same order as requests
+        """
+        if not requests:
+            return []
+
+        logger.info(f"[Batch] Starting batch scrape of {len(requests)} URLs (max_concurrent={max_concurrent})")
+
+        # Group requests by data_type to use appropriate configs
+        results: List[Dict[str, Any]] = [None] * len(requests)  # type: ignore
+
+        # Create dispatcher for memory-adaptive concurrency
+        dispatcher = MemoryAdaptiveDispatcher(
+            memory_threshold_percent=70.0,
+            max_session_permit=max_concurrent,
+        )
+
+        crawler = None
+        try:
+            crawler = AsyncWebCrawler(config=self.browser_config)
+            async with crawler:
+                # Process each request - we can't use arun_many directly because
+                # each request needs different extraction strategy based on data_type
+                # Instead, we use asyncio.gather with semaphore for concurrency control
+
+                semaphore = asyncio.Semaphore(max_concurrent)
+
+                async def scrape_single(idx: int, req: Dict[str, str]) -> None:
+                    async with semaphore:
+                        url = req.get("url", "")
+                        data_type = req.get("data_type", "")
+
+                        if not url or not data_type:
+                            results[idx] = {
+                                "success": False,
+                                "data": None,
+                                "error": "Missing url or data_type",
+                                "url": url,
+                                "data_type": data_type
+                            }
+                            return
+
+                        try:
+                            # Call the appropriate scrape method
+                            result = await self._scrape_by_type(url, data_type)
+                            result["url"] = url
+                            result["data_type"] = data_type
+                            results[idx] = result
+                        except Exception as e:
+                            logger.error(f"[Batch] Error scraping {url}: {e}")
+                            results[idx] = {
+                                "success": False,
+                                "data": None,
+                                "error": str(e),
+                                "url": url,
+                                "data_type": data_type
+                            }
+
+                # Launch all scrapes concurrently (semaphore controls actual parallelism)
+                await asyncio.gather(*[
+                    scrape_single(i, req) for i, req in enumerate(requests)
+                ])
+
+            logger.info(f"[Batch] Completed batch scrape: {sum(1 for r in results if r and r.get('success'))} succeeded, {sum(1 for r in results if r and not r.get('success'))} failed")
+            return results
+
+        except Exception as e:
+            logger.exception(f"[Batch] Exception during batch scrape")
+            if crawler is not None:
+                try:
+                    await crawler.crawler_strategy.close()
+                except:
+                    pass
+            # Return error results for all requests
+            return [{
+                "success": False,
+                "data": None,
+                "error": str(e),
+                "url": req.get("url", ""),
+                "data_type": req.get("data_type", "")
+            } for req in requests]
+
+    async def _scrape_by_type(self, url: str, data_type: str) -> Dict[str, Any]:
+        """Route to appropriate scrape method based on data_type."""
+        method_map = {
+            "xStats": self.scrape_xstats,
+            "statistics": self.scrape_statistics,
+            "headToHead": self.scrape_head_to_head,
+            "news": self.scrape_news,
+            "matchInfo": self.scrape_matchinfo,
+            "table": self.scrape_table,
+            "lineup": self.scrape_lineup,
+            "analysis": self.scrape_analysis,
+            "oddset": self.scrape_oddset,
+        }
+
+        method = method_map.get(data_type)
+        if not method:
+            return {
+                "success": False,
+                "data": None,
+                "error": f"Unknown data_type: {data_type}"
+            }
+
+        return await method(url)
 
     async def _execute_scrape(
         self,

@@ -1,11 +1,13 @@
 import { prisma } from '~/server/utils/prisma'
-import { svenskaSpelApi } from './svenska-spel-api'
-import type { DrawData, DrawEventData, ProviderIdData } from '~/types'
+import { createApiClient } from './svenska-spel-api'
+import type { DrawData, DrawEventData, ProviderIdData, GameType } from '~/types'
+import { DEFAULT_GAME_TYPE } from '~/types/game-types'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Complex API data transformations */
 
 /**
  * Service for syncing draw and match data from Svenska Spel API to database
+ * Supports multiple game types: Stryktipset, Europatipset, Topptipset
  */
 export class DrawSyncService {
   /**
@@ -48,18 +50,19 @@ export class DrawSyncService {
    * Sync only draw metadata (status, close_time) without processing matches
    * Used outside active betting window to detect new coupons with minimal API usage
    */
-  async syncDrawMetadataOnly(): Promise<{
+  async syncDrawMetadataOnly(gameType: GameType = DEFAULT_GAME_TYPE): Promise<{
     success: boolean
     drawsProcessed: number
     error?: string
   }> {
     try {
-      console.log('[Draw Sync] Starting metadata-only sync...')
+      console.log(`[Draw Sync] Starting metadata-only sync for ${gameType}...`)
 
-      const { draws } = await svenskaSpelApi.fetchCurrentDraws()
+      const apiClient = createApiClient(gameType)
+      const { draws } = await apiClient.fetchCurrentDraws()
 
       if (!draws || draws.length === 0) {
-        console.log('[Draw Sync] No draws returned from API')
+        console.log(`[Draw Sync] No ${gameType} draws returned from API`)
         return { success: true, drawsProcessed: 0 }
       }
 
@@ -68,7 +71,12 @@ export class DrawSyncService {
       for (const drawData of draws) {
         try {
           await prisma.draws.upsert({
-            where: { draw_number: drawData.drawNumber },
+            where: {
+              game_type_draw_number: {
+                game_type: gameType,
+                draw_number: drawData.drawNumber,
+              },
+            },
             update: {
               status: drawData.drawState,
               close_time: new Date(drawData.regCloseTime),
@@ -76,6 +84,7 @@ export class DrawSyncService {
             },
             create: {
               draw_number: drawData.drawNumber,
+              game_type: gameType,
               draw_date: drawData.drawDate
                 ? new Date(drawData.drawDate)
                 : new Date(drawData.regCloseTime),
@@ -88,17 +97,22 @@ export class DrawSyncService {
           drawsProcessed++
         } catch (error) {
           console.warn(
-            `[Draw Sync] Error updating metadata for draw ${drawData.drawNumber}:`,
+            `[Draw Sync] Error updating metadata for ${gameType} draw ${drawData.drawNumber}:`,
             error
           )
         }
       }
 
-      console.log(`[Draw Sync] Metadata-only sync complete: ${drawsProcessed} draws updated`)
+      console.log(
+        `[Draw Sync] Metadata-only sync complete: ${drawsProcessed} ${gameType} draws updated`
+      )
       return { success: true, drawsProcessed }
     } catch (error) {
       const { category, message } = this.categorizeError(error)
-      console.error(`[Draw Sync] Error in metadata-only sync [${category}]:`, message)
+      console.error(
+        `[Draw Sync] Error in metadata-only sync for ${gameType} [${category}]:`,
+        message
+      )
       return {
         success: false,
         drawsProcessed: 0,
@@ -110,19 +124,20 @@ export class DrawSyncService {
   /**
    * Sync current draws from API
    */
-  async syncCurrentDraws(): Promise<{
+  async syncCurrentDraws(gameType: GameType = DEFAULT_GAME_TYPE): Promise<{
     success: boolean
     drawsProcessed: number
     matchesProcessed: number
     error?: string
   }> {
     try {
-      console.log('[Draw Sync] Starting sync of current draws...')
+      console.log(`[Draw Sync] Starting sync of current ${gameType} draws...`)
 
-      const { draws } = await svenskaSpelApi.fetchCurrentDraws()
+      const apiClient = createApiClient(gameType)
+      const { draws } = await apiClient.fetchCurrentDraws()
 
       if (!draws || draws.length === 0) {
-        console.warn('[Draw Sync] No draws returned from API')
+        console.warn(`[Draw Sync] No ${gameType} draws returned from API`)
         return {
           success: true,
           drawsProcessed: 0,
@@ -135,7 +150,7 @@ export class DrawSyncService {
       const errors: string[] = []
 
       for (const drawData of draws) {
-        const result = await this.processDraw(drawData)
+        const result = await this.processDraw(drawData, gameType)
         if (result.success) {
           drawsProcessed++
           matchesProcessed += result.matchesProcessed
@@ -146,7 +161,7 @@ export class DrawSyncService {
 
       const totalDraws = draws.length
       console.log(
-        `[Draw Sync] Sync complete: ${drawsProcessed}/${totalDraws} draws, ${matchesProcessed} matches`
+        `[Draw Sync] Sync complete: ${drawsProcessed}/${totalDraws} ${gameType} draws, ${matchesProcessed} matches`
       )
 
       if (errors.length > 0) {
@@ -162,7 +177,7 @@ export class DrawSyncService {
       }
     } catch (error) {
       const { category, message } = this.categorizeError(error)
-      console.error(`[Draw Sync] Error syncing current draws [${category}]:`, message)
+      console.error(`[Draw Sync] Error syncing current ${gameType} draws [${category}]:`, message)
       return {
         success: false,
         drawsProcessed: 0,
@@ -176,17 +191,19 @@ export class DrawSyncService {
    * Sync a specific historic draw
    */
   async syncHistoricDraw(
-    drawNumber: number
+    drawNumber: number,
+    gameType: GameType = DEFAULT_GAME_TYPE
   ): Promise<{ success: boolean; matchesProcessed: number; error?: string }> {
     try {
-      console.log(`[Draw Sync] Syncing historic draw ${drawNumber}...`)
+      console.log(`[Draw Sync] Syncing historic ${gameType} draw ${drawNumber}...`)
 
-      const { draw } = await svenskaSpelApi.fetchHistoricDraw(drawNumber)
-      const result = await this.processDraw(draw)
+      const apiClient = createApiClient(gameType)
+      const { draw } = await apiClient.fetchHistoricDraw(drawNumber)
+      const result = await this.processDraw(draw, gameType)
 
       if (result.success) {
         console.log(
-          `[Draw Sync] Successfully synced historic draw ${drawNumber} with ${result.matchesProcessed} matches`
+          `[Draw Sync] Successfully synced historic ${gameType} draw ${drawNumber} with ${result.matchesProcessed} matches`
         )
       }
 
@@ -197,7 +214,10 @@ export class DrawSyncService {
       }
     } catch (error) {
       const { category, message } = this.categorizeError(error)
-      console.error(`[Draw Sync] Error syncing historic draw ${drawNumber} [${category}]:`, message)
+      console.error(
+        `[Draw Sync] Error syncing historic ${gameType} draw ${drawNumber} [${category}]:`,
+        message
+      )
       return {
         success: false,
         matchesProcessed: 0,
@@ -297,21 +317,28 @@ export class DrawSyncService {
    * Process raw draw data (public wrapper for use by backfill service)
    */
   async processDrawData(
-    drawData: DrawData
+    drawData: DrawData,
+    gameType: GameType = DEFAULT_GAME_TYPE
   ): Promise<{ success: boolean; matchesProcessed: number; error?: string }> {
-    return this.processDraw(drawData)
+    return this.processDraw(drawData, gameType)
   }
 
   /**
    * Process a single draw and its matches
    */
   private async processDraw(
-    drawData: DrawData
+    drawData: DrawData,
+    gameType: GameType
   ): Promise<{ success: boolean; matchesProcessed: number; error?: string }> {
     try {
-      // Upsert draw
+      // Upsert draw with game_type
       const draw = await prisma.draws.upsert({
-        where: { draw_number: drawData.drawNumber },
+        where: {
+          game_type_draw_number: {
+            game_type: gameType,
+            draw_number: drawData.drawNumber,
+          },
+        },
         update: {
           status: drawData.drawState,
           close_time: new Date(drawData.regCloseTime),
@@ -323,6 +350,7 @@ export class DrawSyncService {
         },
         create: {
           draw_number: drawData.drawNumber,
+          game_type: gameType,
           draw_date: drawData.drawDate
             ? new Date(drawData.drawDate)
             : new Date(drawData.regCloseTime),
@@ -333,7 +361,6 @@ export class DrawSyncService {
             : null,
           product_id: drawData.productId,
           raw_data: drawData as any,
-          // week_number and year are now auto-generated from draw_date
         },
       })
 
@@ -341,14 +368,14 @@ export class DrawSyncService {
       let matchesProcessed = 0
       if (drawData.drawEvents && drawData.drawEvents.length > 0) {
         for (const event of drawData.drawEvents) {
-          await this.processMatch(draw.id, event)
+          await this.processMatch(draw.id, event, gameType)
           matchesProcessed++
         }
       }
 
       return { success: true, matchesProcessed }
     } catch (error) {
-      console.error(`[Draw Sync] Error processing draw ${drawData.drawNumber}:`, error)
+      console.error(`[Draw Sync] Error processing ${gameType} draw ${drawData.drawNumber}:`, error)
       return {
         success: false,
         matchesProcessed: 0,
@@ -360,7 +387,11 @@ export class DrawSyncService {
   /**
    * Process a single match
    */
-  private async processMatch(drawId: number, event: DrawEventData): Promise<void> {
+  private async processMatch(
+    drawId: number,
+    event: DrawEventData,
+    gameType: GameType
+  ): Promise<void> {
     const matchData = event.match
 
     // Extract team names - participants can have type 'home'/'away' or just be ordered
@@ -459,7 +490,7 @@ export class DrawSyncService {
 
     // Process odds if available
     if (event.odds || event.startOdds || event.favouriteOdds || event.betMetrics) {
-      await this.processMatchOdds(match.id, event)
+      await this.processMatchOdds(match.id, event, gameType)
     }
 
     // Store expert tips if available
@@ -562,7 +593,11 @@ export class DrawSyncService {
   /**
    * Process match odds - stores start odds, current odds, and favourite odds separately
    */
-  private async processMatchOdds(matchId: number, event: DrawEventData): Promise<void> {
+  private async processMatchOdds(
+    matchId: number,
+    event: DrawEventData,
+    gameType: GameType
+  ): Promise<void> {
     const parseSwedishFloat = (value: string | undefined) =>
       value ? parseFloat(value.replace(',', '.')) : NaN
 
@@ -601,7 +636,7 @@ export class DrawSyncService {
         where: {
           match_id_source_type_collected_at: {
             match_id: matchId,
-            source: 'stryktipset',
+            source: gameType, // Use game type as source
             type: type,
             collected_at: collectedAt,
           },
@@ -622,7 +657,7 @@ export class DrawSyncService {
         },
         create: {
           match_id: matchId,
-          source: 'stryktipset',
+          source: gameType, // Use game type as source
           type: type,
           home_odds: homeOdds,
           draw_odds: drawOdds,

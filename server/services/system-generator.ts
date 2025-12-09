@@ -80,12 +80,18 @@ export class SystemGenerator {
 
   /**
    * Apply system to match selections to generate actual coupon rows
+   * @param system - The betting system to apply
+   * @param hedgeAssignment - The hedge assignment (spiks, helg, halvg)
+   * @param utgangstecken - Optional utgångstecken for U-systems
+   * @param mgExtensions - Optional MG extensions
+   * @param matchCount - Number of matches (default: 13 for Stryktipset/Europatipset, use 8 for Topptipset)
    */
   applySystem(
     system: BettingSystem,
     hedgeAssignment: HedgeAssignment,
     utgangstecken?: Record<number, string>,
-    mgExtensions?: MGExtension[]
+    mgExtensions?: MGExtension[],
+    matchCount: number = 13
   ): CouponRow[] {
     // Generate key rows for this system
     const keyRows = this.generateKeyRows(system)
@@ -93,7 +99,7 @@ export class SystemGenerator {
     // Map key rows to actual match outcomes
     const couponRows: CouponRow[] = keyRows.map((pattern, idx) => ({
       rowNumber: idx + 1,
-      picks: this.mapPatternToOutcomes(pattern, hedgeAssignment, utgangstecken),
+      picks: this.mapPatternToOutcomes(pattern, hedgeAssignment, utgangstecken, matchCount),
     }))
 
     // Apply MG extensions if provided
@@ -326,17 +332,23 @@ export class SystemGenerator {
    * - For halvgarderingar: 0=first outcome, 1=second outcome (depends on assignment)
    * - For spiks: fixed outcome from spikOutcomes
    * - For U-systems: weighted toward utgångstecken
+   *
+   * @param pattern - Numeric pattern from key rows
+   * @param hedgeAssignment - Match assignments for spiks, helg, halvg
+   * @param utgangstecken - Utgångstecken for U-systems
+   * @param matchCount - Number of matches (13 for Stryktipset/Europatipset, 8 for Topptipset)
    */
   private mapPatternToOutcomes(
     pattern: number[],
     hedgeAssignment: HedgeAssignment,
-    utgangstecken?: Record<number, string>
+    utgangstecken?: Record<number, string>,
+    matchCount: number = 13
   ): string[] {
-    const outcomes: string[] = new Array(13)
+    const outcomes: string[] = new Array(matchCount)
     let patternIdx = 0
 
-    // Map outcomes for all 13 matches
-    for (let matchNum = 1; matchNum <= 13; matchNum++) {
+    // Map outcomes for all matches
+    for (let matchNum = 1; matchNum <= matchCount; matchNum++) {
       if (hedgeAssignment.spiks.includes(matchNum)) {
         // Spik: use fixed outcome
         outcomes[matchNum - 1] = hedgeAssignment.spikOutcomes[matchNum] || '1'

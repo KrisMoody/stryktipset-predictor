@@ -127,7 +127,7 @@ export class ScraperServiceV3 {
       console.log(`[Scraper Service V3] Starting hybrid scrape for match ${options.matchId}`)
 
       // Get draw info to determine URL pattern
-      const draw = await this.getDrawInfo(options.drawNumber)
+      const draw = await this.getDrawInfo(options.drawNumber, options.gameType)
       if (!draw) {
         throw new Error(`Draw ${options.drawNumber} not found`)
       }
@@ -236,8 +236,8 @@ export class ScraperServiceV3 {
       })
 
       // Try AI scraping first (if enabled)
-      // Note: headToHead has no dedicated URL, skip AI scraping for it
-      const useAI = this.enableAiScraper && dataType !== 'headToHead'
+      // HeadToHead now supported via Crawl4AI with tab clicking JS
+      const useAI = this.enableAiScraper
 
       if (useAI) {
         console.log(`[Scraper Service V3] Trying AI scraping for ${dataType}`)
@@ -253,8 +253,8 @@ export class ScraperServiceV3 {
             // Build URL
             const url = urlManager.buildUrl(dataType, urlContext)
 
-            // Call AI scraper
-            const aiResult = await this.aiScraperClient.scrape(url, dataType)
+            // Call AI scraper with gameType
+            const aiResult = await this.aiScraperClient.scrape(url, dataType, options.gameType)
 
             if (aiResult.success && aiResult.data && !this._isEmptyData(aiResult.data)) {
               data = aiResult.data
@@ -533,11 +533,12 @@ export class ScraperServiceV3 {
    * Get draw info from database
    */
   private async getDrawInfo(
-    drawNumber: number
+    drawNumber: number,
+    gameType = 'stryktipset'
   ): Promise<{ draw_date: Date; is_current: boolean } | null> {
     try {
       return await prisma.draws.findUnique({
-        where: { draw_number: drawNumber },
+        where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         select: { draw_date: true, is_current: true },
       })
     } catch (error) {

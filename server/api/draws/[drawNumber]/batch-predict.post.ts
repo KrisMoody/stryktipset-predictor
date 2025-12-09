@@ -24,7 +24,7 @@ export default defineEventHandler(async (event): Promise<BatchPredictResponse> =
 
   // Get all matches for the draw
   const draw = await prisma.draws.findUnique({
-    where: { draw_number: drawNumber },
+    where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
     include: {
       matches: {
         select: { id: true },

@@ -1,5 +1,7 @@
 import type { Page } from 'playwright'
 import { extractTabUrls, type AccessibilityNode } from './accessibility-helper'
+import type { GameType } from '~/types/game-types'
+import { getGameConfig } from '~/server/constants/game-configs'
 
 /**
  * URL pattern type - determines which URL structure to use
@@ -20,15 +22,16 @@ export interface DomainConfig {
  * Match and draw data for URL building
  */
 export interface UrlBuildContext {
-  matchNumber: number // 1-13
+  matchNumber: number // 1-13 for Stryktipset/Europatipset, 1-8 for Topptipset
   drawNumber: number
   drawDate: Date
   isCurrent: boolean
+  gameType?: GameType // Defaults to 'stryktipset' for backward compatibility
 }
 
 /**
  * URL configuration manager
- * Handles both current and historic URL patterns
+ * Handles both current and historic URL patterns for all game types
  */
 export class UrlManager {
   private domains: DomainConfig = {
@@ -38,41 +41,66 @@ export class UrlManager {
 
   private workingDomain: string | null = null
   private discoveredUrls: Map<string, Record<string, string>> = new Map()
+  private currentGameType: GameType = 'stryktipset'
 
   /**
-   * Current round URL patterns (for is_current = true)
+   * Get current URL patterns based on game type
    * Note: headToHead has no dedicated URL on svenskaspel.se - skip AI scraping for it
    */
-  private currentPatterns = {
-    statistics: '/stryktipset/statistik?event={matchNumber}',
-    xStats: '/stryktipset/xstats?event={matchNumber}',
-    news: '/stryktipset/nyheter?event={matchNumber}',
+  private getCurrentPatterns(gameType: GameType) {
+    const basePath = getGameConfig(gameType).scrapeBasePath
+    return {
+      statistics: `${basePath}/statistik?event={matchNumber}`,
+      xStats: `${basePath}/xstats?event={matchNumber}`,
+      news: `${basePath}/nyheter?event={matchNumber}`,
+    }
   }
 
   /**
-   * Historic round URL patterns (for is_current = false)
+   * Get historic URL patterns based on game type
    * Note: headToHead has no dedicated URL on svenskaspel.se - skip AI scraping for it
    */
-  private historicPatterns = {
-    statistics:
-      '/stryktipset/resultat/{date}/statistik?draw={drawNumber}&product=1&event={matchNumber}',
-    xStats: '/stryktipset/resultat/{date}/xstats?draw={drawNumber}&product=1&event={matchNumber}',
-    news: '/stryktipset/resultat/{date}/nyheter?draw={drawNumber}&product=1&event={matchNumber}',
+  private getHistoricPatterns(gameType: GameType) {
+    const config = getGameConfig(gameType)
+    const basePath = config.scrapeBasePath
+    return {
+      statistics: `${basePath}/resultat/{date}/statistik?draw={drawNumber}&product=${config.productId}&event={matchNumber}`,
+      xStats: `${basePath}/resultat/{date}/xstats?draw={drawNumber}&product=${config.productId}&event={matchNumber}`,
+      news: `${basePath}/resultat/{date}/nyheter?draw={drawNumber}&product=${config.productId}&event={matchNumber}`,
+    }
+  }
+
+  /**
+   * Set the current game type for URL building
+   */
+  setGameType(gameType: GameType): void {
+    this.currentGameType = gameType
+    console.log(`[URL Manager] Game type set to: ${gameType}`)
+  }
+
+  /**
+   * Get the current game type
+   */
+  getGameType(): GameType {
+    return this.currentGameType
   }
 
   /**
    * Test domains to find which one works
    */
-  async testDomains(page: Page): Promise<string> {
+  async testDomains(page: Page, gameType?: GameType): Promise<string> {
     if (this.workingDomain) {
       return this.workingDomain
     }
 
-    console.log('[URL Manager] Testing domains...')
+    const testGameType = gameType || this.currentGameType
+    const basePath = getGameConfig(testGameType).scrapeBasePath
+
+    console.log(`[URL Manager] Testing domains for ${testGameType}...`)
 
     // Try primary domain first
     try {
-      const testUrl = `${this.domains.primary}/stryktipset`
+      const testUrl = `${this.domains.primary}${basePath}`
       const response = await page.goto(testUrl, {
         waitUntil: 'domcontentloaded',
         timeout: 10000,
@@ -89,7 +117,7 @@ export class UrlManager {
 
     // Try fallback domain
     try {
-      const testUrl = `${this.domains.fallback}/stryktipset`
+      const testUrl = `${this.domains.fallback}${basePath}`
       const response = await page.goto(testUrl, {
         waitUntil: 'domcontentloaded',
         timeout: 10000,
@@ -115,9 +143,13 @@ export class UrlManager {
    */
   buildUrl(dataType: string, context: UrlBuildContext): string {
     const domain = this.workingDomain || this.domains.primary
-    const pattern = context.isCurrent
-      ? this.currentPatterns[dataType as keyof typeof this.currentPatterns]
-      : this.historicPatterns[dataType as keyof typeof this.historicPatterns]
+    const gameType = context.gameType || this.currentGameType
+
+    const patterns = context.isCurrent
+      ? this.getCurrentPatterns(gameType)
+      : this.getHistoricPatterns(gameType)
+
+    const pattern = patterns[dataType as keyof typeof patterns]
 
     if (!pattern) {
       throw new Error(`Unknown data type: ${dataType}`)

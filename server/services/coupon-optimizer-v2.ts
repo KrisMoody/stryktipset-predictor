@@ -1,5 +1,6 @@
-import { CouponOptimizer } from './coupon-optimizer'
+import { CouponOptimizer, type TopptipsetStake } from './coupon-optimizer'
 import { systemGenerator } from './system-generator'
+import { getGameConfig } from '~/server/constants/game-configs'
 import type {
   SystemCoupon,
   BettingSystem,
@@ -7,6 +8,7 @@ import type {
   CouponSelection,
   MGExtension,
 } from '~/types'
+import type { GameType } from '~/types/game-types'
 
 /**
  * Enhanced coupon optimizer with R/U-system support
@@ -19,11 +21,14 @@ export class CouponOptimizerV2 extends CouponOptimizer {
     drawNumber: number,
     systemId: string,
     utgangstecken?: Record<number, string>,
-    mgExtensions?: MGExtension[]
+    mgExtensions?: MGExtension[],
+    gameType: GameType = 'stryktipset',
+    stake: TopptipsetStake = 1
   ): Promise<SystemCoupon | null> {
     try {
+      const gameConfig = getGameConfig(gameType)
       console.log(
-        `[CouponOptimizerV2] Generating system coupon for draw ${drawNumber} with system ${systemId}`
+        `[CouponOptimizerV2] Generating ${gameType} system coupon for draw ${drawNumber} with system ${systemId}`
       )
 
       // Get system definition
@@ -33,15 +38,19 @@ export class CouponOptimizerV2 extends CouponOptimizer {
       }
 
       // Get AI-based optimal selections first
-      const aiCoupon = await this.generateOptimalCoupon(drawNumber, 10000) // High budget to get full analysis
+      const aiCoupon = await this.generateOptimalCoupon(drawNumber, 10000, gameType, stake) // High budget to get full analysis
       if (!aiCoupon) {
-        throw new Error(`Failed to generate AI predictions for draw ${drawNumber}`)
+        throw new Error(`Failed to generate AI predictions for ${gameType} draw ${drawNumber}`)
       }
 
       const selections = aiCoupon.selections
 
       // Determine hedge assignment based on system requirements and AI predictions
-      const hedgeAssignment = this.determineHedgeAssignment(selections, system)
+      const hedgeAssignment = this.determineHedgeAssignment(
+        selections,
+        system,
+        gameConfig.matchCount
+      )
 
       // For U-systems: auto-generate utgångstecken if not provided
       let finalUtgangstecken = utgangstecken
@@ -54,11 +63,13 @@ export class CouponOptimizerV2 extends CouponOptimizer {
         system,
         hedgeAssignment,
         finalUtgangstecken,
-        mgExtensions
+        mgExtensions,
+        gameConfig.matchCount
       )
 
-      // Calculate total cost (1 SEK per row)
-      const totalCost = rows.length
+      // Calculate total cost (stake per row for Topptipset, 1 SEK per row for others)
+      const costPerRow = gameType === 'topptipset' ? stake : 1
+      const totalCost = rows.length * costPerRow
 
       // Calculate expected value (average of all selections)
       const expectedValue = this.calculateOverallEV(selections)
@@ -86,14 +97,15 @@ export class CouponOptimizerV2 extends CouponOptimizer {
    * 2. High-confidence matches → spiks
    * 3. Low-confidence matches → helgarderingar (need full 1X2 coverage)
    * 4. Medium-confidence matches → halvgarderingar (need 2-way coverage)
-   * 5. Ensure total spiks + helg + halvg = 13 and helg + halvg = system requirements
+   * 5. Ensure total spiks + helg + halvg = matchCount and helg + halvg = system requirements
    */
   private determineHedgeAssignment(
     selections: CouponSelection[],
-    system: BettingSystem
+    system: BettingSystem,
+    matchCount: number = 13
   ): HedgeAssignment {
     const totalHedges = system.helgarderingar + system.halvgarderingar
-    const totalSpiks = 13 - totalHedges
+    const totalSpiks = matchCount - totalHedges
 
     // Sort matches by confidence (spik-suitable first, then by EV)
     const sorted = [...selections].sort((a, b) => {

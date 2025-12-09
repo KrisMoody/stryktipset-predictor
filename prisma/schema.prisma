@@ -51,10 +51,11 @@ model teams {
   away_matches matches[] @relation("AwayTeam")
 }
 
-// Stryktipset draws (rounds/coupons)
+// Pool game draws (rounds/coupons) - supports Stryktipset, Europatipset, Topptipset
 model draws {
   id          Int       @id @default(autoincrement())
-  draw_number Int       @unique
+  draw_number Int       // Draw number (unique per game type)
+  game_type   String    @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
   draw_date   DateTime  @db.Date
   close_time  DateTime  @db.Timestamp(6)
   status      String    @db.VarChar(50) // "Open", "Closed", "Completed"
@@ -65,14 +66,17 @@ model draws {
   archived_at DateTime? @db.Timestamp(6) // When draw was archived to historic
   created_at  DateTime  @default(now()) @db.Timestamp(6)
   updated_at  DateTime  @default(now()) @updatedAt @db.Timestamp(6)
-  
+
   // Relations
   matches matches[]
 
+  @@unique([game_type, draw_number]) // Composite unique: same draw number can exist for different games
   @@index([draw_number])
+  @@index([game_type])
   @@index([status])
   @@index([draw_date])
   @@index([is_current])
+  @@index([game_type, is_current])
 }
 
 // Individual matches in a draw
@@ -301,19 +305,21 @@ model backfill_operations {
 model system_performance {
   id               Int       @id @default(autoincrement())
   draw_number      Int
-  system_id        String    @db.VarChar(50)  // e.g., "R-4-0-9-12", "U-0-7-10"
-  system_type      String    @db.VarChar(5)   // "R" or "U"
+  game_type        String    @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
+  system_id        String    @db.VarChar(50)  // e.g., "R-4-0-9-12", "U-0-7-10", "T-3-0-27-7"
+  system_type      String    @db.VarChar(5)   // "R", "U", or "T" (Topptipset custom)
   rows_count       Int                         // Number of rows in system
-  cost             Int                         // Total cost (1 SEK per row)
+  cost             Int                         // Total cost (stake * rows)
+  stake            Int       @default(1)      // Stake per row in SEK (1 for Stryktipset/Europatipset, 1/2/5/10 for Topptipset)
   mg_extensions    Json?                       // MG extensions applied [{matchNumber, type, outcomes}]
   final_row_count  Int                         // Final rows after MG extensions
   final_cost       Int                         // Final cost after MG extensions
 
   // Results (populated after draw completes)
-  correct_row      String?   @db.VarChar(13)  // Actual correct row: "1X21X2X1X21X2"
-  winning_rows     Int?                        // How many rows matched 13 rätt
+  correct_row      String?   @db.VarChar(13)  // Actual correct row: "1X21X2X1X21X2" (13 chars) or "1X21X2X1" (8 chars for Topptipset)
+  winning_rows     Int?                        // How many rows matched all correct
   best_score       Int?                        // Highest correct count in any row
-  score_distribution Json?                     // {10: count, 11: count, 12: count, 13: count}
+  score_distribution Json?                     // {10: count, 11: count, 12: count, 13: count} or {6: count, 7: count, 8: count} for Topptipset
   payout           Decimal?  @db.Decimal(15, 2) // Total payout received
   roi              Decimal?  @db.Decimal(10, 4) // Return on investment
 
@@ -321,20 +327,23 @@ model system_performance {
   analyzed_at      DateTime? @db.Timestamp(6)  // When results were analyzed
   created_at       DateTime  @default(now()) @db.Timestamp(6)
 
-  @@unique([draw_number, system_id, created_at])
+  @@unique([draw_number, game_type, system_id, created_at])
   @@index([draw_number])
+  @@index([game_type])
   @@index([system_id])
   @@index([system_type])
   @@index([created_at])
   @@index([best_score])
+  @@index([game_type, draw_number])
 }
 
 // Generated coupon storage for tracking and training
 model generated_coupons {
   id               Int       @id @default(autoincrement())
   draw_number      Int
+  game_type        String    @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
   system_id        String?   @db.VarChar(50)  // null for AI-based
-  mode             String    @db.VarChar(20)  // "ai", "r-system", "u-system"
+  mode             String    @db.VarChar(20)  // "ai", "r-system", "u-system", "t-system" (Topptipset custom)
 
   // Status tracking
   status           String    @db.VarChar(20) @default("generated")  // "generated", "saved", "played", "analyzed"
@@ -346,6 +355,7 @@ model generated_coupons {
   selections       Json                        // AI prediction selections
   rows             Json                        // Generated coupon rows
   total_cost       Int
+  stake            Int       @default(1)      // Stake per row in SEK (for Topptipset: 1/2/5/10)
   expected_value   Decimal   @db.Decimal(10, 4)
   budget           Int?                        // Budget used for AI mode
 
@@ -359,10 +369,12 @@ model generated_coupons {
   created_at       DateTime  @default(now()) @db.Timestamp(6)
 
   @@index([draw_number])
+  @@index([game_type])
   @@index([system_id])
   @@index([mode])
   @@index([status])
   @@index([created_at])
+  @@index([game_type, draw_number])
   @@index([draw_number, mode, system_id, version])
 }
 
@@ -371,6 +383,7 @@ model prediction_batches {
   id           Int       @id @default(autoincrement())
   batch_id     String    @unique @db.VarChar(100) // Anthropic batch ID
   draw_number  Int                                 // Draw being predicted
+  game_type    String    @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
   match_ids    Int[]                               // Match IDs in the batch
   model        String    @db.VarChar(50)          // Model used
   status       String    @db.VarChar(20)          // "processing", "ended", "failed", "canceling", "canceled", "expired"
@@ -381,8 +394,10 @@ model prediction_batches {
 
   @@index([batch_id])
   @@index([draw_number])
+  @@index([game_type])
   @@index([status])
   @@index([created_at])
+  @@index([game_type, draw_number])
 }
 
 // User profiles for cost cap management

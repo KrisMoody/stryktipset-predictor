@@ -16,6 +16,7 @@ export interface PredictMatchOptions {
   userContext?: string
   isReevaluation?: boolean
   model?: PredictionModel
+  gameType?: string
 }
 
 /**
@@ -45,7 +46,13 @@ export class PredictionService {
     matchId: number,
     options: PredictMatchOptions = {}
   ): Promise<PredictionData | null> {
-    const { userId, userContext, isReevaluation = false, model = 'claude-sonnet-4-5' } = options
+    const {
+      userId,
+      userContext,
+      isReevaluation = false,
+      model = 'claude-sonnet-4-5',
+      gameType = 'stryktipset',
+    } = options
 
     try {
       console.log(
@@ -95,8 +102,8 @@ export class PredictionService {
       // Prepare context for Claude
       const context = this.prepareMatchContext(match, similarMatches, teamMatchups, userContext)
 
-      // Generate prediction using Claude
-      const prediction = await this.generatePrediction(context, matchId, model, userId)
+      // Generate prediction using Claude with game-specific prompt
+      const prediction = await this.generatePrediction(context, matchId, model, userId, gameType)
 
       if (!prediction) {
         throw new Error('Failed to generate prediction')
@@ -365,10 +372,10 @@ export class PredictionService {
   }
 
   /**
-   * Static system prompt for predictions - cached to reduce costs
+   * Base system prompt for predictions - cached to reduce costs
    * Cache control enables prompt caching: first request caches, subsequent reads from cache
    */
-  private static readonly PREDICTION_SYSTEM_PROMPT = `You are an expert football analyst specializing in Swedish Stryktipset predictions. Your task is to analyze match data and provide accurate probability predictions.
+  private static readonly BASE_PREDICTION_PROMPT = `You are an expert football analyst specializing in Swedish pool betting predictions. Your task is to analyze match data and provide accurate probability predictions.
 
 Please provide your analysis in JSON format with the following structure:
 {
@@ -393,26 +400,81 @@ Important guidelines:
 - Provide clear, actionable reasoning`
 
   /**
+   * Game-specific system prompts
+   */
+  private static readonly GAME_PROMPTS: Record<string, string> = {
+    stryktipset: `
+
+Game Context: STRYKTIPSET
+- Traditional Swedish 1X2 pool game with 13 matches
+- Prize pool distributed: 13 rätt (~1.5M SEK), 12 rätt (~50K SEK), 11 rätt (~1.5K SEK), 10 rätt (~75 SEK)
+- 65% payout rate
+- Mix of Swedish Allsvenskan and international matches
+- Spiks are valuable for reducing system cost while maximizing coverage`,
+
+    europatipset: `
+
+Game Context: EUROPATIPSET
+- European football focused 1X2 pool game with 13 matches
+- Same prize structure as Stryktipset: 13 rätt, 12 rätt, 11 rätt, 10 rätt
+- 65% payout rate
+- Primarily features top European leagues (Premier League, La Liga, Serie A, Bundesliga, Ligue 1)
+- Higher quality league data available, but more competitive matches
+- European leagues often have clearer favorites but also more upsets`,
+
+    topptipset: `
+
+Game Context: TOPPTIPSET
+- Compact 1X2 pool game with only 8 matches
+- ALL-OR-NOTHING: Only 8 rätt wins the jackpot (no consolation prizes!)
+- 70% payout rate (higher than Stryktipset/Europatipset)
+- Variable stakes: 1, 2, 5, or 10 SEK per row
+- Full system: 3^8 = 6,561 combinations at 1 SEK = 6,561 SEK
+- Strategy: Focus on highest confidence predictions since all 8 must be correct
+- Consider reduced systems that maintain 7-rätt guarantee for coverage
+- Spiks are CRITICAL - incorrect spiks mean zero return
+- Higher risk tolerance but potentially higher rewards
+- Be more conservative with spik recommendations due to all-or-nothing nature`,
+  }
+
+  /**
+   * Get the full system prompt for a specific game type
+   */
+  private static getSystemPrompt(gameType: string = 'stryktipset'): string {
+    const gamePrompt =
+      PredictionService.GAME_PROMPTS[gameType] || PredictionService.GAME_PROMPTS.stryktipset
+    return PredictionService.BASE_PREDICTION_PROMPT + gamePrompt
+  }
+
+  /**
+   * Legacy static prompt for backward compatibility (Stryktipset)
+   */
+  private static readonly PREDICTION_SYSTEM_PROMPT =
+    PredictionService.getSystemPrompt('stryktipset')
+
+  /**
    * Generate prediction using Claude
    */
   private async generatePrediction(
     context: string,
     matchId: number,
     model: PredictionModel = 'claude-sonnet-4-5',
-    userId?: string
+    userId?: string,
+    gameType: string = 'stryktipset'
   ): Promise<PredictionData | null> {
     const startTime = Date.now()
     try {
       const anthropic = this.getAnthropicClient()
+      const systemPrompt = PredictionService.getSystemPrompt(gameType)
       const message = await anthropic.messages.create({
         model,
         max_tokens: 2000,
         // System prompt with cache_control for prompt caching
-        // The system prompt is static and will be cached for 5 minutes
+        // The system prompt is game-type-specific and will be cached for 5 minutes
         system: [
           {
             type: 'text',
-            text: PredictionService.PREDICTION_SYSTEM_PROMPT,
+            text: systemPrompt,
             cache_control: { type: 'ephemeral' },
           },
         ],

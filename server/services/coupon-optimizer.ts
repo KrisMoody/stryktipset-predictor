@@ -1,5 +1,12 @@
 import { prisma } from '~/server/utils/prisma'
-import type { OptimalCoupon, CouponSelection, ExpectedValue } from '~/types'
+import type { OptimalCoupon, CouponSelection, ExpectedValue, GameType } from '~/types'
+import { getGameConfig } from '~/server/constants/game-configs'
+
+/**
+ * Valid stake options for Topptipset
+ */
+export const TOPPTIPSET_STAKES = [1, 2, 5, 10] as const
+export type TopptipsetStake = (typeof TOPPTIPSET_STAKES)[number]
 
 /**
  * Service for generating optimal betting coupons
@@ -7,19 +14,29 @@ import type { OptimalCoupon, CouponSelection, ExpectedValue } from '~/types'
 export class CouponOptimizer {
   /**
    * Generate optimal coupon for a draw
+   *
+   * @param drawNumber - The draw number to generate coupon for
+   * @param budget - Maximum budget in SEK (default: 500)
+   * @param gameType - Game type (default: 'stryktipset')
+   * @param stake - Stake per row for Topptipset (1, 2, 5, or 10 SEK)
    */
   async generateOptimalCoupon(
     drawNumber: number,
-    budget: number = 500
+    budget: number = 500,
+    gameType: GameType = 'stryktipset',
+    stake: TopptipsetStake = 1
   ): Promise<OptimalCoupon | null> {
     try {
+      const gameConfig = getGameConfig(gameType)
+
       console.log(
-        `[Coupon Optimizer] Generating optimal coupon for draw ${drawNumber} with budget ${budget} SEK`
+        `[Coupon Optimizer] Generating optimal ${gameType} coupon for draw ${drawNumber} with budget ${budget} SEK` +
+          (gameType === 'topptipset' ? ` (stake: ${stake} SEK/row)` : '')
       )
 
       // Get draw and its matches with predictions
       const draw = await prisma.draws.findUnique({
-        where: { draw_number: drawNumber },
+        where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         include: {
           matches: {
             orderBy: { match_number: 'asc' },
@@ -40,11 +57,13 @@ export class CouponOptimizer {
       })
 
       if (!draw) {
-        throw new Error(`Draw ${drawNumber} not found`)
+        throw new Error(`${gameType} draw ${drawNumber} not found`)
       }
 
-      if (draw.matches.length !== 13) {
-        throw new Error(`Draw ${drawNumber} does not have 13 matches`)
+      if (draw.matches.length !== gameConfig.matchCount) {
+        throw new Error(
+          `${gameType} draw ${drawNumber} does not have ${gameConfig.matchCount} matches`
+        )
       }
 
       // Check if all matches have predictions
@@ -95,15 +114,19 @@ export class CouponOptimizer {
 
       // Calculate total combinations and cost
       const totalCombinations = this.calculateTotalCombinations(selections)
-      const totalCost = totalCombinations // Assuming 1 SEK per row
+      // Cost per row: 1 SEK for Stryktipset/Europatipset, variable stake for Topptipset
+      const costPerRow = gameType === 'topptipset' ? stake : 1
+      const _totalCost = totalCombinations * costPerRow
 
       // If over budget, reduce garderings
-      if (totalCost > budget) {
-        await this.reduceCombinations(selections, budget)
+      // For Topptipset with stake, adjust the effective budget for combination count
+      const maxCombinations = Math.floor(budget / costPerRow)
+      if (totalCombinations > maxCombinations) {
+        await this.reduceCombinations(selections, maxCombinations)
       }
 
       const finalCombinations = this.calculateTotalCombinations(selections)
-      const finalCost = finalCombinations
+      const finalCost = finalCombinations * costPerRow
 
       // Calculate overall expected value
       const expectedValue = this.calculateOverallEV(selections)

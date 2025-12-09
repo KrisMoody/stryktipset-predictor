@@ -226,9 +226,15 @@ import type {
   MGExtension,
   CouponStatus,
 } from '~/types'
+import type { GameType } from '~/types/game-types'
+import { getGameConfig } from '~/server/constants/game-configs'
 
 const route = useRoute()
 const drawId = route.params.id as string
+
+// Extract gameType from query parameter, default to stryktipset
+const gameType = computed(() => (route.query.gameType as GameType) || 'stryktipset')
+const gameDisplayName = computed(() => getGameConfig(gameType.value).displayName)
 
 // State
 const aiPredictions = ref<CouponSelection[] | null>(null)
@@ -310,7 +316,7 @@ const generateAIPredictions = async () => {
       `/api/draws/${drawId}/optimize`,
       {
         method: 'POST',
-        body: { mode: 'ai', budget: 500 },
+        body: { mode: 'ai', budget: 500, gameType: gameType.value },
       }
     )
 
@@ -341,7 +347,9 @@ const handleMGExtensionsUpdate = (newExtensions: MGExtension[]) => {
 const generateCoupon = async () => {
   generating.value = true
   try {
-    const body: Record<string, unknown> = {}
+    const body: Record<string, unknown> = {
+      gameType: gameType.value,
+    }
 
     if (selectedMode.value === 'r-system' || selectedMode.value === 'u-system') {
       body.mode = 'system'
@@ -393,6 +401,8 @@ const handleStatusUpdated = (status: CouponStatus) => {
 }
 
 useHead({
-  title: `Optimize Coupon - Draw #${drawId} - Stryktipset AI Predictor`,
+  title: computed(
+    () => `Optimize Coupon - Draw #${drawId} - ${gameDisplayName.value} AI Predictor`
+  ),
 })
 </script>

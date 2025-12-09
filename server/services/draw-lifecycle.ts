@@ -12,7 +12,7 @@ export class DrawLifecycleService {
   async shouldArchive(drawNumber: number): Promise<DrawLifecycleStatus> {
     try {
       const draw = await prisma.draws.findUnique({
-        where: { draw_number: drawNumber },
+        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
         include: {
           matches: {
             select: {
@@ -99,7 +99,7 @@ export class DrawLifecycleService {
       console.log(`[Draw Lifecycle] Archiving draw ${drawNumber}`)
 
       await prisma.draws.update({
-        where: { draw_number: drawNumber },
+        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
         data: {
           is_current: false,
           archived_at: new Date(),
@@ -207,7 +207,7 @@ export class DrawLifecycleService {
   }> {
     try {
       const draw = await prisma.draws.findUnique({
-        where: { draw_number: drawNumber },
+        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
         select: {
           draw_number: true,
           status: true,
@@ -249,7 +249,7 @@ export class DrawLifecycleService {
       )
 
       await prisma.draws.update({
-        where: { draw_number: drawNumber },
+        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
         data: {
           is_current: false,
           archived_at: new Date(),

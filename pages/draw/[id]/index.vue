@@ -462,12 +462,12 @@
               !isActionAllowed
                 ? 'Disabled outside betting window. Enable admin override to proceed.'
                 : !isDrawReady(draw)
-                  ? 'All 13 matches need predictions first'
+                  ? `All ${getGameConfig(gameType).matchCount} matches need predictions first`
                   : 'Generate optimal coupon'
             "
           >
             <UButton
-              :to="`/draw/${drawId}/optimize`"
+              :to="{ path: `/draw/${drawId}/optimize`, query: { gameType: gameType } }"
               color="primary"
               size="lg"
               :disabled="!isDrawReady(draw) || !isActionAllowed"
@@ -561,13 +561,19 @@
 
 <script setup lang="ts">
 import type { RealtimeScrapingStatus, ScheduleWindowStatus } from '~/types'
+import type { GameType } from '~/types/game-types'
+import { getGameConfig } from '~/server/constants/game-configs'
 import { useUserProfile } from '~/composables/useUserProfile'
 
 const route = useRoute()
 const drawId = route.params.id as string
 
+// Extract gameType from query parameter, default to stryktipset
+const gameType = computed(() => (route.query.gameType as GameType) || 'stryktipset')
+const gameDisplayName = computed(() => getGameConfig(gameType.value).displayName)
+
 useHead({
-  title: `Draw #${drawId} - Stryktipset AI Predictor`,
+  title: computed(() => `Draw #${drawId} - ${gameDisplayName.value} AI Predictor`),
 })
 
 // Admin access check
@@ -788,7 +794,10 @@ const {
 } = await useFetch<{
   success: boolean
   draw?: Draw
-}>(`/api/draws/${drawId}`)
+}>(`/api/draws/${drawId}`, {
+  query: { gameType },
+  watch: [gameType],
+})
 const draw = computed(() => response.value?.draw)
 
 // Track scraping updates per match
@@ -896,9 +905,10 @@ const getConfidenceColor = (confidence: string) => {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Draw/match data has dynamic shape from API */
-const isDrawReady = (draw: any) => {
-  if (!draw.matches || draw.matches.length !== 13) return false
-  return draw.matches.every((m: any) => m.predictions && m.predictions.length > 0)
+const isDrawReady = (drawData: any) => {
+  const expectedMatchCount = getGameConfig(gameType.value).matchCount
+  if (!drawData.matches || drawData.matches.length !== expectedMatchCount) return false
+  return drawData.matches.every((m: any) => m.predictions && m.predictions.length > 0)
 }
 
 const hasAnyPredictions = (draw: any) => {

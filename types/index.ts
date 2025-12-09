@@ -1,6 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic API data structures require any types */
 // Type definitions for Svenska Spel API and application data structures
 
+// Re-export game types for convenience
+// Import for use within this file
+import type { GameType } from './game-types'
+
+export * from './game-types'
+
 /**
  * Database entities (from Prisma)
  */
@@ -415,8 +421,9 @@ export type CouponStatus = 'generated' | 'saved' | 'played' | 'analyzed'
 export interface PersistedCoupon {
   id: number
   drawNumber: number
+  gameType: import('~/types/game-types').GameType
   systemId: string | null
-  mode: 'ai' | 'r-system' | 'u-system'
+  mode: 'ai' | 'r-system' | 'u-system' | 't-system'
   status: CouponStatus
   version: number
   utgangstecken: Record<number, string> | null
@@ -424,6 +431,7 @@ export interface PersistedCoupon {
   selections: CouponSelection[]
   rows: CouponRow[]
   totalCost: number
+  stake: number
   expectedValue: number
   budget: number | null
   performanceId: number | null
@@ -495,6 +503,7 @@ export interface ScrapeOptions {
   timeout?: number
   retries?: number
   userId?: string
+  gameType?: GameType
 }
 
 /**

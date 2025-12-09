@@ -407,7 +407,7 @@ export class ScraperServiceV2 {
   ): Promise<{ draw_date: Date; is_current: boolean } | null> {
     try {
       return await prisma.draws.findUnique({
-        where: { draw_number: drawNumber },
+        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
         select: { draw_date: true, is_current: true },
       })
     } catch (error) {

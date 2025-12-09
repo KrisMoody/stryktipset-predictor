@@ -3,6 +3,7 @@ import { getScraperServiceV3 } from '~/server/services/scraper/scraper-service-v
 import { costCapService } from '~/server/services/cost-cap-service'
 import { getAuthenticatedUser } from '~/server/utils/get-authenticated-user'
 import { prisma } from '~/server/utils/prisma'
+import type { GameType } from '~/types/game-types'
 
 export default defineEventHandler(async event => {
   try {
@@ -62,6 +63,7 @@ export default defineEventHandler(async event => {
       matchNumber: match.match_number,
       dataTypes,
       userId: user.id,
+      gameType: match.draws.game_type as GameType,
     })
 
     return {

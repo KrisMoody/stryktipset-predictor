@@ -10,8 +10,10 @@ env:
   NODE_VERSION: '20'
   # Placeholder env vars for builds (actual values not needed for mocked tests)
   DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+  DATABASE_DIRECT_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
   SUPABASE_URL: https://placeholder.supabase.co
-  SUPABASE_ANON_KEY: placeholder
+  SUPABASE_KEY: placeholder
+  SUPABASE_SECRET_KEY: placeholder
   ANTHROPIC_API_KEY: placeholder
   OPENAI_API_KEY: placeholder
 
@@ -35,6 +37,8 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+        env:
+          DATABASE_DIRECT_URL: ${{ env.DATABASE_DIRECT_URL }}
 
       - name: Run ESLint
         run: yarn lint
@@ -62,9 +66,8 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
+        env:
+          DATABASE_DIRECT_URL: ${{ env.DATABASE_DIRECT_URL }}
 
       - name: Run unit tests
         run: yarn test:unit
@@ -116,6 +119,8 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+        env:
+          DATABASE_DIRECT_URL: ${{ env.DATABASE_DIRECT_URL }}
 
       - name: Setup database
         run: |
@@ -161,9 +166,8 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
+        env:
+          DATABASE_DIRECT_URL: ${{ env.DATABASE_DIRECT_URL }}
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

@@ -62,6 +62,7 @@ export default defineNuxtConfig({
       bugsnagReleaseStage: process.env.BUGSNAG_RELEASE_STAGE || 'production',
       bugsnagAppVersion:
         process.env.VERCEL_GIT_COMMIT_SHA || process.env.npm_package_version || '1.0.0',
+      supabaseUrl: process.env.SUPABASE_URL || '',
     },
   },
   compatibilityDate: '2024-11-01',

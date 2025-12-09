@@ -137,7 +137,7 @@ jobs:
         run: yarn test:a11y
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: a11y-report
@@ -199,7 +199,7 @@ jobs:
         run: yarn playwright test tests/e2e/smoke.spec.ts --project=chromium
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: e2e-report

@@ -29,7 +29,7 @@ jobs:
       DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       DATABASE_DIRECT_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -59,7 +59,7 @@ jobs:
       DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       DATABASE_DIRECT_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -111,7 +111,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/test_db
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -173,7 +173,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/test_db
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

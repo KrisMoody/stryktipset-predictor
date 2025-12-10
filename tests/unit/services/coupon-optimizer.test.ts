@@ -207,6 +207,55 @@ class TestableCouponOptimizer {
 
 class TestableCouponOptimizerV2 extends TestableCouponOptimizer {
   /**
+   * Update selections to reflect the system's hedge assignment
+   */
+  updateSelectionsForSystem(
+    selections: CouponSelection[],
+    hedgeAssignment: HedgeAssignment
+  ): CouponSelection[] {
+    return selections.map(sel => {
+      const matchNum = sel.matchNumber
+
+      if (hedgeAssignment.spiks.includes(matchNum)) {
+        // Spik: single outcome
+        const spikOutcome = hedgeAssignment.spikOutcomes[matchNum] || sel.selection[0] || '1'
+        return {
+          ...sel,
+          selection: spikOutcome,
+          is_spik: true,
+          reasoning: `System spik: ${spikOutcome} (${sel.reasoning})`,
+        }
+      } else if (hedgeAssignment.helgarderingar.includes(matchNum)) {
+        // Helgardering: full coverage (1X2)
+        return {
+          ...sel,
+          selection: '1X2',
+          is_spik: false,
+          reasoning: `System helgardering (${sel.reasoning})`,
+        }
+      } else if (hedgeAssignment.halvgarderingar.includes(matchNum)) {
+        // Halvgardering: two-way coverage
+        let halvSelection = sel.selection
+        if (sel.selection.length === 1) {
+          if (sel.selection === '1') halvSelection = '1X'
+          else if (sel.selection === '2') halvSelection = 'X2'
+          else halvSelection = '1X' // X -> 1X
+        } else if (sel.selection.length === 3) {
+          halvSelection = sel.selection.substring(0, 2)
+        }
+        return {
+          ...sel,
+          selection: halvSelection,
+          is_spik: false,
+          reasoning: `System halvgardering: ${halvSelection} (${sel.reasoning})`,
+        }
+      }
+
+      return sel
+    })
+  }
+
+  /**
    * Determine hedge assignment based on system requirements and AI predictions
    */
   determineHedgeAssignment(selections: CouponSelection[], system: BettingSystem): HedgeAssignment {
@@ -748,6 +797,170 @@ describe('CouponOptimizerV2', () => {
       const utgangstecken = optimizer.autoGenerateUtgangstecken(selections, hedgeAssignment)
 
       expect(Object.keys(utgangstecken)).toHaveLength(0)
+    })
+  })
+
+  // ============================================================================
+  // updateSelectionsForSystem Tests
+  // ============================================================================
+
+  describe('updateSelectionsForSystem', () => {
+    it('converts spik matches to single outcomes', () => {
+      const selections = [
+        createSelection(1, '1X', false, 10),
+        createSelection(2, '1X2', false, 8),
+        createSelection(3, '2', false, 5),
+      ]
+
+      const hedgeAssignment: HedgeAssignment = {
+        spiks: [1, 2, 3],
+        helgarderingar: [],
+        halvgarderingar: [],
+        spikOutcomes: { 1: '1', 2: 'X', 3: '2' },
+      }
+
+      const updated = optimizer.updateSelectionsForSystem(selections, hedgeAssignment)
+
+      expect(updated[0]!.selection).toBe('1')
+      expect(updated[0]!.is_spik).toBe(true)
+      expect(updated[1]!.selection).toBe('X')
+      expect(updated[1]!.is_spik).toBe(true)
+      expect(updated[2]!.selection).toBe('2')
+      expect(updated[2]!.is_spik).toBe(true)
+    })
+
+    it('converts helgardering matches to full coverage (1X2)', () => {
+      const selections = [
+        createSelection(1, '1', false, 10),
+        createSelection(2, 'X', false, 8),
+        createSelection(3, '1X', false, 5),
+      ]
+
+      const hedgeAssignment: HedgeAssignment = {
+        spiks: [],
+        helgarderingar: [1, 2, 3],
+        halvgarderingar: [],
+        spikOutcomes: {},
+      }
+
+      const updated = optimizer.updateSelectionsForSystem(selections, hedgeAssignment)
+
+      expect(updated[0]!.selection).toBe('1X2')
+      expect(updated[0]!.is_spik).toBe(false)
+      expect(updated[1]!.selection).toBe('1X2')
+      expect(updated[2]!.selection).toBe('1X2')
+    })
+
+    it('expands single selection to double for halvgardering', () => {
+      const selections = [
+        createSelection(1, '1', false, 10),
+        createSelection(2, 'X', false, 8),
+        createSelection(3, '2', false, 5),
+      ]
+
+      const hedgeAssignment: HedgeAssignment = {
+        spiks: [],
+        helgarderingar: [],
+        halvgarderingar: [1, 2, 3],
+        spikOutcomes: {},
+      }
+
+      const updated = optimizer.updateSelectionsForSystem(selections, hedgeAssignment)
+
+      expect(updated[0]!.selection).toBe('1X') // 1 -> 1X
+      expect(updated[1]!.selection).toBe('1X') // X -> 1X
+      expect(updated[2]!.selection).toBe('X2') // 2 -> X2
+    })
+
+    it('reduces triple selection to double for halvgardering', () => {
+      const selections = [createSelection(1, '1X2', false, 10)]
+
+      const hedgeAssignment: HedgeAssignment = {
+        spiks: [],
+        helgarderingar: [],
+        halvgarderingar: [1],
+        spikOutcomes: {},
+      }
+
+      const updated = optimizer.updateSelectionsForSystem(selections, hedgeAssignment)
+
+      expect(updated[0]!.selection).toBe('1X') // 1X2 -> 1X (first two chars)
+    })
+
+    it('keeps double selection as-is for halvgardering', () => {
+      const selections = [createSelection(1, '1X', false, 10), createSelection(2, 'X2', false, 8)]
+
+      const hedgeAssignment: HedgeAssignment = {
+        spiks: [],
+        helgarderingar: [],
+        halvgarderingar: [1, 2],
+        spikOutcomes: {},
+      }
+
+      const updated = optimizer.updateSelectionsForSystem(selections, hedgeAssignment)
+
+      expect(updated[0]!.selection).toBe('1X')
+      expect(updated[1]!.selection).toBe('X2')
+    })
+
+    it('handles mixed hedge assignments', () => {
+      const selections = [
+        createSelection(1, '1X', false, 10),
+        createSelection(2, 'X', false, 8),
+        createSelection(3, '2', false, 5),
+      ]
+
+      const hedgeAssignment: HedgeAssignment = {
+        spiks: [1],
+        helgarderingar: [2],
+        halvgarderingar: [3],
+        spikOutcomes: { 1: '1' },
+      }
+
+      const updated = optimizer.updateSelectionsForSystem(selections, hedgeAssignment)
+
+      expect(updated[0]!.selection).toBe('1') // Spik
+      expect(updated[0]!.is_spik).toBe(true)
+      expect(updated[1]!.selection).toBe('1X2') // Helgardering
+      expect(updated[1]!.is_spik).toBe(false)
+      expect(updated[2]!.selection).toBe('X2') // Halvgardering (2 -> X2)
+      expect(updated[2]!.is_spik).toBe(false)
+    })
+
+    it('uses first char of selection when no spikOutcome defined', () => {
+      const selections = [createSelection(1, '1X2', false, 10)]
+
+      const hedgeAssignment: HedgeAssignment = {
+        spiks: [1],
+        helgarderingar: [],
+        halvgarderingar: [],
+        spikOutcomes: {}, // No spik outcome defined
+      }
+
+      const updated = optimizer.updateSelectionsForSystem(selections, hedgeAssignment)
+
+      expect(updated[0]!.selection).toBe('1') // First char of '1X2'
+    })
+
+    it('updates reasoning to reflect system assignment', () => {
+      const selections = [
+        createSelection(1, '1', false, 10),
+        createSelection(2, 'X', false, 8),
+        createSelection(3, '2', false, 5),
+      ]
+
+      const hedgeAssignment: HedgeAssignment = {
+        spiks: [1],
+        helgarderingar: [2],
+        halvgarderingar: [3],
+        spikOutcomes: { 1: '1' },
+      }
+
+      const updated = optimizer.updateSelectionsForSystem(selections, hedgeAssignment)
+
+      expect(updated[0]!.reasoning).toContain('System spik')
+      expect(updated[1]!.reasoning).toContain('System helgardering')
+      expect(updated[2]!.reasoning).toContain('System halvgardering')
     })
   })
 })

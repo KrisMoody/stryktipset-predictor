@@ -1,13 +1,51 @@
-name: Create develop to main PR
+name: Auto PR Creation
 
 on:
+  push:
+    branches:
+      - develop
+      - '**'
+      - '!main'
   pull_request:
     branches: [develop]
     types: [closed]
 
 jobs:
+  # When pushing a feature branch, create PR to develop
+  create-feature-pr:
+    if: github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for existing PR
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch_name=${GITHUB_REF#refs/heads/}
+          existing_pr=$(gh pr list --base develop --head "$branch_name" --state open --json number --jq '.[0].number // empty')
+          echo "existing_pr=$existing_pr" >> $GITHUB_OUTPUT
+          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
+
+      - name: Create PR to develop
+        if: steps.check-pr.outputs.existing_pr == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch_name=${{ steps.check-pr.outputs.branch_name }}
+          gh pr create \
+            --base develop \
+            --head "$branch_name" \
+            --title "$branch_name" \
+            --body "Automated PR for merging $branch_name into develop."
+
+  # When pushing to develop, create draft PR to main
   create-release-pr:
-    if: github.event.pull_request.merged == true
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,3 +72,16 @@ jobs:
             --title "Release: develop to main" \
             --body "Automated draft PR for releasing develop to main." \
             --draft
+
+  # Delete feature branch after PR is merged to develop
+  delete-merged-branch:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X DELETE repos/${{ github.repository }}/git/refs/heads/${{ github.event.pull_request.head.ref }}

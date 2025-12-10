@@ -39,10 +39,11 @@ export default defineEventHandler(async event => {
     console.log(`[Admin Sync] Syncing ${gameType} draws...`)
     const result = await drawSyncService.syncCurrentDraws(gameType)
 
-    // Invalidate cache after successful sync
+    // Invalidate caches after successful sync
     if (result.success) {
       drawCacheService.invalidateCurrentDrawsCache(gameType)
-      console.log(`[Admin Sync] Cache invalidated for ${gameType} after manual sync`)
+      await scheduleWindowService.forceRefreshCache()
+      console.log(`[Admin Sync] Caches invalidated for ${gameType} after manual sync`)
     }
 
     return {

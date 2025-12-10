@@ -567,6 +567,7 @@ import { useUserProfile } from '~/composables/useUserProfile'
 
 const route = useRoute()
 const drawId = route.params.id as string
+const toast = useToast()
 
 // Extract gameType from query parameter, default to stryktipset
 const gameType = computed(() => (route.query.gameType as GameType) || 'stryktipset')
@@ -590,7 +591,7 @@ const archiving = ref(false)
 
 // Computed property for action buttons
 const isActionAllowed = computed(() => {
-  if (!scheduleStatus.value) return true // Allow if status not loaded yet
+  if (!scheduleStatus.value) return false // Deny by default when status unknown
   return scheduleStatus.value.isActive || adminOverride.value
 })
 
@@ -613,6 +614,11 @@ async function loadScheduleStatus() {
 onMounted(async () => {
   await Promise.all([loadScheduleStatus(), fetchProfile()])
   setInterval(loadScheduleStatus, 60000)
+})
+
+// Watch for game type changes and reload schedule status
+watch(gameType, () => {
+  loadScheduleStatus()
 })
 
 const predicting = ref<Record<number, boolean>>({})
@@ -825,10 +831,23 @@ watch(
 const predictMatch = async (matchId: number) => {
   predicting.value[matchId] = true
   try {
-    await $fetch(`/api/matches/${matchId}/predict`, { method: 'POST' })
+    await $fetch(`/api/matches/${matchId}/predict`, {
+      method: 'POST',
+      body: { gameType: gameType.value },
+    })
     await refresh()
+    toast.add({
+      title: 'Prediction Generated',
+      description: `Match #${matchId} predicted successfully`,
+      color: 'success',
+    })
   } catch (error) {
     console.error('Error predicting match:', error)
+    toast.add({
+      title: 'Prediction Failed',
+      description: error instanceof Error ? error.message : 'Failed to predict match',
+      color: 'error',
+    })
   } finally {
     predicting.value[matchId] = false
   }
@@ -843,8 +862,18 @@ const scrapeMatch = async (matchId: number) => {
       body: { dataTypes: ['xStats', 'statistics', 'headToHead', 'news', 'lineup'] },
     })
     await refresh()
+    toast.add({
+      title: 'Scrape Complete',
+      description: `Match #${matchId} data scraped successfully`,
+      color: 'success',
+    })
   } catch (error) {
     console.error('Error scraping match:', error)
+    toast.add({
+      title: 'Scrape Failed',
+      description: error instanceof Error ? error.message : 'Failed to scrape match data',
+      color: 'error',
+    })
   } finally {
     scraping.value[matchId] = false
   }

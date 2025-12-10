@@ -1,5 +1,6 @@
 import { CouponOptimizer, type TopptipsetStake } from './coupon-optimizer'
 import { systemGenerator } from './system-generator'
+import { hedgeAssignmentService } from './hedge-assignment-service'
 import { getGameConfig } from '~/server/constants/game-configs'
 import type {
   SystemCoupon,
@@ -45,8 +46,8 @@ export class CouponOptimizerV2 extends CouponOptimizer {
 
       const selections = aiCoupon.selections
 
-      // Determine hedge assignment based on system requirements and AI predictions
-      const hedgeAssignment = this.determineHedgeAssignment(
+      // Determine hedge assignment using AI-powered service (with algorithmic fallback)
+      const hedgeAssignment = await hedgeAssignmentService.generateHedgeAssignment(
         selections,
         system,
         gameConfig.matchCount
@@ -132,18 +133,31 @@ export class CouponOptimizerV2 extends CouponOptimizer {
     // Sort remaining by uncertainty (lowest EV = most uncertain = needs full hedge)
     const sortedByUncertainty = remaining.sort((a, b) => a.expected_value - b.expected_value)
 
-    // Assign helgarderingar (most uncertain matches)
+    // Assign helgarderingar (most uncertain matches) - EXACTLY system.helgarderingar count
     for (let i = 0; i < system.helgarderingar && i < sortedByUncertainty.length; i++) {
       helgarderingar.push(sortedByUncertainty[i]!.matchNumber)
     }
 
-    // Assign halvgarderingar (remaining matches)
-    for (let i = system.helgarderingar; i < sortedByUncertainty.length; i++) {
+    // Assign halvgarderingar - EXACTLY system.halvgarderingar count (not all remaining!)
+    const halvgEnd = system.helgarderingar + system.halvgarderingar
+    for (let i = system.helgarderingar; i < halvgEnd && i < sortedByUncertainty.length; i++) {
       halvgarderingar.push(sortedByUncertainty[i]!.matchNumber)
     }
 
+    // Validate hedge counts match system requirements
+    const expectedSpiks = matchCount - system.helgarderingar - system.halvgarderingar
+    if (
+      helgarderingar.length !== system.helgarderingar ||
+      halvgarderingar.length !== system.halvgarderingar ||
+      spiks.length !== expectedSpiks
+    ) {
+      console.error(
+        `[CouponOptimizerV2] Hedge count mismatch! System ${system.id} requires: ${system.helgarderingar} helg, ${system.halvgarderingar} halvg, ${expectedSpiks} spiks. Got: ${helgarderingar.length} helg, ${halvgarderingar.length} halvg, ${spiks.length} spiks`
+      )
+    }
+
     console.log(
-      `[CouponOptimizerV2] Hedge assignment: ${spiks.length} spiks, ${helgarderingar.length} helg, ${halvgarderingar.length} halvg`
+      `[CouponOptimizerV2] Hedge assignment for ${system.id}: ${spiks.length} spiks, ${helgarderingar.length} helg, ${halvgarderingar.length} halvg`
     )
 
     return {

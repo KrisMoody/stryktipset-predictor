@@ -4,6 +4,10 @@ import { couponPersistenceService } from '~/server/services/coupon-persistence'
 import type { GameType } from '~/types/game-types'
 import { isValidGameType, DEFAULT_GAME_TYPE } from '~/server/constants/game-configs'
 
+// Row count limits for performance and safety
+const ROW_WARNING_THRESHOLD = 200 // Log warning for large coupons
+const ROW_LIMIT = 10000 // Hard limit to prevent excessive coupons
+
 export default defineEventHandler(async event => {
   try {
     const drawNumber = parseInt(event.context.params?.drawNumber || '0')
@@ -34,6 +38,20 @@ export default defineEventHandler(async event => {
           statusCode: 500,
           message: 'Failed to generate system coupon',
         })
+      }
+
+      // Check row count limits for large coupons
+      if (coupon.rows && coupon.rows.length > ROW_LIMIT) {
+        throw createError({
+          statusCode: 400,
+          message: `Coupon too large (${coupon.rows.length} rows). Maximum is ${ROW_LIMIT} rows. Try reducing MG extensions or using a smaller system.`,
+        })
+      }
+
+      if (coupon.rows && coupon.rows.length > ROW_WARNING_THRESHOLD) {
+        console.warn(
+          `[Optimize] Large coupon generated: ${coupon.rows.length} rows for draw ${drawNumber} (system: ${systemId})`
+        )
       }
 
       // Auto-save the system coupon

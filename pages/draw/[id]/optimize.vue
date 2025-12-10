@@ -203,6 +203,7 @@
             :coupon="generatedCoupon"
             :coupon-id="couponId ?? undefined"
             :coupon-status="couponStatus"
+            :game-type="gameType"
             @status-updated="handleStatusUpdated"
           />
 
@@ -274,7 +275,8 @@ const currentCoverage = computed((): Record<number, string[]> => {
   const sorted = [...aiPredictions.value].sort((a, b) => b.expected_value - a.expected_value)
 
   // Top EVs are spiks (single outcome)
-  const spikCount = 13 - system.helgarderingar - system.halvgarderingar
+  const gameMatchCount = getGameConfig(gameType.value).matchCount
+  const spikCount = gameMatchCount - system.helgarderingar - system.halvgarderingar
   const spiks = sorted.slice(0, spikCount)
   const helgMatches = sorted.slice(spikCount, spikCount + system.helgarderingar)
   const halvgMatches = sorted.slice(spikCount + system.helgarderingar)

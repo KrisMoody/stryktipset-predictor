@@ -1,9 +1,26 @@
+import pLimit from 'p-limit'
 import { predictionService } from '~/server/services/prediction-service'
 import { drawCacheService } from '~/server/services/draw-cache-service'
 import { costCapService } from '~/server/services/cost-cap-service'
 import { getAuthenticatedUser } from '~/server/utils/get-authenticated-user'
 import { prisma } from '~/server/utils/prisma'
 import type { PredictionModel } from '~/types'
+
+// Configuration for concurrency control
+const CONCURRENCY_LIMIT = 3 // Process 3 predictions at a time to avoid API rate limits
+const PREDICTION_TIMEOUT_MS = 60000 // 60 second timeout per prediction
+
+/**
+ * Helper to add timeout to a promise
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, matchId: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms for match ${matchId}`)), ms)
+    ),
+  ])
+}
 
 interface ReEvaluateAllRequest {
   matchIds?: number[]
@@ -70,29 +87,38 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
   const model = body?.model || 'claude-sonnet-4-5'
 
   console.log(
-    `[Re-evaluate All] Starting re-evaluation for ${matchIds.length} matches in draw ${drawNumber} using ${model}`
+    `[Re-evaluate All] Starting re-evaluation for ${matchIds.length} matches in draw ${drawNumber} using ${model} (concurrency: ${CONCURRENCY_LIMIT})`
   )
 
-  // Execute predictions in parallel
+  // Create concurrency limiter
+  const limit = pLimit(CONCURRENCY_LIMIT)
+
+  // Execute predictions with concurrency control and timeout
   const results = await Promise.all(
-    matchIds.map(async (matchId: number): Promise<ReEvaluateResult> => {
-      try {
-        await predictionService.predictMatch(matchId, {
-          userId: user.id,
-          userContext: contexts[matchId],
-          isReevaluation: true,
-          model,
-        })
-        return { matchId, success: true }
-      } catch (error) {
-        console.error(`[Re-evaluate All] Failed for match ${matchId}:`, error)
-        return {
-          matchId,
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+    matchIds.map((matchId: number) =>
+      limit(async (): Promise<ReEvaluateResult> => {
+        try {
+          await withTimeout(
+            predictionService.predictMatch(matchId, {
+              userId: user.id,
+              userContext: contexts[matchId],
+              isReevaluation: true,
+              model,
+            }),
+            PREDICTION_TIMEOUT_MS,
+            matchId
+          )
+          return { matchId, success: true }
+        } catch (error) {
+          console.error(`[Re-evaluate All] Failed for match ${matchId}:`, error)
+          return {
+            matchId,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }
         }
-      }
-    })
+      })
+    )
   )
 
   // Calculate total cost from recent AI usage

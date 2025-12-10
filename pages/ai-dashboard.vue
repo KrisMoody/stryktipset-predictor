@@ -143,13 +143,27 @@
         </UCard>
 
         <!-- Cost Trends Chart -->
-        <AiMetricsCostChart
-          title="Cost Trends"
-          :chart-data="currentTrendData"
-          :selected-period="chartPeriod"
-          data-key="cost"
-          @period-change="handlePeriodChange"
-        />
+        <ClientOnly>
+          <AiMetricsCostChart
+            title="Cost Trends"
+            :chart-data="currentTrendData"
+            :selected-period="chartPeriod"
+            data-key="cost"
+            @period-change="handlePeriodChange"
+          />
+          <template #fallback>
+            <UCard>
+              <template #header>
+                <div class="flex items-center justify-between">
+                  <h3 class="text-lg font-semibold">Cost Trends</h3>
+                </div>
+              </template>
+              <div class="h-64 flex items-center justify-center">
+                <div class="animate-pulse text-gray-400">Loading chart...</div>
+              </div>
+            </UCard>
+          </template>
+        </ClientOnly>
 
         <!-- Cost Breakdowns -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

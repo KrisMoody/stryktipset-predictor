@@ -233,9 +233,8 @@ export class DrawSyncService {
     if (!participant?.id || !participant?.name) return
 
     await prisma.teams.upsert({
-      where: { id: participant.id },
+      where: { name: participant.name },
       update: {
-        name: participant.name,
         short_name: participant.shortName || null,
         medium_name: participant.mediumName || null,
         updated_at: new Date(),
@@ -267,9 +266,8 @@ export class DrawSyncService {
     if (!countryId || !countryName) return
 
     await prisma.countries.upsert({
-      where: { id: countryId },
+      where: { name: countryName },
       update: {
-        name: countryName,
         iso_code: countryData.isoCode || null,
         updated_at: new Date(),
       },

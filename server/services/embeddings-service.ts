@@ -60,6 +60,7 @@ export class EmbeddingsService {
             },
           },
           match_odds: {
+            where: { type: 'current' },
             orderBy: { collected_at: 'desc' },
             take: 1,
           },
@@ -237,6 +238,7 @@ export class EmbeddingsService {
             },
           },
           match_odds: {
+            where: { type: 'current' },
             orderBy: { collected_at: 'desc' },
             take: 1,
           },

@@ -14,7 +14,8 @@ export default defineNuxtConfig({
     // Disable database types - we use Prisma for database operations,
     // Supabase is only used for auth and realtime subscriptions
     types: false,
-    redirect: true,
+    // Disable redirect in test mode to allow E2E tests to access pages
+    redirect: process.env.TEST_MODE !== 'true',
     redirectOptions: {
       login: '/login',
       callback: '/confirm',
@@ -53,6 +54,9 @@ export default defineNuxtConfig({
     // Public keys are now handled by @nuxtjs/supabase module
     // It reads SUPABASE_URL and SUPABASE_KEY automatically
     public: {
+      // Test mode - bypasses auth for E2E tests
+      testMode: process.env.TEST_MODE === 'true',
+
       // Auth redirect URL - set to http://localhost:3000 for local development
       // If not set, falls back to window.location.origin
       authRedirectUrl: process.env.AUTH_REDIRECT_URL || '',

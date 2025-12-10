@@ -2,6 +2,11 @@ import { serverSupabaseUser } from '#supabase/server'
 import { prisma } from '~/server/utils/prisma'
 
 export default defineEventHandler(async event => {
+  // Skip auth check in test mode (for E2E tests)
+  if (process.env.TEST_MODE === 'true') {
+    return
+  }
+
   // Skip auth check for login and confirm pages
   const path = getRequestURL(event).pathname
   if (path === '/login' || path === '/confirm') {

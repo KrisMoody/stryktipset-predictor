@@ -23,7 +23,28 @@ const profile = ref<UserProfileData | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+// Mock profile for test mode
+const mockTestProfile: UserProfileData = {
+  id: 1,
+  userId: 'test-user-id',
+  email: 'test@example.com',
+  isAdmin: true,
+  costCapUsd: 100,
+  capBypassUntil: null,
+  currentWeekSpending: 0,
+  remainingBudget: 100,
+  hasBypass: false,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+}
+
 export function useUserProfile() {
+  // In test mode, return mock admin profile
+  const config = useRuntimeConfig()
+  if (config.public.testMode) {
+    profile.value = mockTestProfile
+  }
+
   const isAdmin = computed(() => profile.value?.isAdmin ?? false)
   const hasProfile = computed(() => profile.value !== null)
 

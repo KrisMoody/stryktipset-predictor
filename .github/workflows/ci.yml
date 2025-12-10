@@ -172,6 +172,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       DATABASE_DIRECT_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      TEST_MODE: 'true'
     steps:
       - uses: actions/checkout@v6
 
@@ -194,9 +195,13 @@ jobs:
 
       - name: Build application
         run: yarn build
+        env:
+          TEST_MODE: 'true'
 
       - name: Run E2E smoke tests (chromium only)
         run: yarn playwright test tests/e2e/smoke.spec.ts --project=chromium
+        env:
+          TEST_MODE: 'true'
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v5

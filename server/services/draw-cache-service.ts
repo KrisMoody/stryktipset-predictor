@@ -64,6 +64,7 @@ class DrawCacheService {
                 take: 1,
               },
               match_odds: {
+                where: { type: 'current' },
                 orderBy: { collected_at: 'desc' },
               },
             },
@@ -108,6 +109,7 @@ class DrawCacheService {
                 take: 1,
               },
               match_odds: {
+                where: { type: 'current' },
                 orderBy: { collected_at: 'desc' },
               },
               match_scraped_data: true,

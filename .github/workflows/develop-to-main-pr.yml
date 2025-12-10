@@ -53,25 +53,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for existing PR
-        id: check-pr
+      - name: Create draft PR if none exists
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           existing_pr=$(gh pr list --base main --head develop --state open --json number --jq '.[0].number // empty')
-          echo "existing_pr=$existing_pr" >> $GITHUB_OUTPUT
-
-      - name: Create draft PR
-        if: steps.check-pr.outputs.existing_pr == ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr create \
-            --base main \
-            --head develop \
-            --title "Release: develop to main" \
-            --body "Automated draft PR for releasing develop to main." \
-            --draft
+          if [ -z "$existing_pr" ]; then
+            echo "No existing PR found, creating draft PR..."
+            gh pr create \
+              --base main \
+              --head develop \
+              --title "Release: develop to main" \
+              --body "Automated draft PR for releasing develop to main." \
+              --draft
+          else
+            echo "PR #$existing_pr already exists, skipping creation"
+          fi
 
   # Delete feature branch after PR is merged to develop
   delete-merged-branch:

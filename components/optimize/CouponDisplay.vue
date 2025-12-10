@@ -99,7 +99,7 @@
 
       <div class="space-y-3">
         <div
-          v-for="matchNum in 13"
+          v-for="matchNum in matchCount"
           :key="matchNum"
           class="flex items-center gap-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
         >
@@ -158,7 +158,7 @@
               <tr>
                 <th scope="col" class="px-3 py-2 text-left font-semibold">Row</th>
                 <th
-                  v-for="i in 13"
+                  v-for="i in matchCount"
                   :key="i"
                   scope="col"
                   class="px-2 py-2 text-center font-semibold"
@@ -263,6 +263,8 @@
 
 <script setup lang="ts">
 import type { SystemCoupon, OptimalCoupon, CouponRow, CouponStatus } from '~/types'
+import type { GameType } from '~/types/game-types'
+import { getGameConfig } from '~/server/constants/game-configs'
 import {
   validateForEnkelraderExport,
   validateForMSystemExport,
@@ -277,6 +279,7 @@ const props = defineProps<{
   coupon: SystemCoupon | OptimalCoupon
   couponId?: number
   couponStatus?: CouponStatus
+  gameType?: GameType
 }>()
 
 const emit = defineEmits<{
@@ -291,6 +294,20 @@ function isSystemCoupon(c: SystemCoupon | OptimalCoupon): c is SystemCoupon {
 // Helper to safely get rows
 const couponRows = computed<CouponRow[]>(() => {
   return isSystemCoupon(props.coupon) ? props.coupon.rows : []
+})
+
+// Compute matchCount dynamically based on gameType or coupon data
+const matchCount = computed(() => {
+  // If gameType provided, use it
+  if (props.gameType) {
+    return getGameConfig(props.gameType).matchCount
+  }
+  // Fallback: infer from coupon rows
+  if (couponRows.value.length > 0) {
+    return couponRows.value[0]?.picks.length || 13
+  }
+  // Fallback: infer from selections
+  return props.coupon.selections?.length || 13
 })
 
 // View state
@@ -468,8 +485,8 @@ const generateCouponText = (): string => {
   text += `Total Rows: ${couponRows.value.length}\n`
   text += `Total Cost: ${props.coupon.totalCost} SEK\n\n`
 
-  text += 'Row | ' + Array.from({ length: 13 }, (_, i) => i + 1).join(' | ') + '\n'
-  text += '-'.repeat(60) + '\n'
+  text += 'Row | ' + Array.from({ length: matchCount.value }, (_, i) => i + 1).join(' | ') + '\n'
+  text += '-'.repeat(matchCount.value * 4 + 6) + '\n'
 
   couponRows.value.forEach(row => {
     text += `${row.rowNumber.toString().padStart(3)} | ${row.picks.join(' | ')}\n`
@@ -481,7 +498,7 @@ const generateCouponText = (): string => {
 const generateCSV = (): string => {
   if (couponRows.value.length === 0) return ''
 
-  let csv = 'Row,' + Array.from({ length: 13 }, (_, i) => i + 1).join(',') + '\n'
+  let csv = 'Row,' + Array.from({ length: matchCount.value }, (_, i) => i + 1).join(',') + '\n'
 
   couponRows.value.forEach(row => {
     csv += `${row.rowNumber},${row.picks.join(',')}\n`
@@ -504,14 +521,14 @@ const getSystemId = () => {
 // Check if Enkelrader export is available
 const canExportEnkelrader = computed(() => {
   if (couponRows.value.length === 0) return false
-  const validation = validateForEnkelraderExport(couponRows.value)
+  const validation = validateForEnkelraderExport(couponRows.value, matchCount.value)
   return validation.isValid
 })
 
 // Check if M-system export is available
 const canExportMSystem = computed(() => {
-  if (!props.coupon.selections || props.coupon.selections.length !== 13) return false
-  const validation = validateForMSystemExport(props.coupon.selections)
+  if (!props.coupon.selections || props.coupon.selections.length !== matchCount.value) return false
+  const validation = validateForMSystemExport(props.coupon.selections, matchCount.value)
   return validation.isValid
 })
 
@@ -543,7 +560,7 @@ const svenskaSpelExportItems = computed(() => [
 
 // Download as Enkelrader format
 const downloadEnkelrader = () => {
-  const validation = validateForEnkelraderExport(couponRows.value)
+  const validation = validateForEnkelraderExport(couponRows.value, matchCount.value)
 
   if (!validation.isValid) {
     toast.add({
@@ -594,7 +611,7 @@ const downloadMSystem = () => {
     return
   }
 
-  const validation = validateForMSystemExport(props.coupon.selections)
+  const validation = validateForMSystemExport(props.coupon.selections, matchCount.value)
 
   if (!validation.isValid) {
     toast.add({

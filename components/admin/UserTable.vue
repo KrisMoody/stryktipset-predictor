@@ -38,14 +38,11 @@
               <UBadge v-if="user.disabledAt" color="error" variant="subtle" size="xs">
                 Disabled
               </UBadge>
-              <UBadge
-                v-if="user.capBypassUntil && new Date(user.capBypassUntil) > new Date()"
-                color="warning"
-                variant="subtle"
-                size="xs"
-              >
-                Bypass
-              </UBadge>
+              <ClientOnly>
+                <UBadge v-if="hasActiveBypass(user)" color="warning" variant="subtle" size="xs">
+                  Bypass
+                </UBadge>
+              </ClientOnly>
               <UBadge v-if="user.userId === null" color="neutral" variant="subtle" size="xs">
                 Pending
               </UBadge>
@@ -158,6 +155,11 @@ function formatDate(dateStr: string): string {
   })
 }
 
+function hasActiveBypass(user: UserWithSpending): boolean {
+  if (!user.capBypassUntil) return false
+  return new Date(user.capBypassUntil) > new Date()
+}
+
 function getSpendingPercent(user: UserWithSpending): number {
   if (user.isAdmin || user.costCapUsd === 0) return 0
   return Math.min(100, (user.currentWeekSpending / user.costCapUsd) * 100)
@@ -180,7 +182,7 @@ function getProgressBarColor(user: UserWithSpending): string {
 
 function getDropdownItems(user: UserWithSpending) {
   const isCurrentUser = user.userId !== null && user.userId === props.currentUserId
-  const hasBypass = user.capBypassUntil && new Date(user.capBypassUntil) > new Date()
+  const hasBypass = hasActiveBypass(user)
   const isDisabled = !!user.disabledAt
   const isPending = user.userId === null
 

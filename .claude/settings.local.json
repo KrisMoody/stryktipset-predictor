@@ -21,7 +21,8 @@
       "Bash(yarn format:*)",
       "Bash(yarn test:all:*)",
       "Bash(yarn test:a11y:*)",
-      "Bash(npx playwright test:*)"
+      "Bash(npx playwright test:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

@@ -10,10 +10,11 @@ export default defineEventHandler(async (event): Promise<CostEstimation> => {
   const drawNumber = parseInt(event.context.params?.drawNumber || '0')
   const query = getQuery(event)
   const model = (query.model as PredictionModel) || 'claude-sonnet-4-5'
+  const gameType = (query.gameType as string) || 'stryktipset'
 
   // Get match count for the draw
   const draw = await prisma.draws.findUnique({
-    where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
+    where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
     include: { matches: { select: { id: true } } },
   })
 

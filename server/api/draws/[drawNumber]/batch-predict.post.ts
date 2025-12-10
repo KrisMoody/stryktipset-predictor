@@ -5,6 +5,7 @@ import type { PredictionModel } from '~/types'
 interface BatchPredictRequest {
   model?: PredictionModel
   contexts?: Record<number, string>
+  gameType?: string
 }
 
 export interface BatchPredictResponse {
@@ -21,10 +22,11 @@ export default defineEventHandler(async (event): Promise<BatchPredictResponse> =
 
   const model = body?.model || 'claude-sonnet-4-5'
   const contexts = body?.contexts || {}
+  const gameType = body?.gameType || 'stryktipset'
 
   // Get all matches for the draw
   const draw = await prisma.draws.findUnique({
-    where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
+    where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
     include: {
       matches: {
         select: { id: true },

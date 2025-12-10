@@ -53,10 +53,13 @@ export class CouponOptimizerV2 extends CouponOptimizer {
         gameConfig.matchCount
       )
 
+      // Update selections to reflect the hedge assignment (spik -> single, helg -> 1X2, halv -> 2 outcomes)
+      const updatedSelections = this.updateSelectionsForSystem(selections, hedgeAssignment)
+
       // For U-systems: auto-generate utgångstecken if not provided
       let finalUtgangstecken = utgangstecken
       if (system.type === 'U' && !utgangstecken) {
-        finalUtgangstecken = this.autoGenerateUtgangstecken(selections, hedgeAssignment)
+        finalUtgangstecken = this.autoGenerateUtgangstecken(updatedSelections, hedgeAssignment)
       }
 
       // Generate coupon rows using the system
@@ -73,12 +76,12 @@ export class CouponOptimizerV2 extends CouponOptimizer {
       const totalCost = rows.length * costPerRow
 
       // Calculate expected value (average of all selections)
-      const expectedValue = this.calculateOverallEV(selections)
+      const expectedValue = this.calculateOverallEV(updatedSelections)
 
       return {
         drawNumber,
         system,
-        selections,
+        selections: updatedSelections,
         utgangstecken: finalUtgangstecken,
         rows,
         totalCost,
@@ -166,6 +169,64 @@ export class CouponOptimizerV2 extends CouponOptimizer {
       halvgarderingar,
       spikOutcomes,
     }
+  }
+
+  /**
+   * Update selections to reflect the system's hedge assignment
+   *
+   * This ensures the selections array accurately represents what the system will play:
+   * - Spiks get single outcomes
+   * - Helgarderingar get full coverage (1X2)
+   * - Halvgarderingar get two-way coverage (best two outcomes)
+   */
+  private updateSelectionsForSystem(
+    selections: CouponSelection[],
+    hedgeAssignment: HedgeAssignment
+  ): CouponSelection[] {
+    return selections.map(sel => {
+      const matchNum = sel.matchNumber
+
+      if (hedgeAssignment.spiks.includes(matchNum)) {
+        // Spik: single outcome (use the assigned spik outcome or first char of current selection)
+        const spikOutcome = hedgeAssignment.spikOutcomes[matchNum] || sel.selection[0] || '1'
+        return {
+          ...sel,
+          selection: spikOutcome,
+          is_spik: true,
+          reasoning: `System spik: ${spikOutcome} (${sel.reasoning})`,
+        }
+      } else if (hedgeAssignment.helgarderingar.includes(matchNum)) {
+        // Helgardering: full coverage (1X2)
+        return {
+          ...sel,
+          selection: '1X2',
+          is_spik: false,
+          reasoning: `System helgardering (${sel.reasoning})`,
+        }
+      } else if (hedgeAssignment.halvgarderingar.includes(matchNum)) {
+        // Halvgardering: two-way coverage
+        // If already has 2 outcomes, keep them; otherwise pick best two based on original selection
+        let halvSelection = sel.selection
+        if (sel.selection.length === 1) {
+          // Need to expand to 2 outcomes - add the next most likely
+          if (sel.selection === '1') halvSelection = '1X'
+          else if (sel.selection === '2') halvSelection = 'X2'
+          else halvSelection = '1X' // X -> 1X
+        } else if (sel.selection.length === 3) {
+          // Need to reduce from 3 to 2 - keep best two
+          halvSelection = sel.selection.substring(0, 2)
+        }
+        return {
+          ...sel,
+          selection: halvSelection,
+          is_spik: false,
+          reasoning: `System halvgardering: ${halvSelection} (${sel.reasoning})`,
+        }
+      }
+
+      // Should not reach here, but return original if somehow not assigned
+      return sel
+    })
   }
 
   /**

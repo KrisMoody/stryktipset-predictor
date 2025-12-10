@@ -494,6 +494,7 @@
     <MatchReEvaluateAllModal
       :model-value="reEvaluateAllModal"
       :draw-number="Number(drawId)"
+      :game-type="gameType"
       @update:model-value="reEvaluateAllModal = $event"
       @confirmed="handleReEvaluateAllConfirmed"
     />

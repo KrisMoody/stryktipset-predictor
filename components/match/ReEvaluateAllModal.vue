@@ -157,6 +157,7 @@ import type { CostEstimation, PredictionModel } from '~/types'
 interface Props {
   modelValue: boolean
   drawNumber: number
+  gameType?: string
 }
 
 const props = defineProps<Props>()
@@ -199,7 +200,7 @@ const fetchCostEstimate = async () => {
   try {
     costEstimate.value = await $fetch<CostEstimation>(
       `/api/draws/${props.drawNumber}/estimate-cost`,
-      { query: { model: selectedModel.value } }
+      { query: { model: selectedModel.value, gameType: props.gameType || 'stryktipset' } }
     )
   } catch (e) {
     error.value = 'Failed to estimate cost. Please try again.'
@@ -242,7 +243,7 @@ const handleConfirm = async () => {
         `/api/draws/${props.drawNumber}/batch-predict`,
         {
           method: 'POST',
-          body: { model: selectedModel.value },
+          body: { model: selectedModel.value, gameType: props.gameType || 'stryktipset' },
         }
       )
       batchId.value = response.batchId
@@ -252,7 +253,7 @@ const handleConfirm = async () => {
       // Immediate re-evaluation
       await $fetch(`/api/draws/${props.drawNumber}/reevaluate-all`, {
         method: 'POST',
-        body: { model: selectedModel.value },
+        body: { model: selectedModel.value, gameType: props.gameType || 'stryktipset' },
       })
       emit('confirmed')
       close()

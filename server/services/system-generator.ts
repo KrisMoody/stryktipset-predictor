@@ -1,5 +1,11 @@
 import bettingSystems from '~/server/constants/betting-systems.json'
-import type { BettingSystem, CouponRow, HedgeAssignment, MGExtension } from '~/types'
+import type {
+  BettingSystem,
+  CouponRow,
+  CouponSelection,
+  HedgeAssignment,
+  MGExtension,
+} from '~/types'
 
 /**
  * Service for generating and managing betting systems (R and U-systems)
@@ -85,13 +91,15 @@ export class SystemGenerator {
    * @param utgangstecken - Optional utgångstecken for U-systems
    * @param mgExtensions - Optional MG extensions
    * @param matchCount - Number of matches (default: 13 for Stryktipset/Europatipset, use 8 for Topptipset)
+   * @param selections - Optional selections array to get correct outcomes for halvgarderingar
    */
   applySystem(
     system: BettingSystem,
     hedgeAssignment: HedgeAssignment,
     utgangstecken?: Record<number, string>,
     mgExtensions?: MGExtension[],
-    matchCount: number = 13
+    matchCount: number = 13,
+    selections?: CouponSelection[]
   ): CouponRow[] {
     // Generate key rows for this system
     const keyRows = this.generateKeyRows(system)
@@ -99,7 +107,13 @@ export class SystemGenerator {
     // Map key rows to actual match outcomes
     const couponRows: CouponRow[] = keyRows.map((pattern, idx) => ({
       rowNumber: idx + 1,
-      picks: this.mapPatternToOutcomes(pattern, hedgeAssignment, utgangstecken, matchCount),
+      picks: this.mapPatternToOutcomes(
+        pattern,
+        hedgeAssignment,
+        utgangstecken,
+        matchCount,
+        selections
+      ),
     }))
 
     // Apply MG extensions if provided
@@ -327,41 +341,67 @@ export class SystemGenerator {
   /**
    * Map numeric pattern to actual match outcomes
    *
-   * Pattern values:
-   * - For helgarderingar: 0='1', 1='X', 2='2'
-   * - For halvgarderingar: 0=first outcome, 1=second outcome (depends on assignment)
-   * - For spiks: fixed outcome from spikOutcomes
-   * - For U-systems: weighted toward utgångstecken
+   * Pattern structure: [helg0, helg1, ..., helgN, halvg0, halvg1, ..., halvgM]
+   * - First N positions are helgarderingar (ternary: 0='1', 1='X', 2='2')
+   * - Next M positions are halvgarderingar (binary: 0=first outcome, 1=second outcome)
+   *
+   * IMPORTANT: The pattern positions are NOT in match number order.
+   * We need to map the i-th helgarderad match to pattern[i],
+   * and the j-th halvgarderad match to pattern[helgCount + j].
    *
    * @param pattern - Numeric pattern from key rows
    * @param hedgeAssignment - Match assignments for spiks, helg, halvg
    * @param utgangstecken - Utgångstecken for U-systems
    * @param matchCount - Number of matches (13 for Stryktipset/Europatipset, 8 for Topptipset)
+   * @param selections - Optional selections to get correct outcomes for halvgarderingar
    */
   private mapPatternToOutcomes(
     pattern: number[],
     hedgeAssignment: HedgeAssignment,
     utgangstecken?: Record<number, string>,
-    matchCount: number = 13
+    matchCount: number = 13,
+    selections?: CouponSelection[]
   ): string[] {
     const outcomes: string[] = new Array(matchCount)
-    let patternIdx = 0
+
+    // Sort the arrays to ensure consistent ordering
+    const sortedHelg = [...hedgeAssignment.helgarderingar].sort((a, b) => a - b)
+    const sortedHalvg = [...hedgeAssignment.halvgarderingar].sort((a, b) => a - b)
+    const helgCount = sortedHelg.length
+
+    // Create lookup maps: matchNum -> patternIndex
+    const helgPatternIndex = new Map<number, number>()
+    const halvgPatternIndex = new Map<number, number>()
+
+    sortedHelg.forEach((matchNum, idx) => {
+      helgPatternIndex.set(matchNum, idx)
+    })
+    sortedHalvg.forEach((matchNum, idx) => {
+      halvgPatternIndex.set(matchNum, helgCount + idx)
+    })
 
     // Map outcomes for all matches
     for (let matchNum = 1; matchNum <= matchCount; matchNum++) {
       if (hedgeAssignment.spiks.includes(matchNum)) {
         // Spik: use fixed outcome
         outcomes[matchNum - 1] = hedgeAssignment.spikOutcomes[matchNum] || '1'
-      } else if (hedgeAssignment.helgarderingar.includes(matchNum)) {
+      } else if (helgPatternIndex.has(matchNum)) {
         // Helgarderad: map 0='1', 1='X', 2='2'
-        const value = pattern[patternIdx++] || 0
+        const patternIdx = helgPatternIndex.get(matchNum)!
+        const value = pattern[patternIdx] ?? 0
         outcomes[matchNum - 1] = ['1', 'X', '2'][value] || '1'
-      } else if (hedgeAssignment.halvgarderingar.includes(matchNum)) {
-        // Halvgarderad: map based on utgångstecken or default
-        const value = pattern[patternIdx++] || 0
+      } else if (halvgPatternIndex.has(matchNum)) {
+        // Halvgarderad: map based on selection string, utgångstecken, or default
+        const patternIdx = halvgPatternIndex.get(matchNum)!
+        const value = pattern[patternIdx] ?? 0
+        const selection = selections?.find(s => s.matchNumber === matchNum)
         const utgangOutcome = utgangstecken?.[matchNum]
 
-        if (utgangOutcome) {
+        if (selection?.selection && selection.selection.length >= 2) {
+          // Use the actual selection string (e.g., "1X" -> ['1', 'X'], "X2" -> ['X', '2'])
+          const halvOutcomes = [selection.selection[0], selection.selection[1]]
+          outcomes[matchNum - 1] = halvOutcomes[value] || halvOutcomes[0] || '1'
+        } else if (utgangOutcome) {
           // For U-systems: weight toward utgångstecken
           if (value === 0) {
             outcomes[matchNum - 1] = utgangOutcome
@@ -370,7 +410,7 @@ export class SystemGenerator {
             outcomes[matchNum - 1] = this.getComplementaryOutcome(utgangOutcome)
           }
         } else {
-          // For R-systems: default mapping
+          // Fallback: default mapping
           outcomes[matchNum - 1] = value === 0 ? '1' : 'X'
         }
       } else {

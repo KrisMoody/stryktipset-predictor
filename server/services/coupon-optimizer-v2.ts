@@ -68,7 +68,8 @@ export class CouponOptimizerV2 extends CouponOptimizer {
         hedgeAssignment,
         finalUtgangstecken,
         mgExtensions,
-        gameConfig.matchCount
+        gameConfig.matchCount,
+        updatedSelections
       )
 
       // Calculate total cost (stake per row for Topptipset, 1 SEK per row for others)

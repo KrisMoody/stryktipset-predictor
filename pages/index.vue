@@ -234,6 +234,9 @@ import type { ScheduleWindowStatus } from '~/types'
 import type { GameType } from '~/types/game-types'
 import { getGameConfig } from '~/server/constants/game-configs'
 
+// Toast notifications
+const toast = useToast()
+
 // Game type state
 const selectedGameType = ref<GameType>('stryktipset')
 const gameDisplayName = computed(() => getGameConfig(selectedGameType.value).displayName)
@@ -248,7 +251,7 @@ const adminOverride = ref(false)
 
 // Computed property for action buttons
 const isActionAllowed = computed(() => {
-  if (!scheduleStatus.value) return true // Allow if status not loaded yet
+  if (!scheduleStatus.value) return false // Deny by default when status unknown
   return scheduleStatus.value.isActive || adminOverride.value
 })
 
@@ -329,32 +332,71 @@ const syncDraws = async () => {
       query: { gameType: selectedGameType.value },
     })
     await refresh()
+    await loadScheduleStatus() // Refresh schedule status after sync
+    toast.add({
+      title: 'Sync Complete',
+      description: `${gameDisplayName.value} draws synced successfully`,
+      color: 'success',
+    })
   } catch (err) {
     console.error('Error syncing draws:', err)
+    toast.add({
+      title: 'Sync Failed',
+      description: err instanceof Error ? err.message : 'Failed to sync draws',
+      color: 'error',
+    })
   } finally {
     syncing.value = false
   }
 }
 
-// Generate predictions for all matches in a draw
-const generatePredictions = async (drawNumber: number) => {
-  generatingPredictions.value[drawNumber] = true
-  try {
-    const draw = draws.value.find(d => d.draw_number === drawNumber)
-    if (!draw || !draw.matches) return
+// Generate predictions for all matches in a draw (non-blocking, parallel)
+const generatePredictions = (drawNumber: number) => {
+  const draw = draws.value.find(d => d.draw_number === drawNumber)
+  if (!draw || !draw.matches) return
 
-    for (const match of draw.matches) {
-      try {
-        await $fetch(`/api/matches/${match.id}/predict`, { method: 'POST' })
-      } catch (err) {
-        console.error(`Error predicting match ${match.id}:`, err)
-      }
-    }
+  generatingPredictions.value[drawNumber] = true
+  const matchCount = draw.matches.length
+
+  toast.add({
+    title: 'Generating Predictions',
+    description: `Processing ${matchCount} matches for draw ${drawNumber}...`,
+    color: 'info',
+  })
+
+  // Fire off all predictions in parallel
+  const predictions = draw.matches.map(match =>
+    $fetch(`/api/matches/${match.id}/predict`, {
+      method: 'POST',
+      body: { gameType: selectedGameType.value },
+    }).catch(err => {
+      console.error(`Error predicting match ${match.id}:`, err)
+      return null
+    })
+  )
+
+  // Handle results in background (non-blocking)
+  Promise.all(predictions).then(async results => {
+    const successCount = results.filter(r => r !== null).length
+    const failCount = results.length - successCount
 
     await refresh()
-  } finally {
     generatingPredictions.value[drawNumber] = false
-  }
+
+    if (failCount === 0) {
+      toast.add({
+        title: 'Predictions Complete',
+        description: `Generated ${successCount} predictions for draw ${drawNumber}`,
+        color: 'success',
+      })
+    } else {
+      toast.add({
+        title: 'Predictions Partially Complete',
+        description: `${successCount} succeeded, ${failCount} failed for draw ${drawNumber}`,
+        color: 'warning',
+      })
+    }
+  })
 }
 
 // Helper functions

@@ -48,6 +48,7 @@ export class CouponOptimizer {
                 take: 1,
               },
               match_odds: {
+                where: { type: 'current' },
                 orderBy: { collected_at: 'desc' },
                 take: 1,
               },

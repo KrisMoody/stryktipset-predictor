@@ -124,7 +124,7 @@ export class ScraperServiceV2 {
       }
 
       // Get draw info to determine URL pattern
-      const draw = await this.getDrawInfo(options.drawNumber)
+      const draw = await this.getDrawInfo(options.drawNumber, options.gameType)
       if (!draw) {
         throw new Error(`Draw ${options.drawNumber} not found`)
       }
@@ -403,11 +403,12 @@ export class ScraperServiceV2 {
    * Get draw info from database
    */
   private async getDrawInfo(
-    drawNumber: number
+    drawNumber: number,
+    gameType: string = 'stryktipset'
   ): Promise<{ draw_date: Date; is_current: boolean } | null> {
     try {
       return await prisma.draws.findUnique({
-        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
+        where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         select: { draw_date: true, is_current: true },
       })
     } catch (error) {

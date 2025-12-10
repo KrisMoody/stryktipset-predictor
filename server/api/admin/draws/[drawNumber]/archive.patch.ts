@@ -18,8 +18,9 @@ export default defineEventHandler(async event => {
   try {
     const body = await readBody(event).catch(() => ({}))
     const force = body?.force === true
+    const gameType = body?.gameType || 'stryktipset'
 
-    const result = await drawLifecycle.manualArchiveDraw(drawNumber, force)
+    const result = await drawLifecycle.manualArchiveDraw(drawNumber, force, gameType)
 
     if (!result.success) {
       return {

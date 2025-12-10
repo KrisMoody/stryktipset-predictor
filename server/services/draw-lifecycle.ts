@@ -9,10 +9,13 @@ export class DrawLifecycleService {
   /**
    * Check if a draw should be archived
    */
-  async shouldArchive(drawNumber: number): Promise<DrawLifecycleStatus> {
+  async shouldArchive(
+    drawNumber: number,
+    gameType: string = 'stryktipset'
+  ): Promise<DrawLifecycleStatus> {
     try {
       const draw = await prisma.draws.findUnique({
-        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
+        where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         include: {
           matches: {
             select: {
@@ -94,12 +97,12 @@ export class DrawLifecycleService {
   /**
    * Archive a draw (set is_current = false)
    */
-  async archiveDraw(drawNumber: number): Promise<boolean> {
+  async archiveDraw(drawNumber: number, gameType: string = 'stryktipset'): Promise<boolean> {
     try {
-      console.log(`[Draw Lifecycle] Archiving draw ${drawNumber}`)
+      console.log(`[Draw Lifecycle] Archiving draw ${drawNumber} (${gameType})`)
 
       await prisma.draws.update({
-        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
+        where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         data: {
           is_current: false,
           archived_at: new Date(),
@@ -196,10 +199,12 @@ export class DrawLifecycleService {
    * Manually archive a draw (admin action)
    * @param drawNumber - The draw number to archive
    * @param force - If true, bypass validation checks and archive regardless of status
+   * @param gameType - The game type (defaults to 'stryktipset')
    */
   async manualArchiveDraw(
     drawNumber: number,
-    force: boolean = false
+    force: boolean = false,
+    gameType: string = 'stryktipset'
   ): Promise<{
     success: boolean
     error?: string
@@ -207,7 +212,7 @@ export class DrawLifecycleService {
   }> {
     try {
       const draw = await prisma.draws.findUnique({
-        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
+        where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         select: {
           draw_number: true,
           status: true,
@@ -249,7 +254,7 @@ export class DrawLifecycleService {
       )
 
       await prisma.draws.update({
-        where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
+        where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         data: {
           is_current: false,
           archived_at: new Date(),

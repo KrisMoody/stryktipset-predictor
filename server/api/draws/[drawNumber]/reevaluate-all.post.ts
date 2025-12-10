@@ -9,6 +9,7 @@ interface ReEvaluateAllRequest {
   matchIds?: number[]
   contexts?: Record<number, string>
   model?: PredictionModel
+  gameType?: string
 }
 
 interface ReEvaluateResult {
@@ -45,10 +46,11 @@ export default defineEventHandler(async (event): Promise<ReEvaluateAllResponse> 
 
   const drawNumber = parseInt(event.context.params?.drawNumber || '0')
   const body = await readBody<ReEvaluateAllRequest>(event).catch((): ReEvaluateAllRequest => ({}))
+  const gameType = body?.gameType || 'stryktipset'
 
   // Get all matches for the draw
   const draw = await prisma.draws.findUnique({
-    where: { game_type_draw_number: { game_type: 'stryktipset', draw_number: drawNumber } },
+    where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
     include: {
       matches: {
         select: { id: true },

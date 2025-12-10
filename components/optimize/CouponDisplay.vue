@@ -338,7 +338,13 @@ const getMatchOutcomes = (matchNum: number): string[] => {
     if (pick) outcomes.add(pick)
   })
 
-  return Array.from(outcomes).sort()
+  // Sort in 1, X, 2 order (not alphabetical)
+  const sortOrder = { '1': 0, X: 1, '2': 2 }
+  return Array.from(outcomes).sort(
+    (a, b) =>
+      (sortOrder[a as keyof typeof sortOrder] ?? 99) -
+      (sortOrder[b as keyof typeof sortOrder] ?? 99)
+  )
 }
 
 const getMatchInfo = (matchNum: number) => {

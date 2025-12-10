@@ -40,8 +40,8 @@ const MAX_MSYSTEM_ROWS = 41472
 /** Minimum row count for M-system (single row should use Enkelrader) */
 const MIN_MSYSTEM_ROWS = 2
 
-/** Number of matches in Stryktipset */
-const MATCH_COUNT = 13
+/** Default number of matches (Stryktipset/Europatipset) */
+const DEFAULT_MATCH_COUNT = 13
 
 // ============================================================================
 // Validation Functions
@@ -49,12 +49,17 @@ const MATCH_COUNT = 13
 
 /**
  * Validate a single coupon row for Enkelrader export
+ * @param row - The coupon row to validate
+ * @param matchCount - Number of matches (13 for Stryktipset/Europatipset, 8 for Topptipset)
  */
-export function validateCouponRow(row: CouponRow): { valid: boolean; error?: string } {
-  if (row.picks.length !== MATCH_COUNT) {
+export function validateCouponRow(
+  row: CouponRow,
+  matchCount: number = DEFAULT_MATCH_COUNT
+): { valid: boolean; error?: string } {
+  if (row.picks.length !== matchCount) {
     return {
       valid: false,
-      error: `Row ${row.rowNumber}: Expected ${MATCH_COUNT} outcomes, got ${row.picks.length}`,
+      error: `Row ${row.rowNumber}: Expected ${matchCount} outcomes, got ${row.picks.length}`,
     }
   }
 
@@ -73,8 +78,13 @@ export function validateCouponRow(row: CouponRow): { valid: boolean; error?: str
 
 /**
  * Validate all coupon rows for Enkelrader export
+ * @param rows - The coupon rows to validate
+ * @param matchCount - Number of matches (13 for Stryktipset/Europatipset, 8 for Topptipset)
  */
-export function validateForEnkelraderExport(rows: CouponRow[]): ValidationResult {
+export function validateForEnkelraderExport(
+  rows: CouponRow[],
+  matchCount: number = DEFAULT_MATCH_COUNT
+): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
 
@@ -90,7 +100,7 @@ export function validateForEnkelraderExport(rows: CouponRow[]): ValidationResult
   }
 
   for (const row of rows) {
-    const result = validateCouponRow(row)
+    const result = validateCouponRow(row, matchCount)
     if (!result.valid && result.error) {
       errors.push(result.error)
     }
@@ -132,8 +142,13 @@ export function validateSelection(
 
 /**
  * Validate selections for M-system export
+ * @param selections - The coupon selections to validate
+ * @param matchCount - Number of matches (13 for Stryktipset/Europatipset, 8 for Topptipset)
  */
-export function validateForMSystemExport(selections: CouponSelection[]): ValidationResult {
+export function validateForMSystemExport(
+  selections: CouponSelection[],
+  matchCount: number = DEFAULT_MATCH_COUNT
+): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
 
@@ -142,8 +157,8 @@ export function validateForMSystemExport(selections: CouponSelection[]): Validat
     return { isValid: false, errors, warnings }
   }
 
-  if (selections.length !== MATCH_COUNT) {
-    errors.push(`Expected ${MATCH_COUNT} selections, got ${selections.length}`)
+  if (selections.length !== matchCount) {
+    errors.push(`Expected ${matchCount} selections, got ${selections.length}`)
   }
 
   // Validate each selection

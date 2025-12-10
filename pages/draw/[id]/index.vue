@@ -989,11 +989,15 @@ const getScrapingStatus = (matchId: number): Record<string, RealtimeScrapingStat
   if (!status || typeof status !== 'object') return null
 
   // Only show status if at least one data type is actively scraping or recently completed
+  // Guard Date.now() with client check to avoid SSR hydration mismatch
   const hasActiveOrRecent = Object.values(status).some(
     s =>
       s.status === 'in_progress' ||
       s.status === 'started' ||
-      (s.status === 'success' && s.completedAt && Date.now() - s.completedAt.getTime() < 10000) // Show success for 10 seconds
+      (import.meta.client &&
+        s.status === 'success' &&
+        s.completedAt &&
+        Date.now() - s.completedAt.getTime() < 10000) // Show success for 10 seconds
   )
 
   return hasActiveOrRecent ? status : null

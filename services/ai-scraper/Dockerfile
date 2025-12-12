@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     ca-certificates \
+    lsof \
+    procps \
     libnss3 \
     libnspr4 \
     libatk1.0-0 \

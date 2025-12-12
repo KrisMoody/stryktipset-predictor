@@ -7,7 +7,7 @@ from crawl4ai.extraction_strategy import LLMExtractionStrategy
 from crawl4ai.async_dispatcher import MemoryAdaptiveDispatcher
 from schemas import XStatsData, StatisticsData, HeadToHeadData, NewsData, MatchInfoData, TableData, LineupData, DrawAnalysisData, OddsetData
 from config import get_config, get_retry_config, DataTypeConfig
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import os
 import logging
 import asyncio
@@ -60,6 +60,30 @@ class AIScraper:
         
         self.model = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5")
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
+
+        # Shared browser instance (lazy-initialized)
+        self._crawler: Optional[AsyncWebCrawler] = None
+        self._crawler_lock = asyncio.Lock()
+
+    async def _get_crawler(self) -> AsyncWebCrawler:
+        """Get or create a shared browser instance."""
+        async with self._crawler_lock:
+            if self._crawler is None:
+                logger.info("[BROWSER] Creating shared browser instance")
+                self._crawler = AsyncWebCrawler(config=self.browser_config)
+                await self._crawler.__aenter__()
+            return self._crawler
+
+    async def cleanup(self):
+        """Cleanup browser resources on shutdown."""
+        async with self._crawler_lock:
+            if self._crawler is not None:
+                logger.info("[BROWSER] Closing shared browser instance")
+                try:
+                    await self._crawler.__aexit__(None, None, None)
+                except Exception as e:
+                    logger.warning(f"[BROWSER] Error during cleanup: {e}")
+                self._crawler = None
 
     def _build_crawler_config(self, data_type: str) -> CrawlerRunConfig:
         """
@@ -519,7 +543,6 @@ class AIScraper:
         import re
         import json
 
-        crawler = None
         try:
             logger.info(f"[RawJS] Scraping {url}")
             logger.info(f"[RawJS] Expression: {js_expression}")
@@ -637,62 +660,58 @@ class AIScraper:
                 """
             )
 
-            crawler = AsyncWebCrawler(config=self.browser_config)
-            async with crawler:
-                result = await crawler.arun(url=url, config=config)
+            # Use shared browser instance
+            crawler = await self._get_crawler()
+            result = await crawler.arun(url=url, config=config)
 
-                if not result.success:
-                    return {
-                        "success": False,
-                        "data": None,
-                        "error": result.error_message or "Failed to load page"
-                    }
-
-                html = result.html if hasattr(result, 'html') else ""
-
-                # Look for our extracted data in the HTML
-                match = re.search(r'data-extracted="([^"]*)"', html)
-                if match:
-                    try:
-                        raw_data = match.group(1).replace('&quot;', '"')
-                        data = json.loads(raw_data)
-                        logger.info(f"[RawJS] Successfully extracted data from data attribute")
-                        return {
-                            "success": True,
-                            "data": data,
-                            "error": None
-                        }
-                    except json.JSONDecodeError as e:
-                        logger.error(f"[RawJS] JSON decode error: {e}")
-
-                # Fallback: Try to find _svs data in the HTML source
-                svs_match = re.search(r'_svs\.draw\.data\.draws\s*=\s*(\{[^;]+\})', html)
-                if svs_match:
-                    try:
-                        data = json.loads(svs_match.group(1))
-                        logger.info(f"[RawJS] Extracted data from inline script")
-                        return {
-                            "success": True,
-                            "data": data,
-                            "error": None
-                        }
-                    except json.JSONDecodeError:
-                        pass
-
-                logger.warning(f"[RawJS] Could not find data in page (html length: {len(html)})")
+            if not result.success:
                 return {
                     "success": False,
                     "data": None,
-                    "error": "Could not extract data from page"
+                    "error": result.error_message or "Failed to load page"
                 }
+
+            html = result.html if hasattr(result, 'html') else ""
+
+            # Look for our extracted data in the HTML
+            match = re.search(r'data-extracted="([^"]*)"', html)
+            if match:
+                try:
+                    raw_data = match.group(1).replace('&quot;', '"')
+                    data = json.loads(raw_data)
+                    logger.info(f"[RawJS] Successfully extracted data from data attribute")
+                    return {
+                        "success": True,
+                        "data": data,
+                        "error": None
+                    }
+                except json.JSONDecodeError as e:
+                    logger.error(f"[RawJS] JSON decode error: {e}")
+
+            # Fallback: Try to find _svs data in the HTML source
+            svs_match = re.search(r'_svs\.draw\.data\.draws\s*=\s*(\{[^;]+\})', html)
+            if svs_match:
+                try:
+                    data = json.loads(svs_match.group(1))
+                    logger.info(f"[RawJS] Extracted data from inline script")
+                    return {
+                        "success": True,
+                        "data": data,
+                        "error": None
+                    }
+                except json.JSONDecodeError:
+                    pass
+
+            logger.warning(f"[RawJS] Could not find data in page (html length: {len(html)})")
+            return {
+                "success": False,
+                "data": None,
+                "error": "Could not extract data from page"
+            }
 
         except Exception as e:
             logger.exception(f"[RawJS] Exception during scrape")
-            if crawler is not None:
-                try:
-                    await crawler.crawler_strategy.close()
-                except:
-                    pass
+            # Don't close the shared crawler on error - just log and return
             return {
                 "success": False,
                 "data": None,
@@ -705,10 +724,10 @@ class AIScraper:
         max_concurrent: int = 3
     ) -> List[Dict[str, Any]]:
         """
-        Scrape multiple URLs in parallel using Crawl4AI's arun_many().
+        Scrape multiple URLs in parallel.
 
-        This is more efficient than sequential scraping as it reuses the browser
-        instance and can run multiple requests concurrently.
+        Uses the shared browser instance and runs requests concurrently
+        with semaphore-based rate limiting.
 
         Args:
             requests: List of dicts with 'url' and 'data_type' keys
@@ -722,72 +741,57 @@ class AIScraper:
 
         logger.info(f"[Batch] Starting batch scrape of {len(requests)} URLs (max_concurrent={max_concurrent})")
 
-        # Group requests by data_type to use appropriate configs
         results: List[Dict[str, Any]] = [None] * len(requests)  # type: ignore
 
-        # Create dispatcher for memory-adaptive concurrency
-        dispatcher = MemoryAdaptiveDispatcher(
-            memory_threshold_percent=70.0,
-            max_session_permit=max_concurrent,
-        )
-
-        crawler = None
         try:
-            crawler = AsyncWebCrawler(config=self.browser_config)
-            async with crawler:
-                # Process each request - we can't use arun_many directly because
-                # each request needs different extraction strategy based on data_type
-                # Instead, we use asyncio.gather with semaphore for concurrency control
+            # Ensure shared browser is initialized
+            await self._get_crawler()
 
-                semaphore = asyncio.Semaphore(max_concurrent)
+            # Use semaphore for concurrency control
+            semaphore = asyncio.Semaphore(max_concurrent)
 
-                async def scrape_single(idx: int, req: Dict[str, str]) -> None:
-                    async with semaphore:
-                        url = req.get("url", "")
-                        data_type = req.get("data_type", "")
+            async def scrape_single(idx: int, req: Dict[str, str]) -> None:
+                async with semaphore:
+                    url = req.get("url", "")
+                    data_type = req.get("data_type", "")
 
-                        if not url or not data_type:
-                            results[idx] = {
-                                "success": False,
-                                "data": None,
-                                "error": "Missing url or data_type",
-                                "url": url,
-                                "data_type": data_type
-                            }
-                            return
+                    if not url or not data_type:
+                        results[idx] = {
+                            "success": False,
+                            "data": None,
+                            "error": "Missing url or data_type",
+                            "url": url,
+                            "data_type": data_type
+                        }
+                        return
 
-                        try:
-                            # Call the appropriate scrape method
-                            result = await self._scrape_by_type(url, data_type)
-                            result["url"] = url
-                            result["data_type"] = data_type
-                            results[idx] = result
-                        except Exception as e:
-                            logger.error(f"[Batch] Error scraping {url}: {e}")
-                            results[idx] = {
-                                "success": False,
-                                "data": None,
-                                "error": str(e),
-                                "url": url,
-                                "data_type": data_type
-                            }
+                    try:
+                        # Call the appropriate scrape method (uses shared crawler)
+                        result = await self._scrape_by_type(url, data_type)
+                        result["url"] = url
+                        result["data_type"] = data_type
+                        results[idx] = result
+                    except Exception as e:
+                        logger.error(f"[Batch] Error scraping {url}: {e}")
+                        results[idx] = {
+                            "success": False,
+                            "data": None,
+                            "error": str(e),
+                            "url": url,
+                            "data_type": data_type
+                        }
 
-                # Launch all scrapes concurrently (semaphore controls actual parallelism)
-                await asyncio.gather(*[
-                    scrape_single(i, req) for i, req in enumerate(requests)
-                ])
+            # Launch all scrapes concurrently (semaphore controls actual parallelism)
+            await asyncio.gather(*[
+                scrape_single(i, req) for i, req in enumerate(requests)
+            ])
 
             logger.info(f"[Batch] Completed batch scrape: {sum(1 for r in results if r and r.get('success'))} succeeded, {sum(1 for r in results if r and not r.get('success'))} failed")
             return results
 
         except Exception as e:
             logger.exception(f"[Batch] Exception during batch scrape")
-            if crawler is not None:
-                try:
-                    await crawler.crawler_strategy.close()
-                except:
-                    pass
-            # Return error results for all requests
+            # Don't close the shared crawler on error
             return [{
                 "success": False,
                 "data": None,
@@ -829,63 +833,62 @@ class AIScraper:
         is_retry: bool = False
     ) -> Dict[str, Any]:
         """Execute scrape with error handling and retry logic"""
-        crawler = None
         try:
             logger.info(f"[DEBUG] Starting scrape for {data_type}{' (RETRY)' if is_retry else ''}")
             logger.info(f"[DEBUG] Config wait_for: {config.wait_for}")
             logger.info(f"[DEBUG] Config delay: {config.delay_before_return_html}")
 
-            crawler = AsyncWebCrawler(config=self.browser_config)
-            async with crawler:
-                result = await crawler.arun(
-                    url=url,
-                    config=config,
-                    extraction_strategy=strategy
-                )
+            # Use shared browser instance
+            crawler = await self._get_crawler()
+            result = await crawler.arun(
+                url=url,
+                config=config,
+                extraction_strategy=strategy
+            )
 
-                # Diagnostic logging for markdown content
-                markdown_length = len(result.markdown) if hasattr(result, 'markdown') and result.markdown else 0
-                logger.info(f"[DEBUG] Result markdown length: {markdown_length}")
+            # Diagnostic logging for markdown content
+            markdown_length = len(result.markdown) if hasattr(result, 'markdown') and result.markdown else 0
+            logger.info(f"[DEBUG] Result markdown length: {markdown_length}")
 
-                if hasattr(result, 'markdown') and result.markdown:
-                    # Log preview of markdown content
-                    preview = result.markdown[:1000] if len(result.markdown) > 1000 else result.markdown
-                    logger.info(f"[DEBUG] Markdown preview:\n{preview}")
+            if hasattr(result, 'markdown') and result.markdown:
+                # Log preview of markdown content
+                preview = result.markdown[:1000] if len(result.markdown) > 1000 else result.markdown
+                logger.info(f"[DEBUG] Markdown preview:\n{preview}")
 
-                    # Check for expected content based on data type
-                    cfg = get_config(data_type)
-                    if cfg.wait_for:
-                        # Extract selector names to check in content
-                        selectors = cfg.wait_for.replace("css:", "").split(", ")
-                        for sel in selectors:
-                            # Clean selector to get class name
-                            class_name = sel.replace(".", "").replace("[class*='", "").replace("']", "").replace("#", "")
-                            found = class_name.lower() in result.markdown.lower()
-                            logger.info(f"[DEBUG] Contains '{class_name}': {found}")
+                # Check for expected content based on data type
+                cfg = get_config(data_type)
+                if cfg.wait_for:
+                    # Extract selector names to check in content
+                    selectors = cfg.wait_for.replace("css:", "").split(", ")
+                    for sel in selectors:
+                        # Clean selector to get class name
+                        class_name = sel.replace(".", "").replace("[class*='", "").replace("']", "").replace("#", "")
+                        found = class_name.lower() in result.markdown.lower()
+                        logger.info(f"[DEBUG] Contains '{class_name}': {found}")
 
-                # Extract data before context manager closes
-                success = result.success
-                extracted_content = result.extracted_content if hasattr(result, 'extracted_content') else None
-                error_message = None if success else result.error_message
-                token_usage = result.token_usage if hasattr(result, 'token_usage') else None
+            # Extract data
+            success = result.success
+            extracted_content = result.extracted_content if hasattr(result, 'extracted_content') else None
+            error_message = None if success else result.error_message
+            token_usage = result.token_usage if hasattr(result, 'token_usage') else None
 
-                # If extracted_content is None but we have markdown, try manual extraction
-                if success and extracted_content is None and hasattr(result, 'markdown') and result.markdown:
-                    logger.info(f"[DEBUG] Extracted content is None, trying manual extraction with strategy.run()")
-                    try:
-                        sections = [result.markdown]
-                        manual_result = strategy.run(url, sections)
-                        if manual_result:
-                            extracted_content = manual_result
-                            logger.info(f"[DEBUG] Manual extraction succeeded!")
-                        else:
-                            logger.warning(f"[DEBUG] Manual result was empty or falsy")
-                    except Exception as e:
-                        logger.error(f"[DEBUG] Manual extraction failed: {e}")
+            # If extracted_content is None but we have markdown, try manual extraction
+            if success and extracted_content is None and hasattr(result, 'markdown') and result.markdown:
+                logger.info(f"[DEBUG] Extracted content is None, trying manual extraction with strategy.run()")
+                try:
+                    sections = [result.markdown]
+                    manual_result = strategy.run(url, sections)
+                    if manual_result:
+                        extracted_content = manual_result
+                        logger.info(f"[DEBUG] Manual extraction succeeded!")
+                    else:
+                        logger.warning(f"[DEBUG] Manual result was empty or falsy")
+                except Exception as e:
+                    logger.error(f"[DEBUG] Manual extraction failed: {e}")
 
-                # Log extraction result
-                logger.info(f"[DEBUG] Extracted content type: {type(extracted_content)}")
-                logger.info(f"[DEBUG] Extracted content: {extracted_content}")
+            # Log extraction result
+            logger.info(f"[DEBUG] Extracted content type: {type(extracted_content)}")
+            logger.info(f"[DEBUG] Extracted content: {extracted_content}")
 
             # Process result
             final_data = extracted_content
@@ -923,11 +926,7 @@ class AIScraper:
 
         except Exception as e:
             logger.exception(f"💥 Exception scraping {data_type}")
-            if crawler is not None:
-                try:
-                    await crawler.crawler_strategy.close()
-                except:
-                    pass
+            # Don't close the shared crawler on error - just log and return
             return {
                 "success": False,
                 "data": None,

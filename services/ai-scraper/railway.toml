@@ -1,6 +1,6 @@
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+dockerfilePath = "services/ai-scraper/Dockerfile"
 
 [deploy]
 healthcheckPath = "/health"

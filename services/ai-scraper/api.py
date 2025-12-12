@@ -2,6 +2,7 @@
 FastAPI server for AI scraping service.
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from scraper import AIScraper
@@ -19,13 +20,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Create scraper instance (browser is lazy-initialized on first request)
+scraper = AIScraper()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler for startup/shutdown."""
+    logger.info("AI Scraper starting up...")
+    yield
+    # Cleanup browser on shutdown
+    logger.info("AI Scraper shutting down, cleaning up browser...")
+    await scraper.cleanup()
+
+
 app = FastAPI(
     title="AI Scraper Service",
     description="Crawl4AI + Claude powered web scraper for Svenska Spel",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
-
-scraper = AIScraper()
 
 
 class ScrapeRequest(BaseModel):

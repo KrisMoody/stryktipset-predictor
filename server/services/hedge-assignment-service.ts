@@ -207,7 +207,7 @@ CRITICAL: Validate counts before responding. If validation fails, adjust assignm
       const userPrompt = this.prepareHedgeAssignmentPrompt(predictions, system, matchCount)
 
       const message = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 2000,
         system: [
           {
@@ -282,7 +282,7 @@ CRITICAL: Validate counts before responding. If validation fails, adjust assignm
           : 0
 
       const cost = calculateAICost(
-        'claude-sonnet-4-5-20250514',
+        'claude-sonnet-4-5',
         inputTokens,
         outputTokens,
         cacheCreationTokens,
@@ -291,7 +291,7 @@ CRITICAL: Validate counts before responding. If validation fails, adjust assignm
 
       await recordAIUsage({
         userId,
-        model: 'claude-sonnet-4-5-20250514',
+        model: 'claude-sonnet-4-5',
         inputTokens,
         outputTokens,
         cost,
@@ -317,14 +317,14 @@ CRITICAL: Validate counts before responding. If validation fails, adjust assignm
 
       // Report to Bugsnag with AI context
       captureAIError(error, {
-        model: 'claude-sonnet-4-5-20250514',
+        model: 'claude-sonnet-4-5',
         operation: 'hedge_assignment',
         dataType: 'hedge_assignment',
       })
 
       await recordAIUsage({
         userId,
-        model: 'claude-sonnet-4-5-20250514',
+        model: 'claude-sonnet-4-5',
         inputTokens: 0,
         outputTokens: 0,
         cost: 0,

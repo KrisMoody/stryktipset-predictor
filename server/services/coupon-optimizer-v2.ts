@@ -62,8 +62,8 @@ export class CouponOptimizerV2 extends CouponOptimizer {
         finalUtgangstecken = this.autoGenerateUtgangstecken(updatedSelections, hedgeAssignment)
       }
 
-      // Generate coupon rows using the system
-      const rows = systemGenerator.applySystem(
+      // Generate coupon rows using the system (async - loads from DB)
+      const rows = await systemGenerator.applySystem(
         system,
         hedgeAssignment,
         finalUtgangstecken,
@@ -205,23 +205,30 @@ export class CouponOptimizerV2 extends CouponOptimizer {
           reasoning: `System helgardering (${sel.reasoning})`,
         }
       } else if (hedgeAssignment.halvgarderingar.includes(matchNum)) {
-        // Halvgardering: two-way coverage
-        // If already has 2 outcomes, keep them; otherwise pick best two based on original selection
-        let halvSelection = sel.selection
-        if (sel.selection.length === 1) {
-          // Need to expand to 2 outcomes - add the next most likely
-          if (sel.selection === '1') halvSelection = '1X'
-          else if (sel.selection === '2') halvSelection = 'X2'
-          else halvSelection = '1X' // X -> 1X
-        } else if (sel.selection.length === 3) {
-          // Need to reduce from 3 to 2 - keep best two
-          halvSelection = sel.selection.substring(0, 2)
+        // Halvgardering: use AI-determined halvOutcomes
+        const aiHalvOutcomes = hedgeAssignment.halvOutcomes?.[matchNum]
+        let halvSelection: string
+
+        if (aiHalvOutcomes && aiHalvOutcomes.length === 2) {
+          // Use AI-determined outcomes (sorted for consistent display)
+          halvSelection = [...aiHalvOutcomes].sort().join('')
+        } else {
+          // Fallback to old logic if no halvOutcomes available
+          halvSelection = sel.selection
+          if (sel.selection.length === 1) {
+            if (sel.selection === '1') halvSelection = '1X'
+            else if (sel.selection === '2') halvSelection = 'X2'
+            else halvSelection = '1X'
+          } else if (sel.selection.length === 3) {
+            halvSelection = sel.selection.substring(0, 2)
+          }
         }
+
         return {
           ...sel,
           selection: halvSelection,
           is_spik: false,
-          reasoning: `System halvgardering: ${halvSelection} (${sel.reasoning})`,
+          reasoning: `System halvgardering: ${halvSelection} (AI-optimized)`,
         }
       }
 

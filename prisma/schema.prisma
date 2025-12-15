@@ -424,3 +424,32 @@ model user_profiles {
   @@index([user_id])
   @@index([email])
 }
+
+// Betting system definitions (R-systems and U-systems)
+// Data stored in Supabase, migrated from JSON files
+model betting_systems {
+  id              String   @id @db.Text // e.g., "R-4-0-9-12"
+  type            String   @db.Text // "R" or "U"
+  helgarderingar  Int
+  halvgarderingar Int
+  rows            Int
+  guarantee       Int?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  // Relations
+  key_rows system_key_rows[]
+}
+
+// Key rows for betting systems (precomputed patterns)
+model system_key_rows {
+  system_id String @db.Text
+  row_index Int
+  row_data  Json   @db.JsonB // Array of integers, e.g., [0, 1, 2, 0]
+
+  // Relations
+  system betting_systems @relation(fields: [system_id], references: [id], onDelete: Cascade)
+
+  @@id([system_id, row_index])
+  @@index([system_id])
+}

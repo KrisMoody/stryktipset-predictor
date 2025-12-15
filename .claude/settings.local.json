@@ -22,7 +22,9 @@
       "Bash(yarn test:all:*)",
       "Bash(yarn test:a11y:*)",
       "Bash(npx playwright test:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(xargs:*)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=8192\" npx nuxi typecheck:*)"
     ],
     "deny": [],
     "ask": []

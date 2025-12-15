@@ -467,6 +467,7 @@ export interface HedgeAssignment {
   helgarderingar: number[] // Matches with full hedges (1X2)
   halvgarderingar: number[] // Matches with half hedges (1X, X2, 12)
   spikOutcomes: Record<number, string> // matchNumber -> outcome for spiks
+  halvOutcomes?: Record<number, [string, string]> // matchNumber -> two outcomes for halvgarderingar (AI-determined, optional for backward compatibility)
 }
 
 /**

@@ -460,9 +460,10 @@ export class SvenskaSpelApiClient {
     try {
       console.log('[Svenska Spel API] Fetching Topptipset draws via hybrid approach...')
 
-      // Step 1: Scrape current draw numbers from page
+      // Step 1: Scrape current draw numbers from page using AI scraper
+      const config = useRuntimeConfig()
       const { scrapeTopptipsetDrawNumbers } = await import('./scraper/topptipset-draw-numbers')
-      const drawNumbers = await scrapeTopptipsetDrawNumbers()
+      const drawNumbers = await scrapeTopptipsetDrawNumbers(config.aiScraperUrl)
 
       if (drawNumbers.length === 0) {
         console.warn('[Svenska Spel API] No Topptipset draw numbers found')

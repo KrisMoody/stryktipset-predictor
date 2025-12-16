@@ -4,14 +4,14 @@
  * Uses the AI Scraper service (Crawl4AI) for better anti-detection.
  * Since Topptipset doesn't have a /draws list endpoint, we need to
  * extract draw numbers from the embedded _svs.draw.data.draws object.
+ *
+ * @param aiScraperUrl - URL of the AI scraper service (from runtime config)
  */
-export async function scrapeTopptipsetDrawNumbers(): Promise<number[]> {
+export async function scrapeTopptipsetDrawNumbers(aiScraperUrl: string): Promise<number[]> {
   console.log('[Topptipset Scraper] Scraping current draw numbers via Crawl4AI...')
 
-  const AI_SCRAPER_URL = process.env.AI_SCRAPER_URL || 'http://localhost:8000'
-
   try {
-    const response = await fetch(`${AI_SCRAPER_URL}/scrape-raw`, {
+    const response = await fetch(`${aiScraperUrl}/scrape-raw`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

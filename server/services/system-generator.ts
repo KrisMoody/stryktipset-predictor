@@ -1,3 +1,4 @@
+import { prisma } from '~/server/utils/prisma'
 import bettingSystems from '~/server/constants/betting-systems.json'
 import type {
   BettingSystem,
@@ -9,10 +10,14 @@ import type {
 
 /**
  * Service for generating and managing betting systems (R and U-systems)
+ *
+ * Key rows are loaded from the database (Supabase) instead of static JSON files
+ * to reduce bundle size and improve deployment performance.
  */
 export class SystemGenerator {
   private systems: BettingSystem[] = []
   private keyRowsCache: Map<string, number[][]> = new Map()
+  private loadingPromises: Map<string, Promise<number[][]>> = new Map()
 
   constructor() {
     this.loadSystemsFromJSON()
@@ -44,44 +49,57 @@ export class SystemGenerator {
   }
 
   /**
-   * Generate key rows for a system using covering code algorithm
+   * Generate key rows for a system - loads from database asynchronously
    */
-  generateKeyRows(system: BettingSystem): number[][] {
+  async generateKeyRows(system: BettingSystem): Promise<number[][]> {
     // Check cache first
     if (this.keyRowsCache.has(system.id)) {
       return this.keyRowsCache.get(system.id)!
     }
 
-    console.log(`[SystemGenerator] Generating key rows for ${system.id}`)
-
-    // Generate full mathematical system
-    const fullSystem = this.generateFullSystem(system.helgarderingar, system.halvgarderingar)
-
-    // If target rows equals full system, no reduction needed
-    if (fullSystem.length === system.rows) {
-      this.keyRowsCache.set(system.id, fullSystem)
-      return fullSystem
+    // Prevent duplicate concurrent queries for the same system
+    if (this.loadingPromises.has(system.id)) {
+      return this.loadingPromises.get(system.id)!
     }
 
-    // Apply covering code reduction
-    const keyRows = this.coveringCodeReduction(fullSystem, system.rows, system.guarantee || 10)
+    const loadPromise = this.loadKeyRowsFromDatabase(system.id)
+    this.loadingPromises.set(system.id, loadPromise)
 
-    // Validate guarantee level (for R-systems)
-    if (system.type === 'R' && system.guarantee) {
-      const isValid = this.validateGuarantee(
-        keyRows,
-        system.guarantee,
-        system.helgarderingar + system.halvgarderingar
+    try {
+      const keyRows = await loadPromise
+      this.keyRowsCache.set(system.id, keyRows)
+      return keyRows
+    } finally {
+      this.loadingPromises.delete(system.id)
+    }
+  }
+
+  /**
+   * Load key rows from Supabase database
+   */
+  private async loadKeyRowsFromDatabase(systemId: string): Promise<number[][]> {
+    console.log(`[SystemGenerator] Loading key rows from DB for ${systemId}`)
+
+    const rows = await prisma.system_key_rows.findMany({
+      where: { system_id: systemId },
+      orderBy: { row_index: 'asc' },
+      select: { row_data: true },
+    })
+
+    if (rows.length === 0) {
+      console.warn(
+        `[SystemGenerator] No key rows found in DB for ${systemId}, using dynamic generation`
       )
-      if (!isValid) {
-        console.warn(
-          `[SystemGenerator] Warning: ${system.id} may not satisfy guarantee level ${system.guarantee}`
-        )
+      // Fallback to dynamic generation
+      const system = this.getSystem(systemId)
+      if (system) {
+        return this.generateFullSystem(system.helgarderingar, system.halvgarderingar)
       }
+      return []
     }
 
-    this.keyRowsCache.set(system.id, keyRows)
-    return keyRows
+    console.log(`[SystemGenerator] Loaded ${rows.length} key rows for ${systemId}`)
+    return rows.map(r => r.row_data as number[])
   }
 
   /**
@@ -93,16 +111,16 @@ export class SystemGenerator {
    * @param matchCount - Number of matches (default: 13 for Stryktipset/Europatipset, use 8 for Topptipset)
    * @param selections - Optional selections array to get correct outcomes for halvgarderingar
    */
-  applySystem(
+  async applySystem(
     system: BettingSystem,
     hedgeAssignment: HedgeAssignment,
     utgangstecken?: Record<number, string>,
     mgExtensions?: MGExtension[],
     matchCount: number = 13,
     selections?: CouponSelection[]
-  ): CouponRow[] {
-    // Generate key rows for this system
-    const keyRows = this.generateKeyRows(system)
+  ): Promise<CouponRow[]> {
+    // Generate key rows for this system (now async)
+    const keyRows = await this.generateKeyRows(system)
 
     // Map key rows to actual match outcomes
     const couponRows: CouponRow[] = keyRows.map((pattern, idx) => ({
@@ -173,7 +191,6 @@ export class SystemGenerator {
    * Generate full mathematical system (3^helg × 2^halvg combinations)
    */
   private generateFullSystem(helg: number, halvg: number): number[][] {
-    const _totalPositions = helg + halvg
     const fullSystem: number[][] = []
 
     // Calculate total number of combinations
@@ -202,158 +219,20 @@ export class SystemGenerator {
   }
 
   /**
-   * Covering code reduction algorithm using greedy selection with guarantee validation
-   *
-   * This implements a greedy approach to selecting key rows that maximize coverage
-   * while satisfying the guarantee level requirement.
-   *
-   * For proper Steiner system / covering code implementation, this would use:
-   * - For 12-rätt (k=1): sphere packing with radius 1
-   * - For 11-rätt (k=2): sphere packing with radius 2
-   * - For 10-rätt (k=3): sphere packing with radius 3
-   */
-  private coveringCodeReduction(
-    fullSystem: number[][],
-    targetRows: number,
-    guarantee: number
-  ): number[][] {
-    if (fullSystem.length <= targetRows) {
-      return fullSystem
-    }
-
-    const keyRows: number[][] = []
-    const uncoveredRows = new Set<number>(fullSystem.map((_, idx) => idx))
-
-    // Radius based on guarantee level (13 - guarantee)
-    const radius = 13 - guarantee
-
-    // Greedy selection: pick rows that cover the most uncovered combinations
-    while (keyRows.length < targetRows && uncoveredRows.size > 0) {
-      let bestRow: number[] | null = null
-      let bestCoverage = 0
-
-      for (const idx of uncoveredRows) {
-        const row = fullSystem[idx]!
-        const coverage = this.countCoveredRows(row, fullSystem, uncoveredRows, radius)
-
-        if (coverage > bestCoverage) {
-          bestCoverage = coverage
-          bestRow = row
-        }
-      }
-
-      if (bestRow === null) break
-
-      keyRows.push(bestRow)
-
-      // Mark covered rows
-      const coveredIndices = this.getCoveredRowIndices(bestRow, fullSystem, uncoveredRows, radius)
-      coveredIndices.forEach(idx => uncoveredRows.delete(idx))
-    }
-
-    // If we didn't get enough rows, add random uncovered rows
-    while (keyRows.length < targetRows && uncoveredRows.size > 0) {
-      const idx = Array.from(uncoveredRows)[0]!
-      keyRows.push(fullSystem[idx]!)
-      uncoveredRows.delete(idx)
-    }
-
-    return keyRows
-  }
-
-  /**
-   * Count how many uncovered rows would be covered by adding this row
-   */
-  private countCoveredRows(
-    row: number[],
-    fullSystem: number[][],
-    uncoveredIndices: Set<number>,
-    radius: number
-  ): number {
-    let count = 0
-    for (const idx of uncoveredIndices) {
-      const otherRow = fullSystem[idx]!
-      if (this.hammingDistance(row, otherRow) <= radius) {
-        count++
-      }
-    }
-    return count
-  }
-
-  /**
-   * Get indices of all uncovered rows that would be covered by this row
-   */
-  private getCoveredRowIndices(
-    row: number[],
-    fullSystem: number[][],
-    uncoveredIndices: Set<number>,
-    radius: number
-  ): number[] {
-    const covered: number[] = []
-    for (const idx of uncoveredIndices) {
-      const otherRow = fullSystem[idx]!
-      if (this.hammingDistance(row, otherRow) <= radius) {
-        covered.push(idx)
-      }
-    }
-    return covered
-  }
-
-  /**
-   * Calculate Hamming distance between two rows
-   */
-  private hammingDistance(row1: number[], row2: number[]): number {
-    let distance = 0
-    for (let i = 0; i < row1.length; i++) {
-      if (row1[i] !== row2[i]) {
-        distance++
-      }
-    }
-    return distance
-  }
-
-  /**
-   * Validate that reduced system satisfies guarantee level
-   *
-   * For a system to have a k-error tolerance guarantee, every possible outcome
-   * in the hedged space must be within Hamming distance k of at least one key row.
-   */
-  private validateGuarantee(
-    keyRows: number[][],
-    guarantee: number,
-    _totalPositions: number
-  ): boolean {
-    const _radius = 13 - guarantee
-
-    // Sample validation: check that every key row has sufficient coverage
-    // Full validation would require checking all combinations, which is expensive
-
-    // For now, we do a spot check: ensure key rows are well-distributed
-    if (keyRows.length === 0) return false
-
-    // Check that we have at least the minimum theoretical rows needed
-    // Using sphere packing bound: minimum rows ≈ full_system / sphere_volume
-    // where sphere_volume = sum(i=0 to radius) { C(positions, i) * (alphabet_size - 1)^i }
-
-    return true // Simplified validation
-  }
-
-  /**
    * Map numeric pattern to actual match outcomes
    *
    * Pattern structure: [helg0, helg1, ..., helgN, halvg0, halvg1, ..., halvgM]
    * - First N positions are helgarderingar (ternary: 0='1', 1='X', 2='2')
    * - Next M positions are halvgarderingar (binary: 0=first outcome, 1=second outcome)
    *
-   * IMPORTANT: The pattern positions are NOT in match number order.
-   * We need to map the i-th helgarderad match to pattern[i],
-   * and the j-th halvgarderad match to pattern[helgCount + j].
+   * IMPORTANT: Pattern positions are tied to ARRAY INDEX in the hedge assignment arrays,
+   * not to match number encounter order. We iterate through the arrays directly.
    *
    * @param pattern - Numeric pattern from key rows
-   * @param hedgeAssignment - Match assignments for spiks, helg, halvg
+   * @param hedgeAssignment - Match assignments for spiks, helg, halvg (with halvOutcomes)
    * @param utgangstecken - Utgångstecken for U-systems
    * @param matchCount - Number of matches (13 for Stryktipset/Europatipset, 8 for Topptipset)
-   * @param selections - Optional selections to get correct outcomes for halvgarderingar
+   * @param selections - Optional selections (fallback for halvgarderingar if no halvOutcomes)
    */
   private mapPatternToOutcomes(
     pattern: number[],
@@ -363,59 +242,54 @@ export class SystemGenerator {
     selections?: CouponSelection[]
   ): string[] {
     const outcomes: string[] = new Array(matchCount)
+    const helgCount = hedgeAssignment.helgarderingar.length
 
-    // Sort the arrays to ensure consistent ordering
-    const sortedHelg = [...hedgeAssignment.helgarderingar].sort((a, b) => a - b)
-    const sortedHalvg = [...hedgeAssignment.halvgarderingar].sort((a, b) => a - b)
-    const helgCount = sortedHelg.length
+    // 1. Apply spik outcomes (fixed for all rows)
+    for (const matchNum of hedgeAssignment.spiks) {
+      outcomes[matchNum - 1] = hedgeAssignment.spikOutcomes[matchNum] || '1'
+    }
 
-    // Create lookup maps: matchNum -> patternIndex
-    const helgPatternIndex = new Map<number, number>()
-    const halvgPatternIndex = new Map<number, number>()
-
-    sortedHelg.forEach((matchNum, idx) => {
-      helgPatternIndex.set(matchNum, idx)
-    })
-    sortedHalvg.forEach((matchNum, idx) => {
-      halvgPatternIndex.set(matchNum, helgCount + idx)
+    // 2. Apply helgardering values - array INDEX = pattern position
+    hedgeAssignment.helgarderingar.forEach((matchNum, idx) => {
+      const value = pattern[idx] ?? 0
+      outcomes[matchNum - 1] = ['1', 'X', '2'][value] || '1'
     })
 
-    // Map outcomes for all matches
-    for (let matchNum = 1; matchNum <= matchCount; matchNum++) {
-      if (hedgeAssignment.spiks.includes(matchNum)) {
-        // Spik: use fixed outcome
-        outcomes[matchNum - 1] = hedgeAssignment.spikOutcomes[matchNum] || '1'
-      } else if (helgPatternIndex.has(matchNum)) {
-        // Helgarderad: map 0='1', 1='X', 2='2'
-        const patternIdx = helgPatternIndex.get(matchNum)!
-        const value = pattern[patternIdx] ?? 0
-        outcomes[matchNum - 1] = ['1', 'X', '2'][value] || '1'
-      } else if (halvgPatternIndex.has(matchNum)) {
-        // Halvgarderad: map based on selection string, utgångstecken, or default
-        const patternIdx = halvgPatternIndex.get(matchNum)!
-        const value = pattern[patternIdx] ?? 0
-        const selection = selections?.find(s => s.matchNumber === matchNum)
-        const utgangOutcome = utgangstecken?.[matchNum]
+    // 3. Apply halvgardering values - offset by helgCount, use AI-determined halvOutcomes
+    hedgeAssignment.halvgarderingar.forEach((matchNum, idx) => {
+      const value = pattern[helgCount + idx] ?? 0 // 0 or 1
 
-        if (selection?.selection && selection.selection.length >= 2) {
-          // Use the actual selection string (e.g., "1X" -> ['1', 'X'], "X2" -> ['X', '2'])
-          const halvOutcomes = [selection.selection[0], selection.selection[1]]
-          outcomes[matchNum - 1] = halvOutcomes[value] || halvOutcomes[0] || '1'
-        } else if (utgangOutcome) {
-          // For U-systems: weight toward utgångstecken
-          if (value === 0) {
-            outcomes[matchNum - 1] = utgangOutcome
-          } else {
-            // Choose complementary outcome
-            outcomes[matchNum - 1] = this.getComplementaryOutcome(utgangOutcome)
-          }
-        } else {
-          // Fallback: default mapping
-          outcomes[matchNum - 1] = value === 0 ? '1' : 'X'
-        }
-      } else {
-        // Should not happen if hedge assignment is correct, but fallback to '1'
-        outcomes[matchNum - 1] = '1'
+      // First priority: AI-determined halvOutcomes
+      const aiHalvOutcomes = hedgeAssignment.halvOutcomes?.[matchNum]
+      if (aiHalvOutcomes && aiHalvOutcomes.length === 2) {
+        outcomes[matchNum - 1] = aiHalvOutcomes[value] || aiHalvOutcomes[0]
+        return
+      }
+
+      // Second priority: selection string from coupon optimizer
+      const selection = selections?.find(s => s.matchNumber === matchNum)
+      if (selection?.selection && selection.selection.length >= 2) {
+        const halvOutcomes = [selection.selection[0], selection.selection[1]]
+        outcomes[matchNum - 1] = halvOutcomes[value] || halvOutcomes[0] || '1'
+        return
+      }
+
+      // Third priority: utgångstecken for U-systems
+      const utgangOutcome = utgangstecken?.[matchNum]
+      if (utgangOutcome) {
+        outcomes[matchNum - 1] =
+          value === 0 ? utgangOutcome : this.getComplementaryOutcome(utgangOutcome)
+        return
+      }
+
+      // Fallback: default mapping
+      outcomes[matchNum - 1] = value === 0 ? '1' : 'X'
+    })
+
+    // Fill any remaining matches that weren't assigned (should not happen)
+    for (let i = 0; i < matchCount; i++) {
+      if (outcomes[i] === undefined) {
+        outcomes[i] = '1'
       }
     }
 

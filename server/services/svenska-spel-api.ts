@@ -73,9 +73,9 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<{ draws: DrawData[] }>(`${this.baseUrl}/draws`, {
         method: 'GET',
         headers: this.getHeaders(),
-        timeout: 30000, // 30 seconds timeout
-        retry: 4,
-        retryDelay: 1000,
+        timeout: 15000, // 15 seconds timeout
+        retry: 3,
+        retryDelay: 2000, // 2 seconds between retries
         retryStatusCodes: [408, 429, 500, 502, 503, 504],
         onRequestError({ error }) {
           console.warn('[Svenska Spel API] Request error:', error.message)
@@ -117,9 +117,9 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<{ draw: DrawData }>(`${this.baseUrl}/draws/${drawNumber}`, {
         method: 'GET',
         headers: this.getHeaders(),
-        timeout: 30000, // 30 seconds timeout
-        retry: 4,
-        retryDelay: 1000,
+        timeout: 15000, // 15 seconds timeout
+        retry: 3,
+        retryDelay: 2000, // 2 seconds between retries
         retryStatusCodes: [408, 429, 500, 502, 503, 504],
         onRequestError({ error }) {
           console.warn(`[Svenska Spel API] Request error for draw ${drawNumber}:`, error.message)
@@ -186,9 +186,9 @@ export class SvenskaSpelApiClient {
         {
           method: 'GET',
           headers: this.getHeaders(),
-          timeout: 30000,
-          retry: 4,
-          retryDelay: 1000,
+          timeout: 15000,
+          retry: 3,
+          retryDelay: 2000, // 2 seconds between retries
           retryStatusCodes: [408, 429, 500, 502, 503, 504],
           onRequestError({ error }) {
             console.warn(
@@ -280,9 +280,9 @@ export class SvenskaSpelApiClient {
         {
           method: 'GET',
           headers: this.getHeaders(),
-          timeout: 30000,
-          retry: 4,
-          retryDelay: 1000,
+          timeout: 15000,
+          retry: 3,
+          retryDelay: 2000, // 2 seconds between retries
           retryStatusCodes: [408, 429, 500, 502, 503, 504],
         }
       )
@@ -348,9 +348,9 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<DrawResultData>(`${this.baseUrl}/draws/${drawNumber}/result`, {
         method: 'GET',
         headers: this.getHeaders(),
-        timeout: 30000,
-        retry: 4,
-        retryDelay: 1000,
+        timeout: 15000,
+        retry: 3,
+        retryDelay: 2000, // 2 seconds between retries
         retryStatusCodes: [408, 429, 500, 502, 503, 504],
       })
 
@@ -396,9 +396,9 @@ export class SvenskaSpelApiClient {
         {
           method: 'GET',
           headers: this.getHeaders(),
-          timeout: 30000,
-          retry: 4,
-          retryDelay: 1000,
+          timeout: 15000,
+          retry: 3,
+          retryDelay: 2000, // 2 seconds between retries
           retryStatusCodes: [408, 429, 500, 502, 503, 504],
         }
       )
@@ -454,25 +454,49 @@ export class SvenskaSpelApiClient {
    *
    * Topptipset has no /draws list endpoint, so we:
    * 1. Scrape current draw numbers from the page
-   * 2. Fetch each draw via multifetch API (which works)
+   * 2. Fetch each draw individually via multifetch API (with error isolation)
    */
   private async fetchTopptipsetCurrentDraws(): Promise<{ draws: DrawData[] }> {
     try {
       console.log('[Svenska Spel API] Fetching Topptipset draws via hybrid approach...')
 
-      // Step 1: Scrape current draw numbers from page
+      // Step 1: Scrape current draw numbers from page using AI scraper
+      const config = useRuntimeConfig()
       const { scrapeTopptipsetDrawNumbers } = await import('./scraper/topptipset-draw-numbers')
-      const drawNumbers = await scrapeTopptipsetDrawNumbers()
+      const drawNumbers = await scrapeTopptipsetDrawNumbers(config.aiScraperUrl)
 
       if (drawNumbers.length === 0) {
         console.warn('[Svenska Spel API] No Topptipset draw numbers found')
         return { draws: [] }
       }
 
-      // Step 2: Fetch each draw via multifetch (existing API)
-      const results = await this.fetchMultipleDraws(drawNumbers)
+      console.log(
+        `[Svenska Spel API] Fetching ${drawNumbers.length} Topptipset draws individually...`
+      )
 
-      const draws = results.filter(r => r.draw).map(r => r.draw!)
+      // Step 2: Fetch each draw individually with error isolation
+      // This prevents one failing draw from breaking all others
+      const draws: DrawData[] = []
+      const failedDraws: number[] = []
+
+      for (const drawNumber of drawNumbers) {
+        try {
+          const result = await this.fetchDrawWithMultifetch(drawNumber, false)
+          draws.push(result.draw)
+        } catch (error) {
+          console.warn(
+            `[Svenska Spel API] Failed to fetch Topptipset draw ${drawNumber}:`,
+            error instanceof Error ? error.message : error
+          )
+          failedDraws.push(drawNumber)
+        }
+      }
+
+      if (failedDraws.length > 0) {
+        console.warn(
+          `[Svenska Spel API] ${failedDraws.length}/${drawNumbers.length} Topptipset draws failed: ${failedDraws.join(', ')}`
+        )
+      }
 
       console.log(`[Svenska Spel API] Found ${draws.length} Topptipset draws via hybrid approach`)
 

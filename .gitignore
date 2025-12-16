@@ -13,6 +13,9 @@ node_modules
 # Prisma
 prisma/migrations/*_migration.sql
 
+# Generated files
+scripts/generated-migration.sql
+
 # IDE
 .idea
 .vscode

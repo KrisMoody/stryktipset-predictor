@@ -13,6 +13,7 @@ interface AIHedgeResponse {
     matchNumber: number
     assignment: 'spik' | 'helgarderad' | 'halvgarderad'
     spikOutcome?: string
+    halvOutcomes?: [string, string] // For halvgarderad: the two outcomes to play (e.g., ['1', 'X'])
     reasoning: string
   }>
   validation: {
@@ -115,6 +116,15 @@ STRATEGIC REASONING:
 - Which matches are highly predictable? -> Spik
 - Balance: Too many spiks = high risk, too few = high cost
 
+HALVGARDERAD OUTCOME SELECTION:
+For halvgarderad matches, you MUST specify which TWO outcomes to play in "halvOutcomes".
+Choose the two outcomes with highest probability/expected value based on AI analysis.
+Do NOT use hardcoded rules - analyze the match to determine the optimal two outcomes.
+Examples:
+- Match with strong home team but draw possible -> halvOutcomes: ["1", "X"]
+- Match between evenly matched teams -> halvOutcomes: ["1", "X"] or ["X", "2"]
+- Match where away win or draw likely -> halvOutcomes: ["X", "2"]
+
 OUTPUT FORMAT (JSON):
 {
   "reasoning": "Overall strategy explanation for this hedge assignment",
@@ -123,6 +133,7 @@ OUTPUT FORMAT (JSON):
       "matchNumber": 1,
       "assignment": "spik" | "helgarderad" | "halvgarderad",
       "spikOutcome": "1" or "X" or "2" (ONLY if assignment is "spik"),
+      "halvOutcomes": ["1", "X"] or ["1", "2"] or ["X", "2"] (REQUIRED if assignment is "halvgarderad"),
       "reasoning": "Specific reasoning for this match's assignment"
     }
   ],
@@ -135,7 +146,9 @@ OUTPUT FORMAT (JSON):
   }
 }
 
-CRITICAL: Validate counts before responding. If validation fails, adjust assignments until constraints are met.`
+CRITICAL:
+1. Validate counts before responding. If validation fails, adjust assignments until constraints are met.
+2. For halvgarderad assignments, ALWAYS include halvOutcomes with exactly two outcomes based on probability analysis.`
 
   /**
    * Prepare the user prompt with match predictions and system constraints
@@ -249,6 +262,7 @@ CRITICAL: Validate counts before responding. If validation fails, adjust assignm
         helgarderingar: [],
         halvgarderingar: [],
         spikOutcomes: {},
+        halvOutcomes: {},
       }
 
       for (const ma of aiResponse.match_assignments) {
@@ -265,6 +279,14 @@ CRITICAL: Validate counts before responding. If validation fails, adjust assignm
           assignment.helgarderingar.push(ma.matchNumber)
         } else if (ma.assignment === 'halvgarderad') {
           assignment.halvgarderingar.push(ma.matchNumber)
+          // Extract AI-determined halvOutcomes or infer from prediction
+          if (ma.halvOutcomes && ma.halvOutcomes.length === 2) {
+            assignment.halvOutcomes![ma.matchNumber] = ma.halvOutcomes
+          } else {
+            // Fallback: infer from prediction selection
+            const pred = predictions.find(p => p.matchNumber === ma.matchNumber)
+            assignment.halvOutcomes![ma.matchNumber] = this.inferHalvOutcomes(pred)
+          }
         }
       }
 
@@ -383,8 +405,12 @@ CRITICAL: Validate counts before responding. If validation fails, adjust assignm
 
     // Assign halvgarderingar - EXACTLY system.halvgarderingar count
     const halvgEnd = system.helgarderingar + system.halvgarderingar
+    const halvOutcomes: Record<number, [string, string]> = {}
     for (let i = system.helgarderingar; i < halvgEnd && i < sortedByUncertainty.length; i++) {
-      halvgarderingar.push(sortedByUncertainty[i]!.matchNumber)
+      const sel = sortedByUncertainty[i]!
+      halvgarderingar.push(sel.matchNumber)
+      // Infer halvOutcomes from selection
+      halvOutcomes[sel.matchNumber] = this.inferHalvOutcomes(sel)
     }
 
     return {
@@ -392,6 +418,42 @@ CRITICAL: Validate counts before responding. If validation fails, adjust assignm
       helgarderingar,
       halvgarderingar,
       spikOutcomes,
+      halvOutcomes,
+    }
+  }
+
+  /**
+   * Infer halvgardering outcomes from a prediction/selection
+   * Uses the selection string to determine the two outcomes to play
+   */
+  private inferHalvOutcomes(selection?: CouponSelection): [string, string] {
+    if (!selection) {
+      return ['1', 'X'] // Default fallback
+    }
+
+    const sel = selection.selection
+
+    // If selection is already 2 outcomes, use them
+    if (sel.length === 2) {
+      return [sel[0]!, sel[1]!]
+    }
+
+    // If selection is 3 outcomes (1X2), pick first two
+    if (sel.length === 3) {
+      return [sel[0]!, sel[1]!]
+    }
+
+    // If single outcome, expand intelligently based on the outcome
+    // This is a fallback - AI should ideally provide halvOutcomes directly
+    if (sel === '1') {
+      // Home win likely - add draw as second most likely
+      return ['1', 'X']
+    } else if (sel === '2') {
+      // Away win likely - add draw as second most likely
+      return ['X', '2']
+    } else {
+      // Draw likely (X) - add home win as second option
+      return ['1', 'X']
     }
   }
 

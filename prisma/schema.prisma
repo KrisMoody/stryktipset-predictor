@@ -12,11 +12,11 @@ datasource db {
 
 // Countries
 model countries {
-  id         Int       @id
-  name       String    @unique @db.VarChar(100)
-  iso_code   String?   @db.VarChar(3)
-  created_at DateTime  @default(now()) @db.Timestamp(6)
-  updated_at DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  id         Int      @id
+  name       String   @unique @db.VarChar(100)
+  iso_code   String?  @db.VarChar(3)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
   // Relations
   leagues leagues[]
@@ -24,11 +24,11 @@ model countries {
 
 // Leagues/Competitions
 model leagues {
-  id         Int       @id
-  name       String    @db.VarChar(100)
+  id         Int      @id
+  name       String   @db.VarChar(100)
   country_id Int
-  created_at DateTime  @default(now()) @db.Timestamp(6)
-  updated_at DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
   // Relations
   country countries @relation(fields: [country_id], references: [id], onDelete: Restrict)
@@ -39,12 +39,12 @@ model leagues {
 
 // Teams
 model teams {
-  id          Int       @id
-  name        String    @unique @db.VarChar(100)
-  short_name  String?   @db.VarChar(50)
-  medium_name String?   @db.VarChar(50)
-  created_at  DateTime  @default(now()) @db.Timestamp(6)
-  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  id          Int      @id
+  name        String   @unique @db.VarChar(100)
+  short_name  String?  @db.VarChar(50)
+  medium_name String?  @db.VarChar(50)
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
   // Relations
   home_matches matches[] @relation("HomeTeam")
@@ -54,14 +54,14 @@ model teams {
 // Pool game draws (rounds/coupons) - supports Stryktipset, Europatipset, Topptipset
 model draws {
   id          Int       @id @default(autoincrement())
-  draw_number Int       // Draw number (unique per game type)
+  draw_number Int // Draw number (unique per game type)
   game_type   String    @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
   draw_date   DateTime  @db.Date
   close_time  DateTime  @db.Timestamp(6)
   status      String    @db.VarChar(50) // "Open", "Closed", "Completed"
   net_sale    Decimal?  @db.Decimal(15, 2)
   product_id  Int?
-  raw_data    Json?     // Store full API response
+  raw_data    Json? // Store full API response
   is_current  Boolean   @default(true) // True for active/upcoming draws, false for archived
   archived_at DateTime? @db.Timestamp(6) // When draw was archived to historic
   created_at  DateTime  @default(now()) @db.Timestamp(6)
@@ -81,25 +81,25 @@ model draws {
 
 // Individual matches in a draw
 model matches {
-  id                 Int       @id @default(autoincrement())
-  draw_id            Int
-  match_number       Int       // Position in draw (1-13)
-  match_id           Int       // Svenska Spel match ID
-  home_team_id       Int
-  away_team_id       Int
-  league_id          Int
-  start_time         DateTime  @db.Timestamp(6)
-  status             String    @db.VarChar(50) // "Not started", "In progress", "Completed"
-  status_time        DateTime? @db.Timestamp(6) // When status was last updated
-  result_home        Int?
-  result_away        Int?
-  outcome            String?   @db.VarChar(5) // "1", "X", "2"
-  coverage           Int?      // Coverage level from provider
-  betRadar_id        String?   @db.VarChar(100) // BetRadar match ID
-  kambi_id           String?   @db.VarChar(100) // Kambi match ID
-  raw_data           Json?     // Store full match data from API
-  created_at         DateTime  @default(now()) @db.Timestamp(6)
-  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  id           Int       @id @default(autoincrement())
+  draw_id      Int
+  match_number Int // Position in draw (1-13)
+  match_id     Int // Svenska Spel match ID
+  home_team_id Int
+  away_team_id Int
+  league_id    Int
+  start_time   DateTime  @db.Timestamp(6)
+  status       String    @db.VarChar(50) // "Not started", "In progress", "Completed"
+  status_time  DateTime? @db.Timestamp(6) // When status was last updated
+  result_home  Int?
+  result_away  Int?
+  outcome      String?   @db.VarChar(5) // "1", "X", "2"
+  coverage     Int? // Coverage level from provider
+  betRadar_id  String?   @db.VarChar(100) // BetRadar match ID
+  kambi_id     String?   @db.VarChar(100) // Kambi match ID
+  raw_data     Json? // Store full match data from API
+  created_at   DateTime  @default(now()) @db.Timestamp(6)
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamp(6)
 
   // Relations
   draws              draws                @relation(fields: [draw_id], references: [id], onDelete: Cascade)
@@ -126,23 +126,23 @@ model matches {
 
 // Odds data for matches
 model match_odds {
-  id                       Int       @id @default(autoincrement())
+  id                       Int      @id @default(autoincrement())
   match_id                 Int
-  source                   String    @db.VarChar(50) // "stryktipset", "oddset", etc.
-  type                     String    @db.VarChar(20) // "current", "start", "favourite"
-  home_odds                Decimal   @db.Decimal(10, 2)
-  draw_odds                Decimal   @db.Decimal(10, 2)
-  away_odds                Decimal   @db.Decimal(10, 2)
-  home_probability         Decimal   @db.Decimal(10, 2)
-  draw_probability         Decimal   @db.Decimal(10, 2)
-  away_probability         Decimal   @db.Decimal(10, 2)
-  svenska_folket_home      String?   @db.VarChar(10) // Percentage as string, e.g., "45.2"
-  svenska_folket_draw      String?   @db.VarChar(10)
-  svenska_folket_away      String?   @db.VarChar(10)
-  tio_tidningars_tips_home String?   @db.VarChar(10) // Expert tips percentage
-  tio_tidningars_tips_draw String?   @db.VarChar(10)
-  tio_tidningars_tips_away String?   @db.VarChar(10)
-  collected_at             DateTime  @default(now()) @db.Timestamp(6)
+  source                   String   @db.VarChar(50) // "stryktipset", "oddset", etc.
+  type                     String   @db.VarChar(20) // "current", "start", "favourite"
+  home_odds                Decimal  @db.Decimal(10, 2)
+  draw_odds                Decimal  @db.Decimal(10, 2)
+  away_odds                Decimal  @db.Decimal(10, 2)
+  home_probability         Decimal  @db.Decimal(10, 2)
+  draw_probability         Decimal  @db.Decimal(10, 2)
+  away_probability         Decimal  @db.Decimal(10, 2)
+  svenska_folket_home      String?  @db.VarChar(10) // Percentage as string, e.g., "45.2"
+  svenska_folket_draw      String?  @db.VarChar(10)
+  svenska_folket_away      String?  @db.VarChar(10)
+  tio_tidningars_tips_home String?  @db.VarChar(10) // Expert tips percentage
+  tio_tidningars_tips_draw String?  @db.VarChar(10)
+  tio_tidningars_tips_away String?  @db.VarChar(10)
+  collected_at             DateTime @default(now()) @db.Timestamp(6)
 
   // Relations
   match matches @relation(fields: [match_id], references: [id], onDelete: Cascade)
@@ -158,7 +158,7 @@ model match_scraped_data {
   id         Int      @id @default(autoincrement())
   match_id   Int
   data_type  String   @db.VarChar(50) // "xStats", "statistics", "headToHead", "news"
-  data       Json     // Flexible JSON storage for different data types
+  data       Json // Flexible JSON storage for different data types
   scraped_at DateTime @default(now()) @db.Timestamp(6)
 
   // Relations
@@ -176,7 +176,7 @@ model match_embeddings {
   embedding  Unsupported("vector")? // pgvector type
   model      String                 @db.VarChar(100) // e.g., "text-embedding-3-small"
   version    String                 @db.VarChar(50) // Version/timestamp
-  metadata   Json?                  // Additional context about the embedding
+  metadata   Json? // Additional context about the embedding
   created_at DateTime               @default(now()) @db.Timestamp(6)
 
   // Relations
@@ -188,26 +188,26 @@ model match_embeddings {
 
 // AI-generated predictions
 model predictions {
-  id                 Int      @id @default(autoincrement())
-  match_id           Int
-  model              String   @db.VarChar(100) // AI model used, e.g., "claude-3-sonnet"
-  model_version      String   @db.VarChar(50)
-  probability_home   Decimal  @db.Decimal(5, 4) // 0.0000 - 1.0000
-  probability_draw   Decimal  @db.Decimal(5, 4)
-  probability_away   Decimal  @db.Decimal(5, 4)
-  predicted_outcome  String   @db.VarChar(5) // "1", "X", "2"
-  confidence         String   @db.VarChar(20) // "high", "medium", "low"
-  is_spik_suitable   Boolean  @default(false)
-  reasoning          String   @db.Text // AI's reasoning
-  key_factors        Json? // Array of key factors
-  similar_matches    Json? // IDs and details of similar historical matches
-  raw_response       Json? // Full AI response for debugging
-  user_context       String?  @db.Text // User-provided context for re-evaluation
-  is_reevaluation    Boolean  @default(false) // Flag indicating this is a re-evaluation
-  created_at         DateTime @default(now()) @db.Timestamp(6)
+  id                Int      @id @default(autoincrement())
+  match_id          Int
+  model             String   @db.VarChar(100) // AI model used, e.g., "claude-3-sonnet"
+  model_version     String   @db.VarChar(50)
+  probability_home  Decimal  @db.Decimal(5, 4) // 0.0000 - 1.0000
+  probability_draw  Decimal  @db.Decimal(5, 4)
+  probability_away  Decimal  @db.Decimal(5, 4)
+  predicted_outcome String   @db.VarChar(5) // "1", "X", "2"
+  confidence        String   @db.VarChar(20) // "high", "medium", "low"
+  is_spik_suitable  Boolean  @default(false)
+  reasoning         String   @db.Text // AI's reasoning
+  key_factors       Json? // Array of key factors
+  similar_matches   Json? // IDs and details of similar historical matches
+  raw_response      Json? // Full AI response for debugging
+  user_context      String?  @db.Text // User-provided context for re-evaluation
+  is_reevaluation   Boolean  @default(false) // Flag indicating this is a re-evaluation
+  created_at        DateTime @default(now()) @db.Timestamp(6)
 
   // Relations
-  match                  matches                 @relation(fields: [match_id], references: [id], onDelete: Cascade)
+  match                  matches                  @relation(fields: [match_id], references: [id], onDelete: Cascade)
   prediction_performance prediction_performance[]
 
   @@unique([match_id, model, model_version, created_at])
@@ -238,16 +238,16 @@ model prediction_performance {
 
 // Track scraping operations for monitoring
 model scrape_operations {
-  id                Int       @id @default(autoincrement())
-  match_id          Int?
-  operation_type    String    @db.VarChar(50) // "xStats", "statistics", "headToHead", "news"
-  status            String    @db.VarChar(20) // "success", "failed", "rate_limited"
-  error_message     String?   @db.Text
-  response_code     Int?
-  duration_ms       Int?
-  retry_count       Int       @default(0)
-  started_at        DateTime  @default(now()) @db.Timestamp(6)
-  completed_at      DateTime? @db.Timestamp(6)
+  id             Int       @id @default(autoincrement())
+  match_id       Int?
+  operation_type String    @db.VarChar(50) // "xStats", "statistics", "headToHead", "news"
+  status         String    @db.VarChar(20) // "success", "failed", "rate_limited"
+  error_message  String?   @db.Text
+  response_code  Int?
+  duration_ms    Int?
+  retry_count    Int       @default(0)
+  started_at     DateTime  @default(now()) @db.Timestamp(6)
+  completed_at   DateTime? @db.Timestamp(6)
 
   @@index([match_id])
   @@index([operation_type])
@@ -266,7 +266,7 @@ model ai_usage {
   data_type     String?  @db.VarChar(50) // "xStats", "statistics", "prediction", "embedding", etc.
   operation_id  String?  @db.VarChar(100) // Link to specific operation (prediction_id, match_id, etc.)
   endpoint      String?  @db.VarChar(100) // API endpoint used
-  duration_ms   Int?     // Duration of the operation
+  duration_ms   Int? // Duration of the operation
   success       Boolean
   timestamp     DateTime @default(now()) @db.Timestamp(6)
 
@@ -290,8 +290,8 @@ model backfill_operations {
   successful_draws Int       @default(0)
   failed_draws     Int       @default(0)
   skipped_draws    Int       @default(0)
-  error_log        Json?     // Array of error details
-  config           Json?     // Backfill options used
+  error_log        Json? // Array of error details
+  config           Json? // Backfill options used
   started_at       DateTime  @default(now()) @db.Timestamp(6)
   completed_at     DateTime? @db.Timestamp(6)
   cancelled_at     DateTime? @db.Timestamp(6)
@@ -303,29 +303,29 @@ model backfill_operations {
 
 // System performance tracking for R/U betting systems
 model system_performance {
-  id               Int       @id @default(autoincrement())
-  draw_number      Int
-  game_type        String    @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
-  system_id        String    @db.VarChar(50)  // e.g., "R-4-0-9-12", "U-0-7-10", "T-3-0-27-7"
-  system_type      String    @db.VarChar(5)   // "R", "U", or "T" (Topptipset custom)
-  rows_count       Int                         // Number of rows in system
-  cost             Int                         // Total cost (stake * rows)
-  stake            Int       @default(1)      // Stake per row in SEK (1 for Stryktipset/Europatipset, 1/2/5/10 for Topptipset)
-  mg_extensions    Json?                       // MG extensions applied [{matchNumber, type, outcomes}]
-  final_row_count  Int                         // Final rows after MG extensions
-  final_cost       Int                         // Final cost after MG extensions
+  id              Int    @id @default(autoincrement())
+  draw_number     Int
+  game_type       String @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
+  system_id       String @db.VarChar(50) // e.g., "R-4-0-9-12", "U-0-7-10", "T-3-0-27-7"
+  system_type     String @db.VarChar(5) // "R", "U", or "T" (Topptipset custom)
+  rows_count      Int // Number of rows in system
+  cost            Int // Total cost (stake * rows)
+  stake           Int    @default(1) // Stake per row in SEK (1 for Stryktipset/Europatipset, 1/2/5/10 for Topptipset)
+  mg_extensions   Json? // MG extensions applied [{matchNumber, type, outcomes}]
+  final_row_count Int // Final rows after MG extensions
+  final_cost      Int // Final cost after MG extensions
 
   // Results (populated after draw completes)
-  correct_row      String?   @db.VarChar(13)  // Actual correct row: "1X21X2X1X21X2" (13 chars) or "1X21X2X1" (8 chars for Topptipset)
-  winning_rows     Int?                        // How many rows matched all correct
-  best_score       Int?                        // Highest correct count in any row
-  score_distribution Json?                     // {10: count, 11: count, 12: count, 13: count} or {6: count, 7: count, 8: count} for Topptipset
-  payout           Decimal?  @db.Decimal(15, 2) // Total payout received
-  roi              Decimal?  @db.Decimal(10, 4) // Return on investment
+  correct_row        String?  @db.VarChar(13) // Actual correct row: "1X21X2X1X21X2" (13 chars) or "1X21X2X1" (8 chars for Topptipset)
+  winning_rows       Int? // How many rows matched all correct
+  best_score         Int? // Highest correct count in any row
+  score_distribution Json? // {10: count, 11: count, 12: count, 13: count} or {6: count, 7: count, 8: count} for Topptipset
+  payout             Decimal? @db.Decimal(15, 2) // Total payout received
+  roi                Decimal? @db.Decimal(10, 4) // Return on investment
 
   // Metadata
-  analyzed_at      DateTime? @db.Timestamp(6)  // When results were analyzed
-  created_at       DateTime  @default(now()) @db.Timestamp(6)
+  analyzed_at DateTime? @db.Timestamp(6) // When results were analyzed
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
 
   @@unique([draw_number, game_type, system_id, created_at])
   @@index([draw_number])
@@ -339,34 +339,34 @@ model system_performance {
 
 // Generated coupon storage for tracking and training
 model generated_coupons {
-  id               Int       @id @default(autoincrement())
-  draw_number      Int
-  game_type        String    @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
-  system_id        String?   @db.VarChar(50)  // null for AI-based
-  mode             String    @db.VarChar(20)  // "ai", "r-system", "u-system", "t-system" (Topptipset custom)
+  id          Int     @id @default(autoincrement())
+  draw_number Int
+  game_type   String  @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
+  system_id   String? @db.VarChar(50) // null for AI-based
+  mode        String  @db.VarChar(20) // "ai", "r-system", "u-system", "t-system" (Topptipset custom)
 
   // Status tracking
-  status           String    @db.VarChar(20) @default("generated")  // "generated", "saved", "played", "analyzed"
-  version          Int       @default(1)     // Version number for same draw/mode/system combination
+  status  String @default("generated") @db.VarChar(20) // "generated", "saved", "played", "analyzed"
+  version Int    @default(1) // Version number for same draw/mode/system combination
 
   // Configuration
-  utgangstecken    Json?                      // For U-systems
-  mg_extensions    Json?                      // MG extensions applied
-  selections       Json                        // AI prediction selections
-  rows             Json                        // Generated coupon rows
-  total_cost       Int
-  stake            Int       @default(1)      // Stake per row in SEK (for Topptipset: 1/2/5/10)
-  expected_value   Decimal   @db.Decimal(10, 4)
-  budget           Int?                        // Budget used for AI mode
+  utgangstecken  Json? // For U-systems
+  mg_extensions  Json? // MG extensions applied
+  selections     Json // AI prediction selections
+  rows           Json // Generated coupon rows
+  total_cost     Int
+  stake          Int     @default(1) // Stake per row in SEK (for Topptipset: 1/2/5/10)
+  expected_value Decimal @db.Decimal(10, 4)
+  budget         Int? // Budget used for AI mode
 
   // Link to performance
-  performance_id   Int?
+  performance_id Int?
 
   // Status change timestamps
-  saved_at         DateTime? @db.Timestamp(6)
-  played_at        DateTime? @db.Timestamp(6)
-  analyzed_at      DateTime? @db.Timestamp(6)
-  created_at       DateTime  @default(now()) @db.Timestamp(6)
+  saved_at    DateTime? @db.Timestamp(6)
+  played_at   DateTime? @db.Timestamp(6)
+  analyzed_at DateTime? @db.Timestamp(6)
+  created_at  DateTime  @default(now()) @db.Timestamp(6)
 
   @@index([draw_number])
   @@index([game_type])
@@ -382,13 +382,13 @@ model generated_coupons {
 model prediction_batches {
   id           Int       @id @default(autoincrement())
   batch_id     String    @unique @db.VarChar(100) // Anthropic batch ID
-  draw_number  Int                                 // Draw being predicted
+  draw_number  Int // Draw being predicted
   game_type    String    @default("stryktipset") @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
-  match_ids    Int[]                               // Match IDs in the batch
-  model        String    @db.VarChar(50)          // Model used
-  status       String    @db.VarChar(20)          // "processing", "ended", "failed", "canceling", "canceled", "expired"
-  results      Json?                               // Batch results when complete
-  error        String?   @db.Text                 // Error message if failed
+  match_ids    Int[] // Match IDs in the batch
+  model        String    @db.VarChar(50) // Model used
+  status       String    @db.VarChar(20) // "processing", "ended", "failed", "canceling", "canceled", "expired"
+  results      Json? // Batch results when complete
+  error        String?   @db.Text // Error message if failed
   created_at   DateTime  @default(now()) @db.Timestamp(6)
   completed_at DateTime? @db.Timestamp(6)
 
@@ -411,16 +411,45 @@ model user_profiles {
   cap_bypass_until DateTime? @db.Timestamp(6) // Temporary bypass expiration
 
   // Invitation tracking
-  invited_by       String?   @db.Uuid // Admin user_id who invited this user
-  invited_at       DateTime? @db.Timestamp(6) // When invitation was sent
+  invited_by String?   @db.Uuid // Admin user_id who invited this user
+  invited_at DateTime? @db.Timestamp(6) // When invitation was sent
 
   // Soft delete / disable
-  disabled_at      DateTime? @db.Timestamp(6) // When user was disabled
-  disabled_by      String?   @db.Uuid // Admin user_id who disabled this user
+  disabled_at DateTime? @db.Timestamp(6) // When user was disabled
+  disabled_by String?   @db.Uuid // Admin user_id who disabled this user
 
-  created_at       DateTime  @default(now()) @db.Timestamp(6)
-  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
   @@index([user_id])
   @@index([email])
+}
+
+// Betting system definitions (R-systems and U-systems)
+// Data stored in Supabase, migrated from JSON files
+model betting_systems {
+  id              String   @id @db.Text // e.g., "R-4-0-9-12"
+  type            String   @db.Text // "R" or "U"
+  helgarderingar  Int
+  halvgarderingar Int
+  rows            Int
+  guarantee       Int?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  // Relations
+  key_rows system_key_rows[]
+}
+
+// Key rows for betting systems (precomputed patterns)
+model system_key_rows {
+  system_id String @db.Text
+  row_index Int
+  row_data  Json   @db.JsonB // Array of integers, e.g., [0, 1, 2, 0]
+
+  // Relations
+  system betting_systems @relation(fields: [system_id], references: [id], onDelete: Cascade)
+
+  @@id([system_id, row_index])
+  @@index([system_id])
 }

@@ -9,7 +9,10 @@ on:
 jobs:
   migration-check:
     runs-on: ubuntu-latest
-    
+    env:
+      # Dummy URL for prisma commands (doesn't connect, just needs valid syntax)
+      DATABASE_DIRECT_URL: postgresql://user:pass@localhost:5432/db
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

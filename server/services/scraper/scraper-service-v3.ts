@@ -33,6 +33,9 @@ export class ScraperServiceV3 {
   private readonly MAX_CONSECUTIVE_RATE_LIMITS = 3
   private readonly CIRCUIT_BREAKER_COOLDOWN_MS = 60000 // 1 minute
 
+  // Serverless environment detection - Playwright not available on Vercel
+  private readonly isServerless = !!process.env.VERCEL
+
   constructor(enableAiScraper = false, aiScraperUrl = 'http://localhost:8000') {
     this.xStatsScraper = new XStatsScraper({ debug: true })
     this.statisticsScraper = new StatisticsScraper({ debug: true })
@@ -324,38 +327,46 @@ export class ScraperServiceV3 {
 
       // Fallback to DOM scraping if AI failed or is disabled
       if (!data) {
-        console.log(`[Scraper Service V3] Falling back to DOM scraping for ${dataType}`)
-        method = 'tab_clicking'
+        // Skip DOM fallback on serverless (Vercel) - Playwright binaries not available
+        if (this.isServerless) {
+          console.log(
+            `[Scraper Service V3] Skipping DOM fallback on serverless (Playwright not available)`
+          )
+          error = error || 'AI scraping failed; DOM fallback unavailable on serverless'
+        } else {
+          console.log(`[Scraper Service V3] Falling back to DOM scraping for ${dataType}`)
+          method = 'tab_clicking'
 
-        try {
-          // Initialize browser
-          await browserManager.init()
-          const page = await browserManager.getPage()
+          try {
+            // Initialize browser
+            await browserManager.init()
+            const page = await browserManager.getPage()
 
-          // Use DOM scraper
-          data = await this.scrapeWithDOM(page, dataType, options)
+            // Use DOM scraper
+            data = await this.scrapeWithDOM(page, dataType, options)
 
-          if (data) {
-            console.log(`[Scraper Service V3] ✅ DOM scraping succeeded for ${dataType}`)
-          } else {
-            console.log(`[Scraper Service V3] ❌ DOM scraping returned no data for ${dataType}`)
-            error = 'No data returned from DOM scraping'
+            if (data) {
+              console.log(`[Scraper Service V3] ✅ DOM scraping succeeded for ${dataType}`)
+            } else {
+              console.log(`[Scraper Service V3] ❌ DOM scraping returned no data for ${dataType}`)
+              error = 'No data returned from DOM scraping'
+            }
+
+            // Close page and save cookies
+            await page.close()
+            await browserManager.saveCookies()
+          } catch (domError) {
+            console.error(`[Scraper Service V3] DOM scraping error for ${dataType}:`, domError)
+            error = domError instanceof Error ? domError.message : 'DOM scraping error'
+
+            // Report DOM scraping error to Bugsnag
+            captureScrapingError(domError, {
+              matchId: options.matchId,
+              dataType,
+              method: 'tab_clicking',
+              duration: Date.now() - startTime,
+            })
           }
-
-          // Close page and save cookies
-          await page.close()
-          await browserManager.saveCookies()
-        } catch (domError) {
-          console.error(`[Scraper Service V3] DOM scraping error for ${dataType}:`, domError)
-          error = domError instanceof Error ? domError.message : 'DOM scraping error'
-
-          // Report DOM scraping error to Bugsnag
-          captureScrapingError(domError, {
-            matchId: options.matchId,
-            dataType,
-            method: 'tab_clicking',
-            duration: Date.now() - startTime,
-          })
         }
       }
 

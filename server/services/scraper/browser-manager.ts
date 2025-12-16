@@ -19,6 +19,13 @@ export class BrowserManager {
    * Initialize browser with anti-detection measures
    */
   async init(): Promise<void> {
+    // Fail fast on serverless - Playwright binaries are not available
+    if (process.env.VERCEL) {
+      throw new Error(
+        'Browser automation is not available on Vercel. Use AI scraper service instead.'
+      )
+    }
+
     if (this.browser && this.context) {
       return
     }

@@ -454,7 +454,7 @@ export class SvenskaSpelApiClient {
    *
    * Topptipset has no /draws list endpoint, so we:
    * 1. Scrape current draw numbers from the page
-   * 2. Fetch each draw via multifetch API (which works)
+   * 2. Fetch each draw individually via multifetch API (with error isolation)
    */
   private async fetchTopptipsetCurrentDraws(): Promise<{ draws: DrawData[] }> {
     try {
@@ -470,10 +470,33 @@ export class SvenskaSpelApiClient {
         return { draws: [] }
       }
 
-      // Step 2: Fetch each draw via multifetch (existing API)
-      const results = await this.fetchMultipleDraws(drawNumbers)
+      console.log(
+        `[Svenska Spel API] Fetching ${drawNumbers.length} Topptipset draws individually...`
+      )
 
-      const draws = results.filter(r => r.draw).map(r => r.draw!)
+      // Step 2: Fetch each draw individually with error isolation
+      // This prevents one failing draw from breaking all others
+      const draws: DrawData[] = []
+      const failedDraws: number[] = []
+
+      for (const drawNumber of drawNumbers) {
+        try {
+          const result = await this.fetchDrawWithMultifetch(drawNumber, false)
+          draws.push(result.draw)
+        } catch (error) {
+          console.warn(
+            `[Svenska Spel API] Failed to fetch Topptipset draw ${drawNumber}:`,
+            error instanceof Error ? error.message : error
+          )
+          failedDraws.push(drawNumber)
+        }
+      }
+
+      if (failedDraws.length > 0) {
+        console.warn(
+          `[Svenska Spel API] ${failedDraws.length}/${drawNumbers.length} Topptipset draws failed: ${failedDraws.join(', ')}`
+        )
+      }
 
       console.log(`[Svenska Spel API] Found ${draws.length} Topptipset draws via hybrid approach`)
 

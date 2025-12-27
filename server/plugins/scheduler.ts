@@ -4,6 +4,7 @@ import { performanceTracker } from '../services/performance-tracker'
 import { drawCacheService } from '../services/draw-cache-service'
 import { scheduleWindowService } from '../services/schedule-window-service'
 import { progressiveScraper } from '../services/progressive-scraper'
+import { drawLifecycle } from '../services/draw-lifecycle'
 import { captureOperationError } from '../utils/bugsnag-helpers'
 import { getAllGameTypes } from '../constants/game-configs'
 
@@ -138,6 +139,31 @@ export default defineNitroPlugin(() => {
     }
   })
 
+  // Archive completed draws daily at 4 AM
+  new Cron('0 4 * * *', async () => {
+    console.log('[Scheduler] Running scheduled draw finalization check...')
+    try {
+      const result = await drawLifecycle.checkAndArchiveCompletedDraws()
+      console.log(
+        `[Scheduler] Draw finalization completed: ${result.checked} checked, ${result.archived} archived, ${result.errors} errors`
+      )
+
+      // Invalidate cache if any draws were archived
+      if (result.archived > 0) {
+        drawCacheService.invalidateAllDrawCache()
+        await scheduleWindowService.forceRefreshCache()
+      }
+    } catch (error) {
+      console.error('[Scheduler] Error in scheduled draw finalization:', error)
+
+      captureOperationError(error, {
+        operation: 'scheduled_task',
+        service: 'draw-lifecycle',
+        metadata: { schedule: 'daily-4am' },
+      })
+    }
+  })
+
   // Dynamic scraping: Every hour, decide based on deadline proximity
   // - Late phase (< 12h): scrape every hour
   // - Mid phase (12-36h): scrape every 2 hours
@@ -246,6 +272,7 @@ export default defineNitroPlugin(() => {
   console.log('  - Cache refresh: Every 5 minutes')
   console.log('  - Draw sync: Daily at midnight and 6 AM (all game types)')
   console.log('  - Performance update: Daily at 3 AM')
+  console.log('  - Draw finalization: Daily at 4 AM')
   console.log('  - Dynamic scrape: Hourly (frequency based on deadline proximity)')
   console.log('    - Late phase (<12h): every hour')
   console.log('    - Mid phase (12-36h): every 2 hours')

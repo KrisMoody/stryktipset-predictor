@@ -19,6 +19,12 @@ export default defineEventHandler(async event => {
       gameType = gameTypeParam
     }
 
+    // Force cache refresh if not initialized yet (handles cold-start scenario)
+    if (!scheduleWindowService.isCacheInitialized()) {
+      console.log('[Schedule Status] Cache not initialized, forcing refresh...')
+      await scheduleWindowService.forceRefreshCache()
+    }
+
     const status = scheduleWindowService.getWindowStatus(gameType)
 
     return {

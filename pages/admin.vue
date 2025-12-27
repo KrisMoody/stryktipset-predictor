@@ -26,8 +26,9 @@
       </div>
 
       <!-- Schedule Window Status Banner -->
+      <USkeleton v-if="loadingScheduleStatus" class="h-16 w-full mb-6" />
       <UAlert
-        v-if="scheduleStatus"
+        v-else-if="scheduleStatus"
         :color="scheduleStatus.isActive ? 'success' : 'warning'"
         :icon="scheduleStatus.isActive ? 'i-heroicons-check-circle' : 'i-heroicons-clock'"
         class="mb-6"
@@ -413,6 +414,222 @@
           </UCard>
         </template>
       </UModal>
+
+      <!-- Draw Finalization Section -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-semibold">Draw Finalization</h2>
+          <div class="flex gap-2">
+            <UButton
+              size="xs"
+              variant="ghost"
+              icon="i-heroicons-arrow-path"
+              :loading="loadingPendingFinalization"
+              @click="loadPendingFinalization"
+            >
+              Refresh
+            </UButton>
+            <UButton
+              v-if="pendingFinalization?.counts?.ready > 0"
+              size="sm"
+              color="primary"
+              icon="i-heroicons-check-circle"
+              :loading="finalizingAll"
+              @click="finalizeAllDraws"
+            >
+              Finalize All ({{ pendingFinalization.counts.ready }})
+            </UButton>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Ready for Finalization -->
+          <UCard>
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-success-500" />
+                <h3 class="font-semibold">Ready for Finalization</h3>
+                <UBadge color="success" variant="subtle" size="sm">
+                  {{ pendingFinalization?.counts?.ready || 0 }}
+                </UBadge>
+              </div>
+            </template>
+
+            <div v-if="loadingPendingFinalization" class="flex justify-center py-4">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
+            </div>
+            <div v-else-if="pendingFinalization?.readyForFinalization?.length" class="space-y-2">
+              <div
+                v-for="draw in pendingFinalization.readyForFinalization"
+                :key="`${draw.game_type}-${draw.draw_number}`"
+                class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+              >
+                <div>
+                  <p class="font-medium text-sm">#{{ draw.draw_number }} ({{ draw.game_type }})</p>
+                  <p class="text-xs text-gray-500">
+                    {{ draw.matchesWithResults }}/{{ draw.totalMatches }} results
+                  </p>
+                </div>
+                <UButton
+                  size="xs"
+                  color="success"
+                  variant="soft"
+                  icon="i-heroicons-archive-box"
+                  @click="openArchiveModal(draw)"
+                >
+                  Finalize
+                </UButton>
+              </div>
+            </div>
+            <div v-else class="text-center py-4 text-gray-500 text-sm">
+              No draws ready for finalization
+            </div>
+          </UCard>
+
+          <!-- Not Ready -->
+          <UCard>
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-clock" class="w-5 h-5 text-warning-500" />
+                <h3 class="font-semibold">Pending Completion</h3>
+                <UBadge color="warning" variant="subtle" size="sm">
+                  {{ pendingFinalization?.counts?.notReady || 0 }}
+                </UBadge>
+              </div>
+            </template>
+
+            <div v-if="loadingPendingFinalization" class="flex justify-center py-4">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
+            </div>
+            <div v-else-if="pendingFinalization?.notReady?.length" class="space-y-2">
+              <div
+                v-for="draw in pendingFinalization.notReady"
+                :key="`${draw.game_type}-${draw.draw_number}`"
+                class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+              >
+                <div>
+                  <p class="font-medium text-sm">#{{ draw.draw_number }} ({{ draw.game_type }})</p>
+                  <p class="text-xs text-gray-500">{{ draw.finalizationReason }}</p>
+                </div>
+                <UBadge :color="getStatusColor(draw.status)" variant="subtle" size="sm">
+                  {{ draw.status }}
+                </UBadge>
+              </div>
+            </div>
+            <div v-else class="text-center py-4 text-gray-500 text-sm">All draws are ready</div>
+          </UCard>
+        </div>
+      </div>
+
+      <!-- Incomplete Draws / Failed Games Section -->
+      <div
+        v-if="
+          failedGamesData?.counts?.pendingGames > 0 || failedGamesData?.counts?.incompleteDraws > 0
+        "
+        class="mb-8"
+      >
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-semibold">Incomplete Draws</h2>
+          <UButton
+            size="xs"
+            variant="ghost"
+            icon="i-heroicons-arrow-path"
+            :loading="loadingFailedGames"
+            @click="loadFailedGames"
+          >
+            Refresh
+          </UButton>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Incomplete Draws Summary -->
+          <UCard>
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-exclamation-triangle" class="w-5 h-5 text-warning-500" />
+                <h3 class="font-semibold">Draws Missing Games</h3>
+                <UBadge color="warning" variant="subtle" size="sm">
+                  {{ failedGamesData?.counts?.incompleteDraws || 0 }}
+                </UBadge>
+              </div>
+            </template>
+
+            <div v-if="loadingFailedGames" class="flex justify-center py-4">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
+            </div>
+            <div v-else-if="failedGamesData?.incompleteDraws?.length" class="space-y-2">
+              <div
+                v-for="draw in failedGamesData.incompleteDraws"
+                :key="`incomplete-${draw.gameType}-${draw.drawNumber}`"
+                class="p-2 bg-gray-50 dark:bg-gray-800 rounded"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium text-sm">#{{ draw.drawNumber }} ({{ draw.gameType }})</p>
+                    <p class="text-xs text-gray-500">
+                      {{ draw.actualGames }}/{{ draw.expectedGames }} games
+                    </p>
+                  </div>
+                  <UBadge color="error" variant="subtle" size="sm">
+                    Missing: {{ draw.missingMatchNumbers.join(', ') }}
+                  </UBadge>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center py-4 text-gray-500 text-sm">All draws are complete</div>
+          </UCard>
+
+          <!-- Failed Games List -->
+          <UCard>
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-x-circle" class="w-5 h-5 text-error-500" />
+                <h3 class="font-semibold">Failed Games</h3>
+                <UBadge color="error" variant="subtle" size="sm">
+                  {{ failedGamesData?.counts?.pendingGames || 0 }}
+                </UBadge>
+              </div>
+            </template>
+
+            <div v-if="loadingFailedGames" class="flex justify-center py-4">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
+            </div>
+            <div v-else-if="failedGamesData?.failedGames?.length" class="space-y-2">
+              <div
+                v-for="game in failedGamesData.failedGames.slice(0, 10)"
+                :key="game.id"
+                class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+              >
+                <div>
+                  <p class="font-medium text-sm">
+                    Match #{{ game.matchNumber }} - Draw {{ game.drawId }}
+                  </p>
+                  <p class="text-xs text-gray-500 truncate max-w-xs">
+                    {{ game.failureReason }}: {{ game.errorMessage || 'Unknown error' }}
+                  </p>
+                </div>
+                <UButton
+                  size="xs"
+                  color="primary"
+                  variant="soft"
+                  icon="i-heroicons-arrow-path"
+                  :loading="retryingGameId === game.id"
+                  @click="retryFailedGame(game.id)"
+                >
+                  Retry
+                </UButton>
+              </div>
+              <p
+                v-if="failedGamesData.failedGames.length > 10"
+                class="text-xs text-gray-500 text-center pt-2"
+              >
+                ... and {{ failedGamesData.failedGames.length - 10 }} more
+              </p>
+            </div>
+            <div v-else class="text-center py-4 text-gray-500 text-sm">No failed games</div>
+          </UCard>
+        </div>
+      </div>
 
       <!-- Backfill Operations -->
       <div v-if="backfillOperations.length > 0" class="mb-8">
@@ -836,6 +1053,7 @@ const accessDenied = ref(false)
 
 // Schedule window states
 const scheduleStatus = ref<ScheduleWindowStatus | null>(null)
+const loadingScheduleStatus = ref(true)
 const adminOverride = ref(false)
 
 // Computed property for action buttons
@@ -905,6 +1123,18 @@ const drawToArchive = ref<any>(null)
 const forceArchive = ref(false)
 const archiving = ref(false)
 
+// Draw Finalization states
+const loadingPendingFinalization = ref(false)
+const finalizingAll = ref(false)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
+const pendingFinalization = ref<any>(null)
+
+// Incomplete Draws / Failed Games states
+const loadingFailedGames = ref(false)
+const retryingGameId = ref<number | null>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
+const failedGamesData = ref<any>(null)
+
 // Schedule status
 async function loadScheduleStatus() {
   try {
@@ -916,6 +1146,8 @@ async function loadScheduleStatus() {
     }
   } catch (error) {
     console.error('Error loading schedule status:', error)
+  } finally {
+    loadingScheduleStatus.value = false
   }
 }
 
@@ -937,6 +1169,8 @@ onMounted(async () => {
     loadScraperMetrics(),
     loadAiUsageMetrics(),
     loadCurrentDraws(),
+    loadPendingFinalization(),
+    loadFailedGames(),
   ])
 
   // Refresh schedule status every minute
@@ -1201,19 +1435,79 @@ async function archiveDraw() {
   try {
     const result = await $fetch(`/api/admin/draws/${drawToArchive.value.draw_number}/archive`, {
       method: 'PATCH',
-      body: { force: forceArchive.value },
+      body: { force: forceArchive.value, gameType: drawToArchive.value.game_type },
     })
 
     if (result.success) {
       archiveModalOpen.value = false
       drawToArchive.value = null
-      // Reload the draws list
-      await loadCurrentDraws()
+      // Reload draws lists
+      await Promise.all([loadCurrentDraws(), loadPendingFinalization()])
     }
   } catch (error) {
     console.error('Error archiving draw:', error)
   } finally {
     archiving.value = false
+  }
+}
+
+// Draw Finalization functions
+async function loadPendingFinalization() {
+  loadingPendingFinalization.value = true
+  try {
+    pendingFinalization.value = await $fetch('/api/admin/draws/pending-finalization')
+  } catch (error) {
+    console.error('Error loading pending finalization:', error)
+    pendingFinalization.value = { success: false, error: 'Failed to load' }
+  } finally {
+    loadingPendingFinalization.value = false
+  }
+}
+
+async function finalizeAllDraws() {
+  finalizingAll.value = true
+  try {
+    const result = await $fetch('/api/admin/draws/finalize-all', {
+      method: 'POST',
+    })
+    if (result.success) {
+      // Reload both lists after finalization
+      await Promise.all([loadCurrentDraws(), loadPendingFinalization()])
+    }
+  } catch (error) {
+    console.error('Error finalizing draws:', error)
+  } finally {
+    finalizingAll.value = false
+  }
+}
+
+// Failed Games / Incomplete Draws functions
+async function loadFailedGames() {
+  loadingFailedGames.value = true
+  try {
+    failedGamesData.value = await $fetch('/api/admin/draws/failed-games')
+  } catch (error) {
+    console.error('Error loading failed games:', error)
+    failedGamesData.value = { success: false, error: 'Failed to load' }
+  } finally {
+    loadingFailedGames.value = false
+  }
+}
+
+async function retryFailedGame(gameId: number) {
+  retryingGameId.value = gameId
+  try {
+    const result = await $fetch(`/api/admin/draws/failed-games/${gameId}/retry`, {
+      method: 'POST',
+    })
+    if (result.success) {
+      // Reload failed games and draws after successful retry
+      await Promise.all([loadFailedGames(), loadCurrentDraws()])
+    }
+  } catch (error) {
+    console.error('Error retrying failed game:', error)
+  } finally {
+    retryingGameId.value = null
   }
 }
 

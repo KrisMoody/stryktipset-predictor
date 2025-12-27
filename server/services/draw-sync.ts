@@ -1,5 +1,6 @@
 import { prisma } from '~/server/utils/prisma'
 import { createApiClient } from './svenska-spel-api'
+import { failedGamesService } from './failed-games-service'
 import type { DrawData, DrawEventData, ProviderIdData, GameType } from '~/types'
 import { DEFAULT_GAME_TYPE } from '~/types/game-types'
 
@@ -362,13 +363,45 @@ export class DrawSyncService {
         },
       })
 
-      // Process matches
+      // Process matches with individual error tracking
       let matchesProcessed = 0
+      const matchErrors: { matchNumber: number; error: string }[] = []
+
       if (drawData.drawEvents && drawData.drawEvents.length > 0) {
         for (const event of drawData.drawEvents) {
-          await this.processMatch(draw.id, event, gameType)
-          matchesProcessed++
+          try {
+            await this.processMatch(draw.id, event, gameType)
+            matchesProcessed++
+
+            // Clear any previous failed_game record for this match on success
+            await failedGamesService.deleteFailedGame(draw.id, event.eventNumber)
+          } catch (matchError) {
+            const errorMessage = matchError instanceof Error ? matchError.message : 'Unknown error'
+            console.warn(
+              `[Draw Sync] Error processing match ${event.eventNumber} in ${gameType} draw ${drawData.drawNumber}:`,
+              errorMessage
+            )
+
+            // Record the failed game
+            await failedGamesService.recordFailedGame(
+              draw.id,
+              event.eventNumber,
+              gameType,
+              'api_error',
+              errorMessage,
+              { drawNumber: drawData.drawNumber, matchId: event.match?.matchId }
+            )
+
+            matchErrors.push({ matchNumber: event.eventNumber, error: errorMessage })
+          }
         }
+      }
+
+      // Log if some matches failed
+      if (matchErrors.length > 0) {
+        console.warn(
+          `[Draw Sync] ${gameType} draw ${drawData.drawNumber}: ${matchesProcessed} matches processed, ${matchErrors.length} failed`
+        )
       }
 
       return { success: true, matchesProcessed }

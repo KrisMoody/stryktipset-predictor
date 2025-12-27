@@ -68,7 +68,8 @@ model draws {
   updated_at  DateTime  @default(now()) @updatedAt @db.Timestamp(6)
 
   // Relations
-  matches matches[]
+  matches      matches[]
+  failed_games failed_games[]
 
   @@unique([game_type, draw_number]) // Composite unique: same draw number can exist for different games
   @@index([draw_number])
@@ -77,6 +78,34 @@ model draws {
   @@index([draw_date])
   @@index([is_current])
   @@index([game_type, is_current])
+}
+
+// Track failed/missing games within a draw for recovery
+model failed_games {
+  id              Int       @id @default(autoincrement())
+  draw_id         Int
+  match_number    Int // Position in draw (1-13 for Stryktipset/Europatipset, 1-8 for Topptipset)
+  game_type       String    @db.VarChar(20) // "stryktipset", "europatipset", "topptipset"
+  failure_reason  String    @db.VarChar(255) // "api_error", "missing_data", "timeout", "parse_error"
+  error_message   String?   @db.Text
+  retry_count     Int       @default(0)
+  last_retry_at   DateTime? @db.Timestamp(6)
+  status          String    @default("pending") @db.VarChar(20) // "pending", "retry_scheduled", "manual_entry", "resolved"
+  resolved_at     DateTime? @db.Timestamp(6)
+  resolved_by     String?   @db.Uuid // Admin who resolved it
+  resolution_type String?   @db.VarChar(20) // "api_retry", "manual_entry"
+  raw_error_data  Json? // Raw API error response for debugging
+  created_at      DateTime  @default(now()) @db.Timestamp(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+
+  // Relations
+  draw draws @relation(fields: [draw_id], references: [id], onDelete: Cascade)
+
+  @@unique([draw_id, match_number])
+  @@index([draw_id])
+  @@index([status])
+  @@index([game_type])
+  @@index([game_type, status])
 }
 
 // Individual matches in a draw

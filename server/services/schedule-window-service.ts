@@ -65,6 +65,7 @@ interface ActiveDraw {
 class ScheduleWindowService {
   private activeDrawsCache: ActiveDraw[] = []
   private cacheExpiry: Date = new Date(0)
+  private cacheInitialized: boolean = false
 
   /**
    * Get current time in Stockholm timezone
@@ -122,6 +123,7 @@ class ScheduleWindowService {
     try {
       this.activeDrawsCache = await this.getActiveDrawsFromDB()
       this.cacheExpiry = new Date(Date.now() + CACHE_DURATION_MS)
+      this.cacheInitialized = true
       console.log(`[ScheduleWindow] Cache refreshed: ${this.activeDrawsCache.length} active draws`)
     } catch (error) {
       console.error('[ScheduleWindow] Failed to refresh cache:', error)
@@ -136,6 +138,13 @@ class ScheduleWindowService {
   async forceRefreshCache(): Promise<void> {
     this.cacheExpiry = new Date(0)
     await this.refreshActiveDrawsCache()
+  }
+
+  /**
+   * Check if cache has been initialized at least once
+   */
+  isCacheInitialized(): boolean {
+    return this.cacheInitialized
   }
 
   /**

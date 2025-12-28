@@ -415,6 +415,17 @@
         </template>
       </UModal>
 
+      <!-- Manual Game Entry Modal -->
+      <AdminManualGameEntryModal
+        v-if="manualEntryData"
+        v-model:open="manualEntryModalOpen"
+        :draw-id="manualEntryData.drawId"
+        :draw-number="manualEntryData.drawNumber"
+        :match-number="manualEntryData.matchNumber"
+        :game-type="manualEntryData.gameType"
+        @submitted="onManualEntrySubmitted"
+      />
+
       <!-- Draw Finalization Section -->
       <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
@@ -557,22 +568,52 @@
             <div v-if="loadingFailedGames" class="flex justify-center py-4">
               <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
             </div>
-            <div v-else-if="failedGamesData?.incompleteDraws?.length" class="space-y-2">
+            <div v-else-if="failedGamesData?.incompleteDraws?.length" class="space-y-3">
               <div
                 v-for="draw in failedGamesData.incompleteDraws"
                 :key="`incomplete-${draw.gameType}-${draw.drawNumber}`"
-                class="p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                class="p-3 bg-gray-50 dark:bg-gray-800 rounded"
               >
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between mb-2">
                   <div>
                     <p class="font-medium text-sm">#{{ draw.drawNumber }} ({{ draw.gameType }})</p>
                     <p class="text-xs text-gray-500">
                       {{ draw.actualGames }}/{{ draw.expectedGames }} games
                     </p>
                   </div>
-                  <UBadge color="error" variant="subtle" size="sm">
-                    Missing: {{ draw.missingMatchNumbers.join(', ') }}
-                  </UBadge>
+                </div>
+                <!-- Per-match actions -->
+                <div class="flex flex-wrap gap-2">
+                  <div
+                    v-for="matchNum in draw.missingMatchNumbers"
+                    :key="`missing-${draw.drawId}-${matchNum}`"
+                    class="flex items-center gap-1 p-1.5 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600"
+                  >
+                    <span class="text-xs font-medium text-gray-600 dark:text-gray-300 mr-1"
+                      >#{{ matchNum }}</span
+                    >
+                    <UButton
+                      size="xs"
+                      color="primary"
+                      variant="soft"
+                      icon="i-heroicons-arrow-path"
+                      :loading="fetchingMatch === `${draw.drawId}-${matchNum}`"
+                      @click="fetchMissingMatch(draw.drawId, matchNum, draw.gameType)"
+                    >
+                      Fetch
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      color="warning"
+                      variant="soft"
+                      icon="i-heroicons-pencil"
+                      @click="
+                        openManualEntry(draw.drawId, draw.drawNumber, matchNum, draw.gameType)
+                      "
+                    >
+                      Manual
+                    </UButton>
+                  </div>
                 </div>
               </div>
             </div>
@@ -600,24 +641,37 @@
                 :key="game.id"
                 class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
               >
-                <div>
+                <div class="flex-1 min-w-0 mr-2">
                   <p class="font-medium text-sm">
                     Match #{{ game.matchNumber }} - Draw {{ game.drawId }}
                   </p>
-                  <p class="text-xs text-gray-500 truncate max-w-xs">
+                  <p class="text-xs text-gray-500 truncate">
                     {{ game.failureReason }}: {{ game.errorMessage || 'Unknown error' }}
                   </p>
                 </div>
-                <UButton
-                  size="xs"
-                  color="primary"
-                  variant="soft"
-                  icon="i-heroicons-arrow-path"
-                  :loading="retryingGameId === game.id"
-                  @click="retryFailedGame(game.id)"
-                >
-                  Retry
-                </UButton>
+                <div class="flex gap-1">
+                  <UButton
+                    size="xs"
+                    color="primary"
+                    variant="soft"
+                    icon="i-heroicons-arrow-path"
+                    :loading="retryingGameId === game.id"
+                    @click="retryFailedGame(game.id)"
+                  >
+                    Retry
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    color="warning"
+                    variant="soft"
+                    icon="i-heroicons-pencil"
+                    @click="
+                      openManualEntryForFailedGame(game.drawId, game.matchNumber, game.gameType)
+                    "
+                  >
+                    Manual
+                  </UButton>
+                </div>
               </div>
               <p
                 v-if="failedGamesData.failedGames.length > 10"
@@ -1135,6 +1189,16 @@ const retryingGameId = ref<number | null>(null)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
 const failedGamesData = ref<any>(null)
 
+// Manual entry modal state
+const manualEntryModalOpen = ref(false)
+const manualEntryData = ref<{
+  drawId: number
+  drawNumber: number
+  matchNumber: number
+  gameType: string
+} | null>(null)
+const fetchingMatch = ref<string | null>(null)
+
 // Schedule status
 async function loadScheduleStatus() {
   try {
@@ -1509,6 +1573,56 @@ async function retryFailedGame(gameId: number) {
   } finally {
     retryingGameId.value = null
   }
+}
+
+async function fetchMissingMatch(drawId: number, matchNumber: number, gameType: string) {
+  const key = `${drawId}-${matchNumber}`
+  fetchingMatch.value = key
+  try {
+    const result = await $fetch<{ success: boolean; error?: string; alreadyExists?: boolean }>(
+      `/api/admin/draws/${drawId}/fetch-match/${matchNumber}`,
+      {
+        method: 'POST',
+        body: { gameType },
+      }
+    )
+    if (result.success) {
+      // Reload data after successful fetch
+      await Promise.all([loadFailedGames(), loadCurrentDraws()])
+    } else {
+      console.error('Failed to fetch match:', result.error)
+    }
+  } catch (error) {
+    console.error('Error fetching missing match:', error)
+  } finally {
+    fetchingMatch.value = null
+  }
+}
+
+function openManualEntry(
+  drawId: number,
+  drawNumber: number,
+  matchNumber: number,
+  gameType: string
+) {
+  manualEntryData.value = { drawId, drawNumber, matchNumber, gameType }
+  manualEntryModalOpen.value = true
+}
+
+async function openManualEntryForFailedGame(drawId: number, matchNumber: number, gameType: string) {
+  // For failed games, we need to look up the draw number
+  const draw = failedGamesData.value?.incompleteDraws?.find(
+    (d: { drawId: number }) => d.drawId === drawId
+  )
+  const drawNumber = draw?.drawNumber || 0
+  openManualEntry(drawId, drawNumber, matchNumber, gameType)
+}
+
+async function onManualEntrySubmitted() {
+  manualEntryModalOpen.value = false
+  manualEntryData.value = null
+  // Reload data after successful manual entry
+  await Promise.all([loadFailedGames(), loadCurrentDraws()])
 }
 
 function getStatusColor(status: string): 'success' | 'warning' | 'error' | 'neutral' {

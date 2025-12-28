@@ -432,13 +432,13 @@ export class DrawSyncService {
       matchData.participants.find(p => p.type === 'away') || matchData.participants[1]
 
     if (!homeParticipant?.id || !awayParticipant?.id) {
-      console.warn(`[Draw Sync] Missing team IDs for match ${matchData.matchId}`)
-      return
+      throw new Error(
+        `Missing team IDs for match ${matchData.matchId}: home=${homeParticipant?.id}, away=${awayParticipant?.id}`
+      )
     }
 
     if (!matchData.league?.id) {
-      console.warn(`[Draw Sync] Missing league ID for match ${matchData.matchId}`)
-      return
+      throw new Error(`Missing league ID for match ${matchData.matchId}`)
     }
 
     // Upsert teams

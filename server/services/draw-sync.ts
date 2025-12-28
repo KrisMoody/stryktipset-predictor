@@ -250,21 +250,21 @@ export class DrawSyncService {
   }
 
   /**
-   * Upsert a country
+   * Upsert a country and return its ID
    */
-  private async upsertCountry(countryData: any): Promise<void> {
+  private async upsertCountry(countryData: any): Promise<number | null> {
     let countryId: number | null = null
     let countryName: string | null = null
 
     if (typeof countryData === 'string') {
       // If country is just a string, we can't create it without an ID
-      return
+      return null
     } else if (typeof countryData === 'object' && countryData.id) {
       countryId = countryData.id
       countryName = countryData.name
     }
 
-    if (!countryId || !countryName) return
+    if (!countryId || !countryName) return null
 
     await prisma.countries.upsert({
       where: { name: countryName },
@@ -278,6 +278,27 @@ export class DrawSyncService {
         iso_code: countryData.isoCode || null,
       },
     })
+
+    return countryId
+  }
+
+  /**
+   * Ensure a fallback "Unknown" country exists for leagues without country data
+   */
+  private async ensureUnknownCountry(): Promise<number> {
+    const UNKNOWN_COUNTRY_ID = 99999
+
+    await prisma.countries.upsert({
+      where: { id: UNKNOWN_COUNTRY_ID },
+      update: {},
+      create: {
+        id: UNKNOWN_COUNTRY_ID,
+        name: 'Unknown',
+        iso_code: null,
+      },
+    })
+
+    return UNKNOWN_COUNTRY_ID
   }
 
   /**
@@ -286,15 +307,24 @@ export class DrawSyncService {
   private async upsertLeague(leagueData: any): Promise<void> {
     if (!leagueData?.id || !leagueData?.name) return
 
-    // Determine country ID
-    let countryId: number
+    // Determine country ID - upsert country first if available
+    let countryId: number | null = null
+
     if (typeof leagueData.country === 'object' && leagueData.country?.id) {
-      countryId = leagueData.country.id
+      countryId = await this.upsertCountry(leagueData.country)
     } else if (leagueData.countryId) {
-      countryId = leagueData.countryId
-    } else {
-      // Default country ID if not provided (we'll need to handle this)
-      countryId = 0
+      // Check if this country exists
+      const existingCountry = await prisma.countries.findUnique({
+        where: { id: leagueData.countryId },
+      })
+      if (existingCountry) {
+        countryId = leagueData.countryId
+      }
+    }
+
+    // If no valid country, use the Unknown fallback
+    if (!countryId) {
+      countryId = await this.ensureUnknownCountry()
     }
 
     await prisma.leagues.upsert({
@@ -432,25 +462,20 @@ export class DrawSyncService {
       matchData.participants.find(p => p.type === 'away') || matchData.participants[1]
 
     if (!homeParticipant?.id || !awayParticipant?.id) {
-      console.warn(`[Draw Sync] Missing team IDs for match ${matchData.matchId}`)
-      return
+      throw new Error(
+        `Missing team IDs for match ${matchData.matchId}: home=${homeParticipant?.id}, away=${awayParticipant?.id}`
+      )
     }
 
     if (!matchData.league?.id) {
-      console.warn(`[Draw Sync] Missing league ID for match ${matchData.matchId}`)
-      return
+      throw new Error(`Missing league ID for match ${matchData.matchId}`)
     }
 
     // Upsert teams
     await this.upsertTeam(homeParticipant)
     await this.upsertTeam(awayParticipant)
 
-    // Upsert country if present
-    if (matchData.league?.country) {
-      await this.upsertCountry(matchData.league.country)
-    }
-
-    // Upsert league
+    // Upsert league (handles country internally)
     await this.upsertLeague(matchData.league)
 
     // Extract result if available

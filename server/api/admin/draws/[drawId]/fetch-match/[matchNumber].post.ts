@@ -1,5 +1,6 @@
 import { requireAdmin } from '~/server/utils/require-admin'
 import { drawSyncService } from '~/server/services/draw-sync'
+import { failedGamesService } from '~/server/services/failed-games-service'
 import { createApiClient } from '~/server/services/svenska-spel-api'
 import { prisma } from '~/server/utils/prisma'
 import { isValidGameType } from '~/server/constants/game-configs'
@@ -103,7 +104,11 @@ export default defineEventHandler(async event => {
     }
 
     // Process the entire draw (which will process the missing match)
-    await drawSyncService.processDrawData(drawData, gameType)
+    const processResult = await drawSyncService.processDrawData(drawData, gameType)
+
+    console.log(
+      `[Admin] processDrawData result: success=${processResult.success}, matchesProcessed=${processResult.matchesProcessed}, error=${processResult.error}`
+    )
 
     // Verify the match was created
     const newMatch = await prisma.matches.findUnique({
@@ -123,9 +128,15 @@ export default defineEventHandler(async event => {
       }
     }
 
+    // Check if there's a failed_games record for this match
+    const failedGames = await failedGamesService.getFailedGamesForDraw(drawId)
+    const failedGame = failedGames.find(g => g.matchNumber === matchNumber)
+
     return {
       success: false,
-      error: 'Match was processed but not found in database',
+      error: failedGame
+        ? `Match processing failed: ${failedGame.errorMessage}`
+        : 'Match was processed but not found in database',
     }
   } catch (error) {
     console.error(`[Admin] Error fetching match ${matchNumber} for draw ${drawId}:`, error)

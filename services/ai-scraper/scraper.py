@@ -35,7 +35,7 @@ class AIScraper:
             viewport_width=1920,
             viewport_height=1080,
             ignore_https_errors=True,
-            use_managed_browser=True,
+            use_managed_browser=False,  # Disabled: CDP mode fails in Railway containers
             browser_type="chromium",
             # Anti-detection features from Crawl4AI
             text_mode=False,  # Keep full rendering for JS-heavy pages
@@ -44,6 +44,9 @@ class AIScraper:
                 "--disable-blink-features=AutomationControlled",
                 "--disable-features=IsolateOrigins,site-per-process",
                 "--disable-site-isolation-trials",
+                "--no-sandbox",  # Required for Docker/containerized environments
+                "--disable-dev-shm-usage",  # Prevent /dev/shm issues in containers
+                "--disable-gpu",  # No GPU in container environments
             ]
         )
         

@@ -6,6 +6,9 @@ on:
       - 'prisma/schema.prisma'
       - 'prisma/migrations/**'
 
+permissions:
+  contents: read
+
 jobs:
   migration-check:
     runs-on: ubuntu-latest

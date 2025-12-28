@@ -97,15 +97,16 @@ async def scrape_endpoint(request: ScrapeRequest):
         result = await method(request.url)
         return result
 
-    except Exception as e:
+    except Exception:
         # Return error as structured response so client can fall back to DOM
         # Don't raise HTTPException - let the client handle fallback
+        # Note: logger.exception logs the full stack trace server-side
         logger.exception("Scraping error")
         return ScrapeResponse(
             success=False,
             data=None,
             tokens=None,
-            error=str(e)
+            error="Scraping failed. Check server logs for details."
         )
 
 
@@ -171,12 +172,12 @@ async def scrape_raw_endpoint(request: RawScrapeRequest):
     try:
         result = await scraper.scrape_raw_js(request.url, request.js_expression)
         return result
-    except Exception as e:
+    except Exception:
         logger.exception("Raw scraping error")
         return RawScrapeResponse(
             success=False,
             data=None,
-            error=str(e)
+            error="Raw scraping failed. Check server logs for details."
         )
 
 
@@ -223,14 +224,14 @@ async def scrape_batch_endpoint(request: BatchScrapeRequest):
             failed=failed
         )
 
-    except Exception as e:
+    except Exception:
         logger.exception("Batch scraping error")
         # Return error for all requests
         result_items = [
             BatchScrapeResultItem(
                 success=False,
                 data=None,
-                error=str(e),
+                error="Batch scraping failed. Check server logs for details.",
                 url=item.url,
                 data_type=item.data_type
             ) for item in request.requests

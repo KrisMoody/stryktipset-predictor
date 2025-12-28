@@ -4,7 +4,7 @@
  * Run this script after the Nuxt build completes
  */
 
-const { execSync } = require('child_process')
+const { spawnSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 
@@ -47,17 +47,28 @@ function uploadSourceMaps(directory) {
   try {
     console.log(`[Bugsnag] Uploading ${directory} source maps...`)
 
-    execSync(
-      `npx @bugsnag/source-maps upload-browser \
-        --api-key ${BUGSNAG_API_KEY} \
-        --app-version ${APP_VERSION} \
-        --directory ${fullPath} \
-        --overwrite`,
+    const result = spawnSync(
+      'npx',
+      [
+        '@bugsnag/source-maps',
+        'upload-browser',
+        '--api-key',
+        BUGSNAG_API_KEY,
+        '--app-version',
+        APP_VERSION,
+        '--directory',
+        fullPath,
+        '--overwrite',
+      ],
       {
         stdio: 'inherit',
         env: { ...process.env },
       }
     )
+
+    if (result.status !== 0) {
+      throw new Error(`Process exited with status ${result.status}`)
+    }
 
     console.log(`[Bugsnag] Successfully uploaded ${directory} source maps`)
     return true

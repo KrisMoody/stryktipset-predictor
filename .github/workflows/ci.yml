@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  actions: read
+
 env:
   NODE_VERSION: '20'
   # Placeholder env vars for builds (actual values not needed for mocked tests)

@@ -126,10 +126,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: nuxt-build
-          path: |
-            .output
-            .nuxt
+          path: .output
           retention-days: 1
+          if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════════
   # BLOCKING JOBS - Must pass for deployment
@@ -255,6 +254,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: nuxt-build
+          path: .output
 
       - name: Setup database
         run: |
@@ -337,6 +337,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           name: nuxt-build
+          path: .output
 
       - name: Setup database
         run: |

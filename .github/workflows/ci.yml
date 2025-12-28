@@ -65,6 +65,7 @@ jobs:
               - 'yarn.lock'
               - 'nuxt.config.ts'
               - 'tsconfig.json'
+              - '.github/workflows/**'
             frontend:
               - 'components/**'
               - 'pages/**'
@@ -251,7 +252,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: nuxt-build
 
@@ -333,7 +334,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: nuxt-build
 

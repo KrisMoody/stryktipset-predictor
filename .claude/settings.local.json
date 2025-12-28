@@ -24,7 +24,16 @@
       "Bash(npx playwright test:*)",
       "Bash(tree:*)",
       "Bash(xargs:*)",
-      "Bash(NODE_OPTIONS=\"--max-old-space-size=8192\" npx nuxi typecheck:*)"
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=8192\" npx nuxi typecheck:*)",
+      "Bash(paste:*)",
+      "Bash(yarn outdated:*)",
+      "Bash(while read line)",
+      "Bash(do)",
+      "Bash(if ! grep -A3 \"$line\" yarn.lock)",
+      "Bash(then)",
+      "Bash(echo:*)",
+      "Bash(fi)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

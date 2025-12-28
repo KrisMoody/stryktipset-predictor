@@ -3,6 +3,8 @@ import { createApiClient } from './svenska-spel-api'
 import { failedGamesService } from './failed-games-service'
 import type { DrawData, DrawEventData, ProviderIdData, GameType } from '~/types'
 import { DEFAULT_GAME_TYPE } from '~/types/game-types'
+import Anthropic from '@anthropic-ai/sdk'
+import type { Prisma } from '@prisma/client'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Complex API data transformations */
 
@@ -250,14 +252,35 @@ export class DrawSyncService {
   }
 
   /**
-   * Upsert a country and return its ID
+   * Ensure unknown country exists within a transaction
    */
-  private async upsertCountry(countryData: any): Promise<number | null> {
+  private async ensureUnknownCountryTx(tx: Prisma.TransactionClient): Promise<number> {
+    const UNKNOWN_COUNTRY_ID = 99999
+
+    await tx.countries.upsert({
+      where: { id: UNKNOWN_COUNTRY_ID },
+      update: {},
+      create: {
+        id: UNKNOWN_COUNTRY_ID,
+        name: 'Unknown',
+        iso_code: null,
+      },
+    })
+
+    return UNKNOWN_COUNTRY_ID
+  }
+
+  /**
+   * Upsert a country within a transaction and return its ID
+   */
+  private async upsertCountryTx(
+    tx: Prisma.TransactionClient,
+    countryData: any
+  ): Promise<number | null> {
     let countryId: number | null = null
     let countryName: string | null = null
 
     if (typeof countryData === 'string') {
-      // If country is just a string, we can't create it without an ID
       return null
     } else if (typeof countryData === 'object' && countryData.id) {
       countryId = countryData.id
@@ -266,7 +289,7 @@ export class DrawSyncService {
 
     if (!countryId || !countryName) return null
 
-    await prisma.countries.upsert({
+    await tx.countries.upsert({
       where: { name: countryName },
       update: {
         iso_code: countryData.isoCode || null,
@@ -283,62 +306,142 @@ export class DrawSyncService {
   }
 
   /**
-   * Ensure a fallback "Unknown" country exists for leagues without country data
+   * Use AI to infer the country from league and team context
    */
-  private async ensureUnknownCountry(): Promise<number> {
-    const UNKNOWN_COUNTRY_ID = 99999
+  private async inferCountryFromContext(
+    leagueName: string,
+    homeTeam?: string,
+    awayTeam?: string
+  ): Promise<{ id: number; name: string; isoCode?: string } | null> {
+    try {
+      const anthropic = new Anthropic()
 
-    await prisma.countries.upsert({
-      where: { id: UNKNOWN_COUNTRY_ID },
-      update: {},
-      create: {
-        id: UNKNOWN_COUNTRY_ID,
-        name: 'Unknown',
-        iso_code: null,
-      },
-    })
+      const prompt = `Given this sports league/match context, identify the country where this league operates:
+League: ${leagueName}
+${homeTeam ? `Home Team: ${homeTeam}` : ''}
+${awayTeam ? `Away Team: ${awayTeam}` : ''}
 
-    return UNKNOWN_COUNTRY_ID
+Respond with JSON only: {"country": "CountryName", "isoCode": "XX"}
+If you cannot determine the country with confidence, respond: {"country": null}`
+
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-5-20250514',
+        max_tokens: 100,
+        messages: [{ role: 'user', content: prompt }],
+      })
+
+      const content = response.content[0]
+      if (content && content.type === 'text') {
+        const result = JSON.parse((content as { type: 'text'; text: string }).text)
+        if (result.country) {
+          console.log(
+            `[Draw Sync] AI inferred country "${result.country}" for league "${leagueName}"`
+          )
+          return await this.findOrCreateCountryByName(result.country, result.isoCode)
+        }
+      }
+    } catch (error) {
+      console.warn('[Draw Sync] AI country inference failed:', error)
+    }
+    return null
   }
 
   /**
-   * Upsert a league
+   * Find an existing country by name or create a new one
    */
-  private async upsertLeague(leagueData: any): Promise<void> {
+  private async findOrCreateCountryByName(
+    name: string,
+    isoCode?: string
+  ): Promise<{ id: number; name: string; isoCode?: string } | null> {
+    try {
+      // First try to find existing country by name
+      const existing = await prisma.countries.findUnique({
+        where: { name },
+      })
+
+      if (existing) {
+        return {
+          id: existing.id,
+          name: existing.name,
+          isoCode: existing.iso_code || undefined,
+        }
+      }
+
+      // If not found, generate a new ID and create
+      const maxCountry = await prisma.countries.findFirst({
+        orderBy: { id: 'desc' },
+        where: { id: { lt: 99999 } }, // Exclude the Unknown country
+      })
+      const newId = (maxCountry?.id || 0) + 1
+
+      const created = await prisma.countries.create({
+        data: {
+          id: newId,
+          name,
+          iso_code: isoCode || null,
+        },
+      })
+
+      console.log(`[Draw Sync] Created new country: ${name} (ID: ${newId})`)
+
+      return {
+        id: created.id,
+        name: created.name,
+        isoCode: created.iso_code || undefined,
+      }
+    } catch (error) {
+      console.warn(`[Draw Sync] Failed to find/create country "${name}":`, error)
+      return null
+    }
+  }
+
+  /**
+   * Upsert a league with AI-powered country inference
+   */
+  private async upsertLeague(leagueData: any, homeTeam?: string, awayTeam?: string): Promise<void> {
     if (!leagueData?.id || !leagueData?.name) return
 
-    // Determine country ID - upsert country first if available
-    let countryId: number | null = null
+    await prisma.$transaction(async tx => {
+      let countryId: number | null = null
 
-    if (typeof leagueData.country === 'object' && leagueData.country?.id) {
-      countryId = await this.upsertCountry(leagueData.country)
-    } else if (leagueData.countryId) {
-      // Check if this country exists
-      const existingCountry = await prisma.countries.findUnique({
-        where: { id: leagueData.countryId },
-      })
-      if (existingCountry) {
-        countryId = leagueData.countryId
+      // 1. Try extracting country from league data
+      if (typeof leagueData.country === 'object' && leagueData.country?.id) {
+        countryId = await this.upsertCountryTx(tx, leagueData.country)
+      } else if (leagueData.countryId) {
+        const existingCountry = await tx.countries.findUnique({
+          where: { id: leagueData.countryId },
+        })
+        if (existingCountry) {
+          countryId = leagueData.countryId
+        }
       }
-    }
 
-    // If no valid country, use the Unknown fallback
-    if (!countryId) {
-      countryId = await this.ensureUnknownCountry()
-    }
+      // 2. If no country found, try AI inference
+      if (!countryId) {
+        const inferred = await this.inferCountryFromContext(leagueData.name, homeTeam, awayTeam)
+        if (inferred) {
+          countryId = inferred.id
+        }
+      }
 
-    await prisma.leagues.upsert({
-      where: { id: leagueData.id },
-      update: {
-        name: leagueData.name,
-        country_id: countryId,
-        updated_at: new Date(),
-      },
-      create: {
-        id: leagueData.id,
-        name: leagueData.name,
-        country_id: countryId,
-      },
+      // 3. Final fallback to Unknown country
+      if (!countryId) {
+        countryId = await this.ensureUnknownCountryTx(tx)
+      }
+
+      await tx.leagues.upsert({
+        where: { id: leagueData.id },
+        update: {
+          name: leagueData.name,
+          country_id: countryId,
+          updated_at: new Date(),
+        },
+        create: {
+          id: leagueData.id,
+          name: leagueData.name,
+          country_id: countryId,
+        },
+      })
     })
   }
 
@@ -475,8 +578,8 @@ export class DrawSyncService {
     await this.upsertTeam(homeParticipant)
     await this.upsertTeam(awayParticipant)
 
-    // Upsert league (handles country internally)
-    await this.upsertLeague(matchData.league)
+    // Upsert league (handles country internally with AI inference fallback)
+    await this.upsertLeague(matchData.league, homeParticipant.name, awayParticipant.name)
 
     // Extract result if available
     let resultHome = null

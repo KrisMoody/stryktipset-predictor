@@ -289,7 +289,7 @@ export class DrawSyncService {
 
     if (!countryId || !countryName) return null
 
-    await tx.countries.upsert({
+    const result = await tx.countries.upsert({
       where: { name: countryName },
       update: {
         iso_code: countryData.isoCode || null,
@@ -302,17 +302,54 @@ export class DrawSyncService {
       },
     })
 
-    return countryId
+    return result.id // Return actual DB ID, not API ID
   }
 
   /**
-   * Use AI to infer the country from league and team context
+   * Find an existing country by name or create a new one (transaction-aware)
    */
-  private async inferCountryFromContext(
+  private async findOrCreateCountryByNameTx(
+    tx: Prisma.TransactionClient,
+    name: string,
+    isoCode?: string
+  ): Promise<number> {
+    // Try to find existing country by name
+    const existing = await tx.countries.findUnique({
+      where: { name },
+    })
+
+    if (existing) {
+      return existing.id
+    }
+
+    // If not found, generate a new ID and create
+    const maxCountry = await tx.countries.findFirst({
+      orderBy: { id: 'desc' },
+      where: { id: { lt: 99999 } }, // Exclude the Unknown country
+    })
+    const newId = (maxCountry?.id || 0) + 1
+
+    const created = await tx.countries.create({
+      data: {
+        id: newId,
+        name,
+        iso_code: isoCode || null,
+      },
+    })
+
+    console.log(`[Draw Sync] Created new country: ${name} (ID: ${newId})`)
+    return created.id
+  }
+
+  /**
+   * Use AI to infer the country from league and team context (transaction-aware)
+   */
+  private async inferCountryFromContextTx(
+    tx: Prisma.TransactionClient,
     leagueName: string,
     homeTeam?: string,
     awayTeam?: string
-  ): Promise<{ id: number; name: string; isoCode?: string } | null> {
+  ): Promise<number | null> {
     try {
       const anthropic = new Anthropic()
 
@@ -337,62 +374,13 @@ If you cannot determine the country with confidence, respond: {"country": null}`
           console.log(
             `[Draw Sync] AI inferred country "${result.country}" for league "${leagueName}"`
           )
-          return await this.findOrCreateCountryByName(result.country, result.isoCode)
+          return await this.findOrCreateCountryByNameTx(tx, result.country, result.isoCode)
         }
       }
     } catch (error) {
       console.warn('[Draw Sync] AI country inference failed:', error)
     }
     return null
-  }
-
-  /**
-   * Find an existing country by name or create a new one
-   */
-  private async findOrCreateCountryByName(
-    name: string,
-    isoCode?: string
-  ): Promise<{ id: number; name: string; isoCode?: string } | null> {
-    try {
-      // First try to find existing country by name
-      const existing = await prisma.countries.findUnique({
-        where: { name },
-      })
-
-      if (existing) {
-        return {
-          id: existing.id,
-          name: existing.name,
-          isoCode: existing.iso_code || undefined,
-        }
-      }
-
-      // If not found, generate a new ID and create
-      const maxCountry = await prisma.countries.findFirst({
-        orderBy: { id: 'desc' },
-        where: { id: { lt: 99999 } }, // Exclude the Unknown country
-      })
-      const newId = (maxCountry?.id || 0) + 1
-
-      const created = await prisma.countries.create({
-        data: {
-          id: newId,
-          name,
-          iso_code: isoCode || null,
-        },
-      })
-
-      console.log(`[Draw Sync] Created new country: ${name} (ID: ${newId})`)
-
-      return {
-        id: created.id,
-        name: created.name,
-        isoCode: created.iso_code || undefined,
-      }
-    } catch (error) {
-      console.warn(`[Draw Sync] Failed to find/create country "${name}":`, error)
-      return null
-    }
   }
 
   /**
@@ -416,12 +404,9 @@ If you cannot determine the country with confidence, respond: {"country": null}`
         }
       }
 
-      // 2. If no country found, try AI inference
+      // 2. If no country found, try AI inference (inside transaction)
       if (!countryId) {
-        const inferred = await this.inferCountryFromContext(leagueData.name, homeTeam, awayTeam)
-        if (inferred) {
-          countryId = inferred.id
-        }
+        countryId = await this.inferCountryFromContextTx(tx, leagueData.name, homeTeam, awayTeam)
       }
 
       // 3. Final fallback to Unknown country

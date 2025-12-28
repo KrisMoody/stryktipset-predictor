@@ -43,7 +43,7 @@
     "@anthropic-ai/sdk": "0.71.2",
     "@bugsnag/js": "^8.6.0",
     "@bugsnag/plugin-vue": "^8.6.0",
-    "@nuxt/icon": "^2.1.0",
+    "@nuxt/icon": "^2.1.1",
     "@nuxt/ui": "^4.0.1",
     "@nuxtjs/supabase": "^2.0.3",
     "@prisma/adapter-pg": "7.1.0",
@@ -52,14 +52,14 @@
     "chart.js": "^4.4.1",
     "croner": "^9.1.0",
     "dotenv": "^17.2.3",
-    "esbuild": "0.27.1",
+    "esbuild": "0.27.2",
     "node-cache": "^5.1.2",
-    "nuxt": "^4.0.0",
+    "nuxt": "^4.2.2",
     "openai": "6.10.0",
     "p-limit": "^7.2.0",
     "pg": "^8.16.3",
     "playwright": "^1.51.1",
-    "vue": "^3.5.13"
+    "vue": "^3.5.26"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",

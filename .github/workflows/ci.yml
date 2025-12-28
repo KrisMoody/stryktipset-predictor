@@ -65,6 +65,7 @@ jobs:
               - 'yarn.lock'
               - 'nuxt.config.ts'
               - 'tsconfig.json'
+              - '.github/workflows/**'
             frontend:
               - 'components/**'
               - 'pages/**'
@@ -97,6 +98,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       DATABASE_DIRECT_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      TEST_MODE: 'true'
     steps:
       - uses: actions/checkout@v6
 
@@ -125,10 +127,10 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: nuxt-build
-          path: |
-            .output
-            .nuxt
+          path: .output
           retention-days: 1
+          if-no-files-found: error
+          include-hidden-files: true
 
   # ═══════════════════════════════════════════════════════════════════════════
   # BLOCKING JOBS - Must pass for deployment
@@ -251,9 +253,10 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           name: nuxt-build
+          path: .output
 
       - name: Setup database
         run: |
@@ -333,9 +336,10 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           name: nuxt-build
+          path: .output
 
       - name: Setup database
         run: |

@@ -230,12 +230,14 @@ export class DrawSyncService {
   }
 
   /**
-   * Upsert a team
+   * Upsert a team and return actual DB ID
    */
-  private async upsertTeam(participant: any): Promise<void> {
-    if (!participant?.id || !participant?.name) return
+  private async upsertTeam(participant: any): Promise<number> {
+    if (!participant?.id || !participant?.name) {
+      throw new Error('Missing team ID or name')
+    }
 
-    await prisma.teams.upsert({
+    const result = await prisma.teams.upsert({
       where: { name: participant.name },
       update: {
         short_name: participant.shortName || null,
@@ -249,6 +251,8 @@ export class DrawSyncService {
         medium_name: participant.mediumName || null,
       },
     })
+
+    return result.id // Return actual DB ID, not API ID
   }
 
   /**
@@ -384,12 +388,18 @@ If you cannot determine the country with confidence, respond: {"country": null}`
   }
 
   /**
-   * Upsert a league with AI-powered country inference
+   * Upsert a league with AI-powered country inference and return actual DB ID
    */
-  private async upsertLeague(leagueData: any, homeTeam?: string, awayTeam?: string): Promise<void> {
-    if (!leagueData?.id || !leagueData?.name) return
+  private async upsertLeague(
+    leagueData: any,
+    homeTeam?: string,
+    awayTeam?: string
+  ): Promise<number> {
+    if (!leagueData?.id || !leagueData?.name) {
+      throw new Error('Missing league ID or name')
+    }
 
-    await prisma.$transaction(async tx => {
+    return await prisma.$transaction(async tx => {
       let countryId: number | null = null
 
       // 1. Try extracting country from league data
@@ -414,7 +424,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
         countryId = await this.ensureUnknownCountryTx(tx)
       }
 
-      await tx.leagues.upsert({
+      const result = await tx.leagues.upsert({
         where: { id: leagueData.id },
         update: {
           name: leagueData.name,
@@ -427,6 +437,8 @@ If you cannot determine the country with confidence, respond: {"country": null}`
           country_id: countryId,
         },
       })
+
+      return result.id // Return actual DB ID
     })
   }
 
@@ -559,12 +571,16 @@ If you cannot determine the country with confidence, respond: {"country": null}`
       throw new Error(`Missing league ID for match ${matchData.matchId}`)
     }
 
-    // Upsert teams
-    await this.upsertTeam(homeParticipant)
-    await this.upsertTeam(awayParticipant)
+    // Upsert teams and get actual DB IDs
+    const homeTeamId = await this.upsertTeam(homeParticipant)
+    const awayTeamId = await this.upsertTeam(awayParticipant)
 
-    // Upsert league (handles country internally with AI inference fallback)
-    await this.upsertLeague(matchData.league, homeParticipant.name, awayParticipant.name)
+    // Upsert league and get actual DB ID (handles country internally with AI inference fallback)
+    const leagueId = await this.upsertLeague(
+      matchData.league,
+      homeParticipant.name,
+      awayParticipant.name
+    )
 
     // Extract result if available
     let resultHome = null
@@ -594,9 +610,9 @@ If you cannot determine the country with confidence, respond: {"country": null}`
         },
       },
       update: {
-        home_team_id: homeParticipant.id,
-        away_team_id: awayParticipant.id,
-        league_id: matchData.league.id,
+        home_team_id: homeTeamId,
+        away_team_id: awayTeamId,
+        league_id: leagueId,
         status: matchData.status,
         status_time: matchData.statusTime ? new Date(matchData.statusTime) : null,
         result_home: resultHome,
@@ -614,9 +630,9 @@ If you cannot determine the country with confidence, respond: {"country": null}`
         draw_id: drawId,
         match_number: event.eventNumber,
         match_id: matchData.matchId,
-        home_team_id: homeParticipant.id,
-        away_team_id: awayParticipant.id,
-        league_id: matchData.league.id,
+        home_team_id: homeTeamId,
+        away_team_id: awayTeamId,
+        league_id: leagueId,
         start_time: new Date(matchData.matchStart),
         status: matchData.status,
         status_time: matchData.statusTime ? new Date(matchData.statusTime) : null,

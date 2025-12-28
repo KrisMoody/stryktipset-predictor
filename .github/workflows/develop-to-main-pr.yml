@@ -10,6 +10,11 @@ on:
     branches: [develop]
     types: [closed]
 
+# Prevent race conditions that create duplicate PRs
+concurrency:
+  group: auto-pr-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # When pushing a feature branch, create PR to develop
   create-feature-pr:

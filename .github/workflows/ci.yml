@@ -129,6 +129,7 @@ jobs:
           path: .output
           retention-days: 1
           if-no-files-found: error
+          include-hidden-files: true
 
   # ═══════════════════════════════════════════════════════════════════════════
   # BLOCKING JOBS - Must pass for deployment

@@ -12,6 +12,7 @@ import { isRateLimitError } from './scraper-config'
 import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
 import { captureScrapingError } from '~/server/utils/bugsnag-helpers'
 import type { ScrapeOptions, ScrapeResult, ScrapingMethod, UrlPattern } from '~/types'
+import { deepMergeScrapedData } from '~/server/utils/deep-merge'
 
 /**
  * Hybrid scraper service using AI (Crawl4AI + Claude) with DOM fallback
@@ -392,7 +393,24 @@ export class ScraperServiceV3 {
       })
 
       if (data) {
-        // Save to database
+        // Fetch existing data for merge (preserve non-null values)
+        const existing = await prisma.match_scraped_data.findUnique({
+          where: {
+            match_id_data_type: {
+              match_id: options.matchId,
+              data_type: dataType,
+            },
+          },
+          select: { data: true },
+        })
+
+        // Merge new data with existing, preserving non-null existing values
+        const mergedData = deepMergeScrapedData(
+          existing?.data as Record<string, unknown> | null,
+          data as Record<string, unknown>
+        )
+
+        // Save merged data to database
         await prisma.match_scraped_data.upsert({
           where: {
             match_id_data_type: {
@@ -401,13 +419,13 @@ export class ScraperServiceV3 {
             },
           },
           update: {
-            data: data as any,
+            data: mergedData as any,
             scraped_at: new Date(),
           },
           create: {
             match_id: options.matchId,
             data_type: dataType,
-            data: data as any,
+            data: mergedData as any,
           },
         })
 

@@ -246,13 +246,43 @@ async def scrape_batch_endpoint(request: BatchScrapeRequest):
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with browser status"""
+    browser_healthy = False
+    browser_status = "not_initialized"
+
+    try:
+        if scraper._crawler is not None:
+            browser_healthy = await scraper._is_crawler_healthy()
+            browser_status = "healthy" if browser_healthy else "unhealthy"
+        else:
+            browser_status = "not_initialized"
+    except Exception as e:
+        browser_status = f"error: {str(e)}"
+
     return {
         "status": "ok",
         "service": "ai-scraper",
         "version": "1.0.0",
-        "anthropic_key_configured": bool(os.getenv("ANTHROPIC_API_KEY"))
+        "anthropic_key_configured": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "browser": {
+            "status": browser_status,
+            "healthy": browser_healthy
+        }
     }
+
+
+@app.post("/admin/browser/reset")
+async def reset_browser():
+    """Admin endpoint to manually reset the browser instance."""
+    try:
+        await scraper._reset_crawler()
+        return {"status": "ok", "message": "Browser reset successfully"}
+    except Exception as e:
+        logger.exception("Error resetting browser")
+        return {
+            "status": "error",
+            "message": "Failed to reset browser. Check server logs for details."
+        }
 
 
 if __name__ == "__main__":

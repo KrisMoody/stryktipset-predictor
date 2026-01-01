@@ -28,35 +28,55 @@ export interface ExtendedNewsData extends NewsData {
 export class NewsScraper extends BaseScraper {
   /**
    * DOM-based scraping method
+   * Supports all game types: stryktipset, europatipset, topptipset
    */
   async scrape(
     page: Page,
-    matchId: number,
+    _matchId: number,
     drawNumber: number,
-    matchNumber: number
+    matchNumber: number,
+    drawDate?: Date
   ): Promise<ExtendedNewsData | null> {
     try {
-      this.log('Starting news and expert analysis scraping')
+      this.log(`Starting news and expert analysis scraping for ${this.gameType}`)
 
-      // Navigate to match page
-      const url = `https://www.svenskaspel.se/stryktipset/${drawNumber}/${matchNumber}`
+      // Determine if this is a current or historic draw
+      const isCurrent = !drawDate || this.isCurrentDraw(drawDate)
+
+      // Build URL using URL Manager (correct domain and pattern for all game types)
+      const url = this.buildUrl('news', {
+        matchNumber,
+        drawNumber,
+        drawDate: drawDate || new Date(),
+        isCurrent,
+      })
+      this.log(`Navigating to: ${url}`)
       await this.navigateTo(page, url)
 
       // First extract expert analyses from the main Matchinfo page (Spelanalys section)
       const expertAnalyses = await this.extractExpertAnalyses(page)
 
       // Then try to navigate to News tab for additional news
+      // NOTE: Diagnostic showed NO dedicated news article containers exist on the page
+      // The news structure is different - we try multiple approaches
       const newsTabSelector =
-        '[data-test-id="statistic-menu-tt-news"], a[href*="/nyheter"], a:has-text("Nyheter")'
+        '[data-test-id="statistic-menu-tt-news"], a[href*="/nyheter"], a:has-text("Nyheter"), button:has-text("Nyheter")'
       let articles: NewsArticle[] = []
 
       if (await this.elementExists(page, newsTabSelector)) {
         await this.clickTab(page, newsTabSelector)
-        // Wait for news content to load - look for the actual news article container
-        await page.waitForSelector('.route-statistics-news-article, [class*="news-article"]', {
-          timeout: 10000,
-        })
-        articles = await this.extractArticles(page)
+        // Wait for news content to load
+        // Structure: .route-statistics-news-article contains articles with:
+        // - h2.news-article-headline, .news-article-header-author, time, .f-content
+        try {
+          await page.waitForSelector(
+            '.route-statistics-news-article, .tipsen-side-nav-overflow article, article',
+            { timeout: 10000 }
+          )
+          articles = await this.extractArticles(page)
+        } catch {
+          this.log('News content did not load, continuing with expert analyses only')
+        }
       } else {
         this.log('News tab not found, continuing with expert analyses only')
       }
@@ -172,9 +192,9 @@ export class NewsScraper extends BaseScraper {
   /**
    * Extract news articles from the Nyheter tab
    *
-   * HTML Structure (from svenskaspel.se):
-   * - .route-statistics-news-article - Article container
-   * - .news-article-headline (h2) - Title
+   * Confirmed HTML Structure (from svenskaspel.se):
+   * - .route-statistics-news-article - Article container (inside .tipsen-side-nav-overflow)
+   * - h2.news-article-headline - Title
    * - .news-article-header-author - Author/source (e.g., "Everysport.com")
    * - .news-article-header-published time - Date with datetime attribute
    * - .f-content - Article content with <p> and <blockquote> elements
@@ -183,39 +203,73 @@ export class NewsScraper extends BaseScraper {
     const articles: NewsArticle[] = []
 
     try {
-      // Find news article containers
-      const articleElements = await page.locator('.route-statistics-news-article').all()
+      // Primary selector - confirmed to exist on news pages with content
+      let articleElements = await page.locator('.route-statistics-news-article').all()
 
-      for (const element of articleElements) {
-        try {
-          // Extract title from .news-article-headline (h2)
-          const title = await element
-            .locator('.news-article-headline, h2.news-article-headline')
-            .textContent()
+      // Fallback: Try generic article tag within the overflow container
+      if (articleElements.length === 0) {
+        articleElements = await page.locator('.tipsen-side-nav-overflow article').all()
+      }
 
-          // Extract author/source from .news-article-header-author
-          const author = await element.locator('.news-article-header-author').textContent()
+      // Last fallback: Any article tag
+      if (articleElements.length === 0) {
+        articleElements = await page.locator('article').all()
+      }
 
-          // Extract date from .news-article-header-published time element
-          const timeElement = element.locator('.news-article-header-published time')
-          const dateText = await timeElement.textContent()
-          const dateAttr = await timeElement.getAttribute('datetime')
+      if (articleElements.length > 0) {
+        for (const element of articleElements) {
+          try {
+            // Extract title from h2.news-article-headline
+            const title = await element
+              .locator('h2.news-article-headline, .news-article-headline, h2')
+              .first()
+              .textContent()
 
-          // Extract content from .f-content - get all paragraph text
-          const contentElement = element.locator('.f-content')
-          const paragraphs = await contentElement.locator('p').allTextContents()
-          const content = paragraphs.join('\n\n')
+            // Extract author/source from .news-article-header-author
+            let author: string | null = null
+            try {
+              author = await element.locator('.news-article-header-author').first().textContent()
+            } catch {
+              // Author not found, will use default
+            }
 
-          if (title) {
-            articles.push({
-              title: title.trim(),
-              content: content?.trim() || undefined,
-              date: dateText?.trim() || dateAttr || undefined,
-              source: author?.trim() || 'Svenska Spel / TT',
-            })
+            // Extract date from time element
+            let dateText: string | null = null
+            let dateAttr: string | null = null
+            try {
+              const timeElement = element
+                .locator('.news-article-header-published time, time')
+                .first()
+              dateText = await timeElement.textContent()
+              dateAttr = await timeElement.getAttribute('datetime')
+            } catch {
+              // Date not found
+            }
+
+            // Extract content from .f-content - paragraphs and blockquotes
+            let content = ''
+            try {
+              const contentElement = element.locator('.f-content')
+              const paragraphs = await contentElement.locator('p, blockquote').allTextContents()
+              content = paragraphs
+                .map(p => p.trim())
+                .filter(p => p.length > 0)
+                .join('\n\n')
+            } catch {
+              // Content not found
+            }
+
+            if (title) {
+              articles.push({
+                title: title.trim(),
+                content: content?.trim() || undefined,
+                date: dateText?.trim() || dateAttr || undefined,
+                source: author?.trim() || 'Everysport.com',
+              })
+            }
+          } catch (innerError) {
+            this.log(`Error extracting single article: ${innerError}`)
           }
-        } catch (innerError) {
-          this.log(`Error extracting single article: ${innerError}`)
         }
       }
 

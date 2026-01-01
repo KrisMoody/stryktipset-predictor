@@ -41,18 +41,29 @@ export interface OddsetData {
 export class OddsetScraper extends BaseScraper {
   /**
    * DOM-based scraping method
+   * Supports all game types: stryktipset, europatipset, topptipset
    */
   async scrape(
     page: Page,
     _matchId: number,
     drawNumber: number,
-    matchNumber: number
+    matchNumber: number,
+    drawDate?: Date
   ): Promise<OddsetData | null> {
     try {
-      this.log('Starting Oddset scraping')
+      this.log(`Starting Oddset scraping for ${this.gameType}`)
 
-      // Navigate to match page (Oddset is typically on the main match info page)
-      const url = `https://www.svenskaspel.se/stryktipset/${drawNumber}/${matchNumber}`
+      // Determine if this is a current or historic draw
+      const isCurrent = !drawDate || this.isCurrentDraw(drawDate)
+
+      // Build URL using URL Manager (correct domain and pattern for all game types)
+      const url = this.buildUrl('oddset', {
+        matchNumber,
+        drawNumber,
+        drawDate: drawDate || new Date(),
+        isCurrent,
+      })
+      this.log(`Navigating to: ${url}`)
       await this.navigateTo(page, url)
 
       // Wait for the quick bets section to load

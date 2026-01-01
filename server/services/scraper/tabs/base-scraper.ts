@@ -2,22 +2,57 @@
 import type { Page } from 'playwright'
 import { humanDelay, humanClick, detectRateLimit } from '../utils/human-behavior'
 import { getRandomDelay } from '../scraper-config'
+import { urlManager, type UrlBuildContext } from '../utils/url-manager'
+import type { GameType } from '~/types/game-types'
 
 export interface ScraperOptions {
   timeout?: number
   debug?: boolean
+  gameType?: GameType
 }
 
 /**
  * Base scraper class with common functionality
+ * Supports all game types: stryktipset, europatipset, topptipset
  */
 export abstract class BaseScraper {
   protected timeout: number
   protected debug: boolean
+  protected gameType: GameType
 
   constructor(options: ScraperOptions = {}) {
     this.timeout = options.timeout || 30000
     this.debug = options.debug || false
+    this.gameType = options.gameType || 'stryktipset'
+  }
+
+  /**
+   * Set the game type for URL building
+   */
+  setGameType(gameType: GameType): void {
+    this.gameType = gameType
+    this.log(`Game type set to: ${gameType}`)
+  }
+
+  /**
+   * Build URL using the URL Manager
+   * This ensures correct domain and URL patterns for all game types
+   */
+  protected buildUrl(dataType: string, context: Omit<UrlBuildContext, 'gameType'>): string {
+    return urlManager.buildUrl(dataType, {
+      ...context,
+      gameType: this.gameType,
+    })
+  }
+
+  /**
+   * Check if a draw date is current (within last 7 days) or historic
+   */
+  protected isCurrentDraw(drawDate: Date): boolean {
+    const now = new Date()
+    const daysDiff = Math.floor((now.getTime() - drawDate.getTime()) / (1000 * 60 * 60 * 24))
+    // Consider draws within the last 7 days as "current"
+    return daysDiff <= 7
   }
 
   /**

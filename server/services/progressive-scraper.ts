@@ -62,10 +62,11 @@ class ProgressiveScraper {
 
       let queued = 0
       let skipped = 0
-      const dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news')[] = [
+      const dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news' | 'lineup')[] = [
         'xStats',
         'statistics',
         'headToHead',
+        'lineup',
       ]
 
       for (const draw of currentDraws) {
@@ -104,7 +105,7 @@ class ProgressiveScraper {
 
         for (const match of draw.matches) {
           // Check which data types need refreshing
-          const staleDataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news')[] = []
+          const staleDataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news' | 'lineup')[] = []
 
           for (const dataType of dataTypes) {
             const latestScrape = match.match_scraped_data.find(d => d.data_type === dataType)
@@ -174,10 +175,11 @@ class ProgressiveScraper {
       })
 
       let queued = 0
-      const dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news')[] = [
+      const dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news' | 'lineup')[] = [
         'xStats',
         'statistics',
         'headToHead',
+        'lineup',
       ]
 
       for (const draw of currentDraws) {

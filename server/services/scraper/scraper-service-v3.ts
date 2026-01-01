@@ -5,6 +5,7 @@ import { XStatsScraper } from './tabs/xstats-scraper'
 import { StatisticsScraper } from './tabs/statistics-scraper'
 import { HeadToHeadScraper } from './tabs/head-to-head-scraper'
 import { NewsScraper } from './tabs/news-scraper'
+import { LineupScraper } from './tabs/lineup-scraper'
 import { type AIScraperClient, getAIScraperClient } from './ai-scraper-client'
 import { urlManager, type UrlBuildContext } from './utils/url-manager'
 import { scraperAnalytics } from './scraper-analytics'
@@ -24,6 +25,7 @@ export class ScraperServiceV3 {
   private statisticsScraper: StatisticsScraper
   private headToHeadScraper: HeadToHeadScraper
   private newsScraper: NewsScraper
+  private lineupScraper: LineupScraper
   private domainTested = false
   private enableAiScraper: boolean
   private aiScraperClient: AIScraperClient
@@ -42,6 +44,7 @@ export class ScraperServiceV3 {
     this.statisticsScraper = new StatisticsScraper({ debug: true })
     this.headToHeadScraper = new HeadToHeadScraper({ debug: true })
     this.newsScraper = new NewsScraper({ debug: true })
+    this.lineupScraper = new LineupScraper({ debug: true })
     this.enableAiScraper = enableAiScraper
     this.aiScraperClient = getAIScraperClient(aiScraperUrl)
   }
@@ -561,6 +564,14 @@ export class ScraperServiceV3 {
           )
         case 'news':
           return await this.newsScraper.scrape(
+            page,
+            options.matchId,
+            options.drawNumber,
+            options.matchNumber,
+            urlContext.drawDate
+          )
+        case 'lineup':
+          return await this.lineupScraper.scrape(
             page,
             options.matchId,
             options.drawNumber,

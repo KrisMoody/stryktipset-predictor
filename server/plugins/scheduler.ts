@@ -5,8 +5,10 @@ import { drawCacheService } from '../services/draw-cache-service'
 import { scheduleWindowService } from '../services/schedule-window-service'
 import { progressiveScraper } from '../services/progressive-scraper'
 import { drawLifecycle } from '../services/draw-lifecycle'
+import { embeddingsService } from '../services/embeddings-service'
 import { captureOperationError } from '../utils/bugsnag-helpers'
 import { getAllGameTypes } from '../constants/game-configs'
+import { prisma } from '../utils/prisma'
 
 export default defineNitroPlugin(() => {
   // Skip scheduler in CI/test environments to prevent blocking server startup
@@ -54,6 +56,44 @@ export default defineNitroPlugin(() => {
     return { total, errors }
   }
 
+  /**
+   * Generate embeddings for recently synced matches (background, fire-and-forget)
+   */
+  const generateEmbeddingsForRecentMatches = async () => {
+    try {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
+      const recentMatches = await prisma.matches.findMany({
+        where: {
+          updated_at: { gte: tenMinutesAgo },
+          outcome: null, // Only upcoming matches (not completed)
+        },
+        select: { id: true },
+      })
+
+      if (recentMatches.length > 0) {
+        console.log(
+          `[Scheduler] Queueing ${recentMatches.length} recently synced matches for embedding generation`
+        )
+        // Run in background with rate limiting to avoid blocking
+        embeddingsService
+          .generateBatchEmbeddings(
+            recentMatches.map(m => m.id),
+            { skipExisting: true, delayMs: 1000 }
+          )
+          .then(result => {
+            console.log(
+              `[Scheduler] Embedding generation complete: ${result.success} success, ${result.failed} failed, ${result.skipped} skipped`
+            )
+          })
+          .catch(error => {
+            console.error('[Scheduler] Error generating embeddings:', error)
+          })
+      }
+    } catch (error) {
+      console.error('[Scheduler] Error querying matches for embeddings:', error)
+    }
+  }
+
   // Refresh schedule window cache every 5 minutes
   new Cron('*/5 * * * *', async () => {
     try {
@@ -84,6 +124,9 @@ export default defineNitroPlugin(() => {
 
       drawCacheService.invalidateAllDrawCache()
       await scheduleWindowService.forceRefreshCache()
+
+      // Generate embeddings for newly synced matches (background)
+      generateEmbeddingsForRecentMatches()
     } catch (error) {
       console.error('[Scheduler] Unexpected error in midnight sync:', error)
 
@@ -111,6 +154,9 @@ export default defineNitroPlugin(() => {
 
       drawCacheService.invalidateAllDrawCache()
       await scheduleWindowService.forceRefreshCache()
+
+      // Generate embeddings for newly synced matches (background)
+      generateEmbeddingsForRecentMatches()
     } catch (error) {
       console.error('[Scheduler] Unexpected error in 6 AM sync:', error)
 
@@ -241,6 +287,9 @@ export default defineNitroPlugin(() => {
         )
         drawCacheService.invalidateAllDrawCache()
         await scheduleWindowService.forceRefreshCache()
+
+        // Generate embeddings for newly synced matches (background)
+        generateEmbeddingsForRecentMatches()
       } else if (attempt < maxAttempts) {
         // No draws synced and we have retries left
         const retryDelay = attempt * 15000 // 15s, 30s

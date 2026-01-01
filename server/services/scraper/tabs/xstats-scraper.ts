@@ -83,32 +83,30 @@ export interface ExtendedXStatsData extends XStatsData {
 export class XStatsScraper extends BaseScraper {
   /**
    * DOM-based scraping method
+   * Supports all game types: stryktipset, europatipset, topptipset
    */
   async scrape(
     page: Page,
     _matchId: number,
     drawNumber: number,
-    matchNumber: number
+    matchNumber: number,
+    drawDate?: Date
   ): Promise<ExtendedXStatsData | null> {
     try {
-      this.log('Starting xStats scraping')
+      this.log(`Starting xStats scraping for ${this.gameType}`)
 
-      // Navigate to match page first
-      const url = `https://www.svenskaspel.se/stryktipset/${drawNumber}/${matchNumber}`
+      // Determine if this is a current or historic draw
+      const isCurrent = !drawDate || this.isCurrentDraw(drawDate)
+
+      // Build URL using URL Manager (correct domain and pattern for all game types)
+      const url = this.buildUrl('xStats', {
+        matchNumber,
+        drawNumber,
+        drawDate: drawDate || new Date(),
+        isCurrent,
+      })
+      this.log(`Navigating to: ${url}`)
       await this.navigateTo(page, url)
-
-      // Click on xStats tab - use the data-test-id attribute
-      const xStatsTabSelector =
-        '[data-test-id="statistic-menu-xstat"], a[href*="/xstats"], a:has-text("xStats")'
-      if (await this.elementExists(page, xStatsTabSelector)) {
-        await this.clickTab(page, xStatsTabSelector)
-      } else {
-        this.log('xStats tab not found, trying direct navigation')
-        await this.navigateTo(
-          page,
-          `https://www.svenskaspel.se/stryktipset/xstats?event=${matchNumber}`
-        )
-      }
 
       // Wait for playmaker widget to load
       await page.waitForSelector('.playmaker_widget_xstat, .pm-x-container', { timeout: 10000 })

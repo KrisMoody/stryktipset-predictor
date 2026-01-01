@@ -46,18 +46,29 @@ export interface TableData {
 export class TableScraper extends BaseScraper {
   /**
    * DOM-based scraping method
+   * Supports all game types: stryktipset, europatipset, topptipset
    */
   async scrape(
     page: Page,
     _matchId: number,
     drawNumber: number,
-    matchNumber: number
+    matchNumber: number,
+    drawDate?: Date
   ): Promise<TableData | null> {
     try {
-      this.log('Starting table scraping')
+      this.log(`Starting table scraping for ${this.gameType}`)
 
-      // Navigate to match page's Tabell tab
-      const url = `https://www.svenskaspel.se/stryktipset/${drawNumber}/${matchNumber}/tabell`
+      // Determine if this is a current or historic draw
+      const isCurrent = !drawDate || this.isCurrentDraw(drawDate)
+
+      // Build URL using URL Manager (correct domain and pattern for all game types)
+      const url = this.buildUrl('table', {
+        matchNumber,
+        drawNumber,
+        drawDate: drawDate || new Date(),
+        isCurrent,
+      })
+      this.log(`Navigating to: ${url}`)
       await this.navigateTo(page, url)
 
       // Wait for the Enetpulse widget to load

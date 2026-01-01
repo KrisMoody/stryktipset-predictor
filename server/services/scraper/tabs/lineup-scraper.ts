@@ -67,18 +67,29 @@ export interface LineupData {
 export class LineupScraper extends BaseScraper {
   /**
    * DOM-based scraping method
+   * Supports all game types: stryktipset, europatipset, topptipset
    */
   async scrape(
     page: Page,
     _matchId: number,
     drawNumber: number,
-    matchNumber: number
+    matchNumber: number,
+    drawDate?: Date
   ): Promise<LineupData | null> {
     try {
-      this.log('Starting lineup scraping')
+      this.log(`Starting lineup scraping for ${this.gameType}`)
 
-      // Navigate to Laguppställning tab
-      const url = `https://www.svenskaspel.se/stryktipset/${drawNumber}/${matchNumber}/laguppstallning`
+      // Determine if this is a current or historic draw
+      const isCurrent = !drawDate || this.isCurrentDraw(drawDate)
+
+      // Build URL using URL Manager (correct domain and pattern for all game types)
+      const url = this.buildUrl('lineup', {
+        matchNumber,
+        drawNumber,
+        drawDate: drawDate || new Date(),
+        isCurrent,
+      })
+      this.log(`Navigating to: ${url}`)
       await this.navigateTo(page, url)
 
       // Wait for the Enetpulse formation widget to load

@@ -134,7 +134,15 @@ export class ScraperServiceV2 {
         drawNumber: options.drawNumber,
         drawDate: new Date(draw.draw_date),
         isCurrent: draw.is_current,
+        gameType: options.gameType || 'stryktipset',
       }
+
+      // Set game type on all DOM scrapers
+      const gameType = options.gameType || 'stryktipset'
+      this.xStatsScraper.setGameType(gameType)
+      this.statisticsScraper.setGameType(gameType)
+      this.headToHeadScraper.setGameType(gameType)
+      this.newsScraper.setGameType(gameType)
 
       const urlPattern: UrlPattern = draw.is_current ? 'current' : 'historic'
       console.log(

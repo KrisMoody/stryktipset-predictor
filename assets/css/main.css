@@ -15,6 +15,23 @@
   background-color: #1d4ed8 !important;
 }
 
+.bg-error.text-inverted {
+  background-color: #b91c1c !important;
+}
+
+.bg-secondary.text-inverted {
+  background-color: #1d4ed8 !important;
+}
+
+.bg-success.text-inverted {
+  background-color: #047857 !important;
+}
+
+/* Warning badge text on light background needs darker color */
+.bg-warning\/10.text-warning {
+  color: #92400e !important;
+}
+
 /* Skip link - visually hidden but visible on focus for keyboard users */
 .skip-link {
   position: absolute;

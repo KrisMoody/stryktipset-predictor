@@ -54,18 +54,29 @@ export interface DrawAnalysisData {
 export class AnalysisScraper extends BaseScraper {
   /**
    * DOM-based scraping method
+   * Supports all game types: stryktipset, europatipset, topptipset
    */
   async scrape(
     page: Page,
     _matchId: number,
-    _drawNumber: number,
-    _matchNumber: number
+    drawNumber: number,
+    _matchNumber: number,
+    drawDate?: Date
   ): Promise<DrawAnalysisData | null> {
     try {
-      this.log('Starting analysis scraping')
+      this.log(`Starting analysis scraping for ${this.gameType}`)
 
-      // Navigate to Analys page (speltips)
-      const url = `https://www.svenskaspel.se/stryktipset/speltips`
+      // Determine if this is a current or historic draw
+      const isCurrent = !drawDate || this.isCurrentDraw(drawDate)
+
+      // Build URL using URL Manager (correct domain and pattern for all game types)
+      const url = this.buildUrl('analysis', {
+        matchNumber: 1, // Analysis page doesn't use matchNumber
+        drawNumber,
+        drawDate: drawDate || new Date(),
+        isCurrent,
+      })
+      this.log(`Navigating to: ${url}`)
       await this.navigateTo(page, url)
 
       // Wait for the analysis content to load

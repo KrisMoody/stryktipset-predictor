@@ -27,7 +27,7 @@ export interface LeagueTableEntry {
 
 /**
  * Scraper for Statistics tab (league table, team form, standings)
- * Navigates to /stryktipset/statistik to get league standings
+ * Supports all game types: stryktipset, europatipset, topptipset
  */
 export class StatisticsScraper extends BaseScraper {
   /**
@@ -37,29 +37,28 @@ export class StatisticsScraper extends BaseScraper {
     page: Page,
     matchId: number,
     drawNumber: number,
-    matchNumber: number
+    matchNumber: number,
+    drawDate?: Date
   ): Promise<ExtendedStatisticsData | null> {
     try {
-      this.log('Starting statistics scraping')
+      this.log(`Starting statistics scraping for ${this.gameType}`)
 
-      // Navigate to match page
-      const url = `https://www.svenskaspel.se/stryktipset/${drawNumber}/${matchNumber}`
+      // Determine if this is a current or historic draw
+      const isCurrent = !drawDate || this.isCurrentDraw(drawDate)
+
+      // Build URL using URL Manager (correct domain and pattern for all game types)
+      const url = this.buildUrl('statistics', {
+        matchNumber,
+        drawNumber,
+        drawDate: drawDate || new Date(),
+        isCurrent,
+      })
+      this.log(`Navigating to: ${url}`)
       await this.navigateTo(page, url)
 
-      // Click on Statistics tab (in the sub-navigation)
-      // The tab is identified by data-test-id="statistic-menu-statistic" or link to /stryktipset/statistik
-      const statsTabSelector =
-        '[data-test-id="statistic-menu-statistic"], a[href*="/statistik"], a:has-text("Statistik"):not([data-testid="side-nav-menu-statistic"])'
-      if (await this.elementExists(page, statsTabSelector)) {
-        await this.clickTab(page, statsTabSelector)
-      } else {
-        this.log('Statistics tab not found, trying direct navigation')
-        await this.navigateTo(page, `https://www.svenskaspel.se/stryktipset/statistik`)
-      }
-
-      // Wait for statistics content to load - look for league table
+      // Wait for statistics content to load - look for Enetpulse container or league table
       await page.waitForSelector(
-        '.statistics-section, table[class*="table"], [class*="league-table"]',
+        '#enetpulse-container, #tipsen-container, .statistics-section, table[class*="table"], [class*="league-table"]',
         { timeout: 10000 }
       )
 
@@ -137,10 +136,11 @@ export class StatisticsScraper extends BaseScraper {
       const data: any = {}
 
       // Try to find team name from page to match against league table
+      // Discovered selectors: .home-participant, .away-participant (Enetpulse widget)
       const teamNameSelector =
         side === 'home'
-          ? '.match-header-home, [class*="home-team"], .participant-home'
-          : '.match-header-away, [class*="away-team"], .participant-away'
+          ? '.home-participant, .match-header-home, [class*="home-team"], .participant-home'
+          : '.away-participant, .match-header-away, [class*="away-team"], .participant-away'
 
       const teamName = await this.extractText(page, teamNameSelector)
 
@@ -167,16 +167,28 @@ export class StatisticsScraper extends BaseScraper {
         }
       }
 
-      // Extract form (W/D/L sequence) if available
-      const formSelector = `[class*="form"][class*="${side}"], .${side}-form, [data-team="${side}"] [class*="form"]`
-      if (await this.elementExists(page, formSelector)) {
-        const formElements = await page
-          .locator(`${formSelector} [class*="result"], ${formSelector} span`)
-          .allTextContents()
-        if (formElements.length > 0) {
-          data.form = formElements
-            .map(f => f.trim().toUpperCase())
-            .filter(c => ['W', 'D', 'L', 'V', 'O', 'F'].includes(c))
+      // Extract form (W/D/L sequence) from Enetpulse form indicators
+      // Discovered selectors: .wff_circle_value_w (win), .wff_circle_value_d (draw), .wff_circle_value_l (loss)
+      const formSection = page.locator(
+        side === 'home'
+          ? '.wff_h2h_generic_section_data.wff_home, [class*="home"] [class*="form"]'
+          : '.wff_h2h_generic_section_data.wff_away, [class*="away"] [class*="form"]'
+      )
+
+      if ((await formSection.count()) > 0) {
+        const form: string[] = []
+        const formBalls = await formSection
+          .locator('.wff_circle_value_w, .wff_circle_value_d, .wff_circle_value_l')
+          .all()
+        for (const ball of formBalls) {
+          const cls = await ball.getAttribute('class')
+          if (cls?.includes('wff_circle_value_w')) form.push('W')
+          else if (cls?.includes('wff_circle_value_d')) form.push('D')
+          else if (cls?.includes('wff_circle_value_l')) form.push('L')
+        }
+        if (form.length > 0) {
+          data.form = form
+          this.log(`Extracted form for ${side}: ${form.join('')}`)
         }
       }
 

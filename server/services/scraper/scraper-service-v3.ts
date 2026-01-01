@@ -140,7 +140,15 @@ export class ScraperServiceV3 {
         drawNumber: options.drawNumber,
         drawDate: new Date(draw.draw_date),
         isCurrent: draw.is_current,
+        gameType: options.gameType || 'stryktipset',
       }
+
+      // Set game type on all DOM scrapers
+      const gameType = options.gameType || 'stryktipset'
+      this.xStatsScraper.setGameType(gameType)
+      this.statisticsScraper.setGameType(gameType)
+      this.headToHeadScraper.setGameType(gameType)
+      this.newsScraper.setGameType(gameType)
 
       const urlPattern: UrlPattern = draw.is_current ? 'current' : 'historic'
       console.log(
@@ -343,7 +351,7 @@ export class ScraperServiceV3 {
             const page = await browserManager.getPage()
 
             // Use DOM scraper
-            data = await this.scrapeWithDOM(page, dataType, options)
+            data = await this.scrapeWithDOM(page, dataType, options, urlContext)
 
             if (data) {
               console.log(`[Scraper Service V3] ✅ DOM scraping succeeded for ${dataType}`)
@@ -497,39 +505,49 @@ export class ScraperServiceV3 {
   /**
    * Scrape using DOM (tab-clicking method)
    */
-  private async scrapeWithDOM(page: any, dataType: string, options: ScrapeOptions): Promise<any> {
+  private async scrapeWithDOM(
+    page: any,
+    dataType: string,
+    options: ScrapeOptions,
+    urlContext: UrlBuildContext
+  ): Promise<any> {
     try {
       console.log(`[Scraper Service V3] Using DOM method for ${dataType}`)
 
       // Use the traditional scrape method from scrapers
+      // All scrapers now accept drawDate as 5th parameter for URL building
       switch (dataType) {
         case 'xStats':
           return await this.xStatsScraper.scrape(
             page,
             options.matchId,
             options.drawNumber,
-            options.matchNumber
+            options.matchNumber,
+            urlContext.drawDate
           )
         case 'statistics':
           return await this.statisticsScraper.scrape(
             page,
             options.matchId,
             options.drawNumber,
-            options.matchNumber
+            options.matchNumber,
+            urlContext.drawDate
           )
         case 'headToHead':
           return await this.headToHeadScraper.scrape(
             page,
             options.matchId,
             options.drawNumber,
-            options.matchNumber
+            options.matchNumber,
+            urlContext.drawDate
           )
         case 'news':
           return await this.newsScraper.scrape(
             page,
             options.matchId,
             options.drawNumber,
-            options.matchNumber
+            options.matchNumber,
+            urlContext.drawDate
           )
         default:
           throw new Error(`Unknown data type: ${dataType}`)

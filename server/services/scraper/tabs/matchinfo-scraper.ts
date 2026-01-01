@@ -63,18 +63,29 @@ export interface MatchInfoData {
 export class MatchInfoScraper extends BaseScraper {
   /**
    * DOM-based scraping method
+   * Supports all game types: stryktipset, europatipset, topptipset
    */
   async scrape(
     page: Page,
     _matchId: number,
     drawNumber: number,
-    matchNumber: number
+    matchNumber: number,
+    drawDate?: Date
   ): Promise<MatchInfoData | null> {
     try {
-      this.log('Starting matchinfo scraping')
+      this.log(`Starting matchinfo scraping for ${this.gameType}`)
 
-      // Navigate to match page (Matchinfo is the default view)
-      const url = `https://www.svenskaspel.se/stryktipset/${drawNumber}/${matchNumber}`
+      // Determine if this is a current or historic draw
+      const isCurrent = !drawDate || this.isCurrentDraw(drawDate)
+
+      // Build URL using URL Manager (correct domain and pattern for all game types)
+      const url = this.buildUrl('matchInfo', {
+        matchNumber,
+        drawNumber,
+        drawDate: drawDate || new Date(),
+        isCurrent,
+      })
+      this.log(`Navigating to: ${url}`)
       await this.navigateTo(page, url)
 
       // Wait for the statistics section to load

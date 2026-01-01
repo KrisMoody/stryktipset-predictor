@@ -45,28 +45,53 @@ export class UrlManager {
 
   /**
    * Get current URL patterns based on game type
-   * Note: headToHead has no dedicated URL on svenskaspel.se - skip AI scraping for it
+   * Supports all data types including match-level and draw-level URLs
    */
   private getCurrentPatterns(gameType: GameType) {
     const basePath = getGameConfig(gameType).scrapeBasePath
     return {
+      // Match-level data (uses ?event= parameter)
       statistics: `${basePath}/statistik?event={matchNumber}`,
       xStats: `${basePath}/xstats?event={matchNumber}`,
       news: `${basePath}/nyheter?event={matchNumber}`,
+      // Match page (for tab-based navigation like H2H, matchInfo, oddset)
+      matchPage: `${basePath}?event={matchNumber}`,
+      // Table and lineup have dedicated paths
+      table: `${basePath}/tabell?event={matchNumber}`,
+      lineup: `${basePath}/laguppstallning?event={matchNumber}`,
+      // Draw-level pages (not match-specific)
+      analysis: `${basePath}/speltips`,
+      // Aliases for match page (these require tab clicking after navigation)
+      matchInfo: `${basePath}?event={matchNumber}`,
+      headToHead: `${basePath}?event={matchNumber}`,
+      oddset: `${basePath}?event={matchNumber}`,
     }
   }
 
   /**
    * Get historic URL patterns based on game type
-   * Note: headToHead has no dedicated URL on svenskaspel.se - skip AI scraping for it
+   * Supports all data types for past draws
    */
   private getHistoricPatterns(gameType: GameType) {
     const config = getGameConfig(gameType)
     const basePath = config.scrapeBasePath
+    const productParam = `product=${config.productId}`
     return {
-      statistics: `${basePath}/resultat/{date}/statistik?draw={drawNumber}&product=${config.productId}&event={matchNumber}`,
-      xStats: `${basePath}/resultat/{date}/xstats?draw={drawNumber}&product=${config.productId}&event={matchNumber}`,
-      news: `${basePath}/resultat/{date}/nyheter?draw={drawNumber}&product=${config.productId}&event={matchNumber}`,
+      // Match-level data
+      statistics: `${basePath}/resultat/{date}/statistik?draw={drawNumber}&${productParam}&event={matchNumber}`,
+      xStats: `${basePath}/resultat/{date}/xstats?draw={drawNumber}&${productParam}&event={matchNumber}`,
+      news: `${basePath}/resultat/{date}/nyheter?draw={drawNumber}&${productParam}&event={matchNumber}`,
+      // Match page for historic draws
+      matchPage: `${basePath}/resultat/{date}?draw={drawNumber}&${productParam}&event={matchNumber}`,
+      // Table and lineup
+      table: `${basePath}/resultat/{date}/tabell?draw={drawNumber}&${productParam}&event={matchNumber}`,
+      lineup: `${basePath}/resultat/{date}/laguppstallning?draw={drawNumber}&${productParam}&event={matchNumber}`,
+      // Draw-level pages
+      analysis: `${basePath}/resultat/{date}/speltips?draw={drawNumber}&${productParam}`,
+      // Aliases for match page (require tab clicking)
+      matchInfo: `${basePath}/resultat/{date}?draw={drawNumber}&${productParam}&event={matchNumber}`,
+      headToHead: `${basePath}/resultat/{date}?draw={drawNumber}&${productParam}&event={matchNumber}`,
+      oddset: `${basePath}/resultat/{date}?draw={drawNumber}&${productParam}&event={matchNumber}`,
     }
   }
 
@@ -170,13 +195,20 @@ export class UrlManager {
 
   /**
    * Build all URLs for all data types
-   * Note: headToHead excluded - no dedicated URL exists
+   * Includes all match-level and draw-level URLs
    */
   buildAllUrls(context: UrlBuildContext): Record<string, string> {
     return {
       statistics: this.buildUrl('statistics', context),
       xStats: this.buildUrl('xStats', context),
       news: this.buildUrl('news', context),
+      matchPage: this.buildUrl('matchPage', context),
+      table: this.buildUrl('table', context),
+      lineup: this.buildUrl('lineup', context),
+      analysis: this.buildUrl('analysis', context),
+      matchInfo: this.buildUrl('matchInfo', context),
+      headToHead: this.buildUrl('headToHead', context),
+      oddset: this.buildUrl('oddset', context),
     }
   }
 

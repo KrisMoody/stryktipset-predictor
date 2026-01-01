@@ -7,12 +7,34 @@ from crawl4ai.extraction_strategy import LLMExtractionStrategy
 from crawl4ai.async_dispatcher import MemoryAdaptiveDispatcher
 from schemas import XStatsData, StatisticsData, HeadToHeadData, NewsData, MatchInfoData, TableData, LineupData, DrawAnalysisData, OddsetData
 from config import get_config, get_retry_config, DataTypeConfig
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Callable, TypeVar
+from functools import wraps
 import os
 import logging
 import asyncio
 
+T = TypeVar('T')
+
 logger = logging.getLogger(__name__)
+
+# Browser error patterns that indicate browser needs to be reset
+BROWSER_ERROR_PATTERNS = [
+    'target page',
+    'context or browser has been closed',
+    'browser has been closed',
+    'target closed',
+    'page closed',
+    'connection closed',
+    'browser disconnected',
+    'browser.new_context',
+]
+
+
+def is_browser_error(error: Exception) -> bool:
+    """Check if an exception is a browser-related error that requires reset."""
+    error_str = str(error).lower()
+    return any(pattern in error_str for pattern in BROWSER_ERROR_PATTERNS)
+
 
 # Prompt prefix to help LLM understand markdown format
 MARKDOWN_PROMPT_PREFIX = """
@@ -68,25 +90,93 @@ class AIScraper:
         self._crawler: Optional[AsyncWebCrawler] = None
         self._crawler_lock = asyncio.Lock()
 
-    async def _get_crawler(self) -> AsyncWebCrawler:
-        """Get or create a shared browser instance."""
+    async def _is_crawler_healthy(self) -> bool:
+        """
+        Check if the browser instance is still healthy and responsive.
+        Returns False if browser is None, not ready, or disconnected.
+        """
+        if self._crawler is None:
+            return False
+
+        try:
+            # Check Crawl4AI's ready flag if available
+            if hasattr(self._crawler, 'ready') and not self._crawler.ready:
+                logger.warning("[BROWSER] Crawler not ready")
+                return False
+
+            # Check if underlying browser is still connected
+            if hasattr(self._crawler, 'crawler_strategy'):
+                strategy = self._crawler.crawler_strategy
+                if hasattr(strategy, 'browser') and strategy.browser:
+                    if not strategy.browser.is_connected():
+                        logger.warning("[BROWSER] Browser is not connected")
+                        return False
+
+            return True
+        except Exception as e:
+            logger.warning(f"[BROWSER] Health check failed: {e}")
+            return False
+
+    async def _close_crawler_unsafe(self) -> None:
+        """
+        Close the crawler without acquiring the lock.
+        Must only be called while holding self._crawler_lock.
+        """
+        if self._crawler is not None:
+            try:
+                # Try close() first (preferred Crawl4AI method)
+                if hasattr(self._crawler, 'close'):
+                    await self._crawler.close()
+                else:
+                    # Fallback to context manager exit
+                    await self._crawler.__aexit__(None, None, None)
+            except Exception as e:
+                logger.warning(f"[BROWSER] Error closing crawler: {e}")
+            finally:
+                self._crawler = None
+
+    async def _reset_crawler(self) -> None:
+        """
+        Forcefully reset the crawler, closing any zombie browser.
+        Use this when health check fails or browser errors occur.
+        """
         async with self._crawler_lock:
+            logger.info("[BROWSER] Resetting browser instance...")
+            await self._close_crawler_unsafe()
+            logger.info("[BROWSER] Browser instance reset complete")
+
+    async def _get_crawler(self) -> AsyncWebCrawler:
+        """
+        Get or create a shared browser instance with health checking.
+        Automatically recovers from dead browsers.
+        """
+        async with self._crawler_lock:
+            # Check if existing crawler is healthy
+            if self._crawler is not None:
+                if not await self._is_crawler_healthy():
+                    logger.warning("[BROWSER] Existing browser is unhealthy, resetting...")
+                    await self._close_crawler_unsafe()
+
+            # Create new instance if needed
             if self._crawler is None:
-                logger.info("[BROWSER] Creating shared browser instance")
+                logger.info("[BROWSER] Creating new shared browser instance")
                 self._crawler = AsyncWebCrawler(config=self.browser_config)
-                await self._crawler.__aenter__()
+                # Use start() if available (preferred), otherwise __aenter__()
+                if hasattr(self._crawler, 'start'):
+                    await self._crawler.start()
+                else:
+                    await self._crawler.__aenter__()
+                logger.info("[BROWSER] Browser instance started successfully")
+
             return self._crawler
 
     async def cleanup(self):
         """Cleanup browser resources on shutdown."""
         async with self._crawler_lock:
             if self._crawler is not None:
-                logger.info("[BROWSER] Closing shared browser instance")
-                try:
-                    await self._crawler.__aexit__(None, None, None)
-                except Exception as e:
-                    logger.warning(f"[BROWSER] Error during cleanup: {e}")
-                self._crawler = None
+                logger.info("[BROWSER] Closing shared browser instance on shutdown")
+                await self._close_crawler_unsafe()
+                logger.info("[BROWSER] Browser closed")
 
     def _build_crawler_config(self, data_type: str) -> CrawlerRunConfig:
         """
@@ -529,7 +619,7 @@ class AIScraper:
         config = self._build_crawler_config("oddset")
         return await self._execute_scrape(url, config, strategy, "oddset")
 
-    async def scrape_raw_js(self, url: str, js_expression: str) -> Dict[str, Any]:
+    async def scrape_raw_js(self, url: str, js_expression: str, _is_retry: bool = False) -> Dict[str, Any]:
         """
         Scrape raw JavaScript data from a page without AI extraction.
 
@@ -539,6 +629,7 @@ class AIScraper:
         Args:
             url: Page URL to scrape
             js_expression: JavaScript expression to evaluate
+            _is_retry: Internal flag to prevent infinite retry loops
 
         Returns:
             Dict with success, data, and error fields
@@ -714,7 +805,22 @@ class AIScraper:
 
         except Exception as e:
             logger.exception(f"[RawJS] Exception during scrape")
-            # Don't close the shared crawler on error - just log and return
+
+            # Check if this is a browser error that can be recovered from
+            if is_browser_error(e) and not _is_retry:
+                logger.warning(f"[RawJS] Browser error detected, resetting and retrying...")
+                await self._reset_crawler()
+                # Retry once after browser reset
+                try:
+                    return await self.scrape_raw_js(url, js_expression, _is_retry=True)
+                except Exception as retry_error:
+                    logger.error(f"[RawJS] Retry after reset also failed: {retry_error}")
+                    return {
+                        "success": False,
+                        "data": None,
+                        "error": f"Browser error (retry failed): {str(retry_error)}"
+                    }
+
             return {
                 "success": False,
                 "data": None,
@@ -929,7 +1035,23 @@ class AIScraper:
 
         except Exception as e:
             logger.exception(f"💥 Exception scraping {data_type}")
-            # Don't close the shared crawler on error - just log and return
+
+            # Check if this is a browser error that can be recovered from
+            if is_browser_error(e) and not is_retry:
+                logger.warning(f"[BROWSER] Browser error detected, resetting and retrying...")
+                await self._reset_crawler()
+                # Retry once after browser reset
+                try:
+                    return await self._execute_scrape(url, config, strategy, data_type, is_retry=True)
+                except Exception as retry_error:
+                    logger.error(f"[BROWSER] Retry after reset also failed: {retry_error}")
+                    return {
+                        "success": False,
+                        "data": None,
+                        "tokens": None,
+                        "error": f"Browser error (retry failed): {str(retry_error)}"
+                    }
+
             return {
                 "success": False,
                 "data": None,

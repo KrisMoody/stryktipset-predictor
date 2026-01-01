@@ -279,7 +279,10 @@ async def reset_browser():
         return {"status": "ok", "message": "Browser reset successfully"}
     except Exception as e:
         logger.exception("Error resetting browser")
-        return {"status": "error", "message": str(e)}
+        return {
+            "status": "error",
+            "message": "Failed to reset browser. Check server logs for details."
+        }
 
 
 if __name__ == "__main__":

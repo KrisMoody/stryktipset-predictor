@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <!-- xStats Section -->
-    <div v-if="xStatsData">
+    <div v-if="normalizedXStats">
       <h4
         class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"
       >
@@ -17,19 +17,19 @@
           </h5>
           <div class="space-y-2">
             <XStatRow
-              v-if="xStatsData.homeTeam?.entireSeason"
+              v-if="normalizedXStats.homeTeam?.entireSeason"
               label="Season"
-              :data="xStatsData.homeTeam.entireSeason"
+              :data="normalizedXStats.homeTeam.entireSeason"
             />
             <XStatRow
-              v-if="xStatsData.homeTeam?.lastFiveGames"
+              v-if="normalizedXStats.homeTeam?.lastFiveGames"
               label="Last 5"
-              :data="xStatsData.homeTeam.lastFiveGames"
+              :data="normalizedXStats.homeTeam.lastFiveGames"
             />
             <XStatRow
-              v-if="xStatsData.homeTeam?.entireSeasonHome"
+              v-if="normalizedXStats.homeTeam?.entireSeasonHome"
               label="Home"
-              :data="xStatsData.homeTeam.entireSeasonHome"
+              :data="normalizedXStats.homeTeam.entireSeasonHome"
             />
           </div>
         </div>
@@ -41,19 +41,19 @@
           </h5>
           <div class="space-y-2">
             <XStatRow
-              v-if="xStatsData.awayTeam?.entireSeason"
+              v-if="normalizedXStats.awayTeam?.entireSeason"
               label="Season"
-              :data="xStatsData.awayTeam.entireSeason"
+              :data="normalizedXStats.awayTeam.entireSeason"
             />
             <XStatRow
-              v-if="xStatsData.awayTeam?.lastFiveGames"
+              v-if="normalizedXStats.awayTeam?.lastFiveGames"
               label="Last 5"
-              :data="xStatsData.awayTeam.lastFiveGames"
+              :data="normalizedXStats.awayTeam.lastFiveGames"
             />
             <XStatRow
-              v-if="xStatsData.awayTeam?.entireSeasonAway"
+              v-if="normalizedXStats.awayTeam?.entireSeasonAway"
               label="Away"
-              :data="xStatsData.awayTeam.entireSeasonAway"
+              :data="normalizedXStats.awayTeam.entireSeasonAway"
             />
           </div>
         </div>
@@ -69,7 +69,8 @@
         Team Statistics
       </h4>
 
-      <div class="overflow-x-auto">
+      <!-- Only show table if we have table data -->
+      <div v-if="hasTableData" class="overflow-x-auto">
         <table class="w-full text-sm">
           <caption class="sr-only">
             Lagstatistik för
@@ -184,7 +185,12 @@
         </table>
       </div>
 
-      <!-- Form Section -->
+      <!-- Message when only form data exists -->
+      <p v-if="!hasTableData && hasForm" class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+        League table data not available
+      </p>
+
+      <!-- Form Section - always show if form data exists -->
       <div v-if="hasForm" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div v-if="statisticsData.homeTeam?.form" class="flex items-center gap-2">
           <span class="text-sm text-gray-600 dark:text-gray-400">{{ homeTeamName }} form:</span>
@@ -217,7 +223,7 @@
 
     <!-- Empty State -->
     <div
-      v-if="!xStatsData && !statisticsData"
+      v-if="!normalizedXStats && !statisticsData"
       class="text-center py-6 text-gray-500 dark:text-gray-400"
     >
       <UIcon name="i-heroicons-chart-bar" class="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -252,6 +258,46 @@ const xStatsData = computed((): XStatsData | null => {
   return data
 })
 
+// Helper to normalize team xStats from old format (goalStats) to new format (entireSeason)
+/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structure */
+function normalizeTeamXStats(team: any): any {
+  if (!team) return null
+  if (team.entireSeason) return team // Already in new format
+
+  // Convert from goalStats format
+  return {
+    entireSeason: team.goalStats
+      ? {
+          xg: team.goalStats.xg,
+          xga: team.goalStats.xgc, // xgc -> xga
+          xgd: team.goalStats.xgd,
+          xp: team.expectedPoints?.xp,
+        }
+      : null,
+    name: team.name,
+  }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+// Normalize xStats to handle both old (goalStats) and new (entireSeason) formats
+const normalizedXStats = computed((): XStatsData | null => {
+  if (!xStatsData.value) return null
+  const data = xStatsData.value
+
+  // Check if it's the old format with goalStats
+  /* eslint-disable @typescript-eslint/no-explicit-any -- Check for legacy data structure */
+  const hasOldFormat = (data.homeTeam as any)?.goalStats || (data.awayTeam as any)?.goalStats
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  if (hasOldFormat) {
+    return {
+      homeTeam: normalizeTeamXStats(data.homeTeam),
+      awayTeam: normalizeTeamXStats(data.awayTeam),
+    } as XStatsData
+  }
+  return data // Already in new format
+})
+
 // Extract statistics data
 const statisticsData = computed((): StatisticsData | null => {
   if (!props.scrapedData) return null
@@ -271,6 +317,18 @@ const hasStatValue = (key: string) => {
     statisticsData.value.awayTeam?.[key] !== undefined
   )
 }
+
+// Check if any table data exists (position, points, played, etc.)
+const hasTableData = computed(() => {
+  if (!statisticsData.value) return false
+  return (
+    hasStatValue('position') ||
+    hasStatValue('points') ||
+    hasStatValue('played') ||
+    hasStatValue('won') ||
+    hasStatValue('goalsFor')
+  )
+})
 
 // Check if form data exists
 const hasForm = computed(() => {

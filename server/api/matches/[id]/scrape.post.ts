@@ -41,7 +41,7 @@ export default defineEventHandler(async event => {
       })
     }
 
-    const dataTypes = body.dataTypes || ['xStats', 'statistics', 'headToHead', 'news']
+    const dataTypes = body.dataTypes || ['xStats', 'statistics', 'headToHead', 'news', 'lineup']
 
     // Feature flag: Use V3 (AI + DOM) or V2 (DOM only)
     const useV3 = config.enableScraperV3

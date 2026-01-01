@@ -500,7 +500,7 @@ export interface ScrapeOptions {
   matchId: number
   drawNumber: number
   matchNumber: number
-  dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news')[]
+  dataTypes: ('xStats' | 'statistics' | 'headToHead' | 'news' | 'lineup')[]
   timeout?: number
   retries?: number
   userId?: string

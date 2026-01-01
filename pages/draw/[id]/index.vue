@@ -670,15 +670,21 @@ const hasStatisticsData = (match: any) => {
   if (!match.match_scraped_data) return false
   return match.match_scraped_data.some((d: any) => {
     if (d.data_type === 'xStats') {
-      // Check if xStats has actual values (not all nulls)
+      // Check both old format (goalStats) and new format (entireSeason)
       const data = d.data
-      return data?.homeTeam?.xg || data?.awayTeam?.xg
+      const homeXg =
+        data?.homeTeam?.xg || data?.homeTeam?.goalStats?.xg || data?.homeTeam?.entireSeason?.xg
+      const awayXg =
+        data?.awayTeam?.xg || data?.awayTeam?.goalStats?.xg || data?.awayTeam?.entireSeason?.xg
+      return homeXg || awayXg
     }
     if (d.data_type === 'statistics') {
       // Check if statistics has actual values
       const data = d.data
-      const hasHome = data?.homeTeam?.position || data?.homeTeam?.points || data?.homeTeam?.form
-      const hasAway = data?.awayTeam?.position || data?.awayTeam?.points || data?.awayTeam?.form
+      const hasHome =
+        data?.homeTeam?.position || data?.homeTeam?.points || data?.homeTeam?.form?.length
+      const hasAway =
+        data?.awayTeam?.position || data?.awayTeam?.points || data?.awayTeam?.form?.length
       return hasHome || hasAway
     }
     return false

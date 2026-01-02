@@ -7,9 +7,9 @@
 
 import { withRetry, fetchWithTimeout } from '~/server/utils/retry'
 
-const TIMEOUT_MS = 20000 // 20 second timeout
+const TIMEOUT_MS = 30000 // 30 second timeout
 const RETRY_OPTIONS = {
-  retries: 3,
+  retries: 4,
   delay: 2000,
   backoff: true,
   onRetry: (attempt: number, error: Error) => {

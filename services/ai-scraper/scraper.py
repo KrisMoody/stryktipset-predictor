@@ -9,6 +9,7 @@ from schemas import XStatsData, StatisticsData, HeadToHeadData, NewsData, MatchI
 from config import get_config, get_retry_config, DataTypeConfig
 from typing import Dict, Any, List, Optional, Callable, TypeVar
 from functools import wraps
+from contextlib import asynccontextmanager
 import os
 import logging
 import asyncio
@@ -104,6 +105,10 @@ class AIScraper:
         self._crawler: Optional[AsyncWebCrawler] = None
         self._crawler_lock = asyncio.Lock()
 
+        # Reference counting to prevent browser reset during active scrapes
+        self._active_scrapes = 0
+        self._active_scrapes_lock = asyncio.Lock()
+
     async def _is_crawler_healthy(self) -> bool:
         """
         Check if the browser instance is still healthy and responsive.
@@ -153,7 +158,15 @@ class AIScraper:
         """
         Forcefully reset the crawler, closing any zombie browser.
         Use this when health check fails or browser errors occur.
+
+        Note: Skips reset if there are active scrapes in progress to prevent
+        closing the browser while other operations are using it.
         """
+        async with self._active_scrapes_lock:
+            if self._active_scrapes > 0:
+                logger.warning(f"[BROWSER] Skipping reset, {self._active_scrapes} scrapes in progress")
+                return
+
         async with self._crawler_lock:
             logger.info("[BROWSER] Resetting browser instance...")
             await self._close_crawler_unsafe()
@@ -183,6 +196,25 @@ class AIScraper:
                 logger.info("[BROWSER] Browser instance started successfully")
 
             return self._crawler
+
+    @asynccontextmanager
+    async def _acquire_crawler(self):
+        """
+        Acquire crawler with reference counting.
+
+        This prevents the browser from being reset while scrapes are in progress.
+        Use this context manager around all scraping operations.
+        """
+        async with self._active_scrapes_lock:
+            self._active_scrapes += 1
+            logger.debug(f"[BROWSER] Active scrapes: {self._active_scrapes}")
+        try:
+            crawler = await self._get_crawler()
+            yield crawler
+        finally:
+            async with self._active_scrapes_lock:
+                self._active_scrapes -= 1
+                logger.debug(f"[BROWSER] Active scrapes: {self._active_scrapes}")
 
     async def cleanup(self):
         """Cleanup browser resources on shutdown."""
@@ -768,9 +800,9 @@ class AIScraper:
                 """
             )
 
-            # Use shared browser instance
-            crawler = await self._get_crawler()
-            result = await crawler.arun(url=url, config=config)
+            # Use shared browser instance with reference counting
+            async with self._acquire_crawler() as crawler:
+                result = await crawler.arun(url=url, config=config)
 
             if not result.success:
                 return {
@@ -961,13 +993,13 @@ class AIScraper:
             logger.info(f"[DEBUG] Config wait_for: {config.wait_for}")
             logger.info(f"[DEBUG] Config delay: {config.delay_before_return_html}")
 
-            # Use shared browser instance
-            crawler = await self._get_crawler()
-            result = await crawler.arun(
-                url=url,
-                config=config,
-                extraction_strategy=strategy
-            )
+            # Use shared browser instance with reference counting
+            async with self._acquire_crawler() as crawler:
+                result = await crawler.arun(
+                    url=url,
+                    config=config,
+                    extraction_strategy=strategy
+                )
 
             # Diagnostic logging for markdown content
             markdown_length = len(result.markdown) if hasattr(result, 'markdown') and result.markdown else 0

@@ -73,8 +73,8 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<{ draws: DrawData[] }>(`${this.baseUrl}/draws`, {
         method: 'GET',
         headers: this.getHeaders(),
-        timeout: 20000, // 20 seconds timeout
-        retry: 3,
+        timeout: 30000, // 30 seconds timeout
+        retry: 4,
         retryDelay: 2000, // 2 seconds between retries
         retryStatusCodes: [408, 429, 500, 502, 503, 504],
         onRequestError({ error }) {
@@ -117,8 +117,8 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<{ draw: DrawData }>(`${this.baseUrl}/draws/${drawNumber}`, {
         method: 'GET',
         headers: this.getHeaders(),
-        timeout: 20000, // 20 seconds timeout
-        retry: 3,
+        timeout: 30000, // 30 seconds timeout
+        retry: 4,
         retryDelay: 2000, // 2 seconds between retries
         retryStatusCodes: [408, 429, 500, 502, 503, 504],
         onRequestError({ error }) {
@@ -186,8 +186,8 @@ export class SvenskaSpelApiClient {
         {
           method: 'GET',
           headers: this.getHeaders(),
-          timeout: 20000,
-          retry: 3,
+          timeout: 30000,
+          retry: 4,
           retryDelay: 2000, // 2 seconds between retries
           retryStatusCodes: [408, 429, 500, 502, 503, 504],
           onRequestError({ error }) {
@@ -280,8 +280,8 @@ export class SvenskaSpelApiClient {
         {
           method: 'GET',
           headers: this.getHeaders(),
-          timeout: 20000,
-          retry: 3,
+          timeout: 30000,
+          retry: 4,
           retryDelay: 2000, // 2 seconds between retries
           retryStatusCodes: [408, 429, 500, 502, 503, 504],
         }
@@ -348,8 +348,8 @@ export class SvenskaSpelApiClient {
       const response = await $fetch<DrawResultData>(`${this.baseUrl}/draws/${drawNumber}/result`, {
         method: 'GET',
         headers: this.getHeaders(),
-        timeout: 20000,
-        retry: 3,
+        timeout: 30000,
+        retry: 4,
         retryDelay: 2000, // 2 seconds between retries
         retryStatusCodes: [408, 429, 500, 502, 503, 504],
       })
@@ -396,8 +396,8 @@ export class SvenskaSpelApiClient {
         {
           method: 'GET',
           headers: this.getHeaders(),
-          timeout: 20000,
-          retry: 3,
+          timeout: 30000,
+          retry: 4,
           retryDelay: 2000, // 2 seconds between retries
           retryStatusCodes: [408, 429, 500, 502, 503, 504],
         }

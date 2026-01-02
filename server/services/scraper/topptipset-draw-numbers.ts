@@ -10,9 +10,10 @@
 export async function scrapeTopptipsetDrawNumbers(aiScraperUrl: string): Promise<number[]> {
   console.log('[Topptipset Scraper] Scraping current draw numbers via Crawl4AI...')
 
-  // Set up timeout for the fetch request (30 seconds)
+  // Set up timeout for the fetch request (90 seconds)
+  // Must be longer than Python scraper timeout (60s page + 15s polling)
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 30000)
+  const timeoutId = setTimeout(() => controller.abort(), 90000)
 
   try {
     const response = await fetch(`${aiScraperUrl}/scrape-raw`, {
@@ -64,7 +65,7 @@ export async function scrapeTopptipsetDrawNumbers(aiScraperUrl: string): Promise
   } catch (error) {
     // Provide better error message for timeout
     if (error instanceof Error && error.name === 'AbortError') {
-      console.error('[Topptipset Scraper] Request timed out after 30 seconds')
+      console.error('[Topptipset Scraper] Request timed out after 90 seconds')
       throw new Error('Topptipset scraper request timed out')
     }
     console.error('[Topptipset Scraper] Error scraping draw numbers:', error)

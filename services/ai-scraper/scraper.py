@@ -154,18 +154,34 @@ class AIScraper:
             finally:
                 self._crawler = None
 
-    async def _reset_crawler(self) -> None:
+    async def _reset_crawler(self, force_wait: bool = False) -> None:
         """
         Forcefully reset the crawler, closing any zombie browser.
         Use this when health check fails or browser errors occur.
 
-        Note: Skips reset if there are active scrapes in progress to prevent
-        closing the browser while other operations are using it.
+        Args:
+            force_wait: If True, wait for all active scrapes to complete before resetting.
+                       Use this when recovering from browser errors to ensure retry has
+                       a fresh browser. If False, skip reset if scrapes are active.
         """
-        async with self._active_scrapes_lock:
-            if self._active_scrapes > 0:
-                logger.warning(f"[BROWSER] Skipping reset, {self._active_scrapes} scrapes in progress")
-                return
+        if force_wait:
+            # Wait for all active scrapes to complete (with timeout)
+            wait_start = asyncio.get_event_loop().time()
+            max_wait = 30  # 30 second timeout
+            while True:
+                async with self._active_scrapes_lock:
+                    if self._active_scrapes == 0:
+                        break
+                elapsed = asyncio.get_event_loop().time() - wait_start
+                if elapsed > max_wait:
+                    logger.warning("[BROWSER] Timeout waiting for active scrapes, forcing reset")
+                    break
+                await asyncio.sleep(0.1)
+        else:
+            async with self._active_scrapes_lock:
+                if self._active_scrapes > 0:
+                    logger.warning(f"[BROWSER] Skipping reset, {self._active_scrapes} scrapes in progress")
+                    return
 
         async with self._crawler_lock:
             logger.info("[BROWSER] Resetting browser instance...")
@@ -854,8 +870,8 @@ class AIScraper:
 
             # Check if this is a browser error that can be recovered from
             if is_browser_error(e) and not _is_retry:
-                logger.warning(f"[RawJS] Browser error detected, resetting and retrying...")
-                await self._reset_crawler()
+                logger.warning(f"[RawJS] Browser error detected, waiting for active scrapes then resetting...")
+                await self._reset_crawler(force_wait=True)
                 # Retry once after browser reset
                 try:
                     return await self.scrape_raw_js(url, js_expression, _is_retry=True)
@@ -1084,8 +1100,8 @@ class AIScraper:
 
             # Check if this is a browser error that can be recovered from
             if is_browser_error(e) and not is_retry:
-                logger.warning(f"[BROWSER] Browser error detected, resetting and retrying...")
-                await self._reset_crawler()
+                logger.warning(f"[BROWSER] Browser error detected, waiting for active scrapes then resetting...")
+                await self._reset_crawler(force_wait=True)
                 # Retry once after browser reset
                 try:
                     return await self._execute_scrape(url, config, strategy, data_type, is_retry=True)

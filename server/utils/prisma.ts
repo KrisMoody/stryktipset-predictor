@@ -7,9 +7,10 @@ const globalForPrisma = global as unknown as { prisma: PrismaClient; pool: pg.Po
 if (!globalForPrisma.pool) {
   globalForPrisma.pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
-    max: 5,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    max: 8, // Conservative for Supabase free tier
+    idleTimeoutMillis: 45000, // 45s - increased from 30s to reduce connection churn
+    connectionTimeoutMillis: 25000, // 25s - increased from 10s for Railway container latency
+    allowExitOnIdle: false, // Prevent premature pool exit
   })
 }
 

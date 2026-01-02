@@ -256,8 +256,9 @@ async def health_check():
             browser_status = "healthy" if browser_healthy else "unhealthy"
         else:
             browser_status = "not_initialized"
-    except Exception as e:
-        browser_status = f"error: {str(e)}"
+    except Exception:
+        logger.exception("Browser health check failed")
+        browser_status = "error"
 
     return {
         "status": "ok",

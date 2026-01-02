@@ -69,6 +69,20 @@ class AIScraper:
                 "--no-sandbox",  # Required for Docker/containerized environments
                 "--disable-dev-shm-usage",  # Prevent /dev/shm issues in containers
                 "--disable-gpu",  # No GPU in container environments
+                # Additional flags for Railway/container stability
+                "--single-process",  # Run in single process to avoid fork issues
+                "--no-zygote",  # Disable zygote process spawner
+                "--disable-setuid-sandbox",
+                "--disable-software-rasterizer",
+                "--disable-extensions",
+                "--disable-background-networking",
+                "--disable-default-apps",
+                "--disable-sync",
+                "--disable-translate",
+                "--metrics-recording-only",
+                "--mute-audio",
+                "--no-first-run",
+                "--safebrowsing-disable-auto-update",
             ]
         )
         
@@ -818,13 +832,13 @@ class AIScraper:
                     return {
                         "success": False,
                         "data": None,
-                        "error": f"Browser error (retry failed): {str(retry_error)}"
+                        "error": "Browser error occurred. Check server logs for details."
                     }
 
             return {
                 "success": False,
                 "data": None,
-                "error": str(e)
+                "error": "Scraping failed. Check server logs for details."
             }
 
     async def scrape_batch(
@@ -885,7 +899,7 @@ class AIScraper:
                         results[idx] = {
                             "success": False,
                             "data": None,
-                            "error": str(e),
+                            "error": "Scraping failed. Check server logs for details.",
                             "url": url,
                             "data_type": data_type
                         }
@@ -904,7 +918,7 @@ class AIScraper:
             return [{
                 "success": False,
                 "data": None,
-                "error": str(e),
+                "error": "Batch scraping failed. Check server logs for details.",
                 "url": req.get("url", ""),
                 "data_type": req.get("data_type", "")
             } for req in requests]
@@ -1049,13 +1063,13 @@ class AIScraper:
                         "success": False,
                         "data": None,
                         "tokens": None,
-                        "error": f"Browser error (retry failed): {str(retry_error)}"
+                        "error": "Browser error occurred. Check server logs for details."
                     }
 
             return {
                 "success": False,
                 "data": None,
                 "tokens": None,
-                "error": str(e)
+                "error": "Scraping failed. Check server logs for details."
             }
 

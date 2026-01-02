@@ -71,8 +71,9 @@ class AIScraper:
                 "--disable-dev-shm-usage",  # Prevent /dev/shm issues in containers
                 "--disable-gpu",  # No GPU in container environments
                 # Additional flags for Railway/container stability
-                "--single-process",  # Run in single process to avoid fork issues
-                "--no-zygote",  # Disable zygote process spawner
+                # NOTE: --single-process removed - causes "Cannot use V8 Proxy resolver" errors
+                # and browser crashes. See: https://webscraping.ai/faq/headless-chromium
+                "--no-zygote",  # Disable zygote process spawner (harmless, prevents IPC)
                 "--disable-setuid-sandbox",
                 "--disable-software-rasterizer",
                 "--disable-extensions",

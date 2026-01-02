@@ -69,6 +69,20 @@ class AIScraper:
                 "--no-sandbox",  # Required for Docker/containerized environments
                 "--disable-dev-shm-usage",  # Prevent /dev/shm issues in containers
                 "--disable-gpu",  # No GPU in container environments
+                # Additional flags for Railway/container stability
+                "--single-process",  # Run in single process to avoid fork issues
+                "--no-zygote",  # Disable zygote process spawner
+                "--disable-setuid-sandbox",
+                "--disable-software-rasterizer",
+                "--disable-extensions",
+                "--disable-background-networking",
+                "--disable-default-apps",
+                "--disable-sync",
+                "--disable-translate",
+                "--metrics-recording-only",
+                "--mute-audio",
+                "--no-first-run",
+                "--safebrowsing-disable-auto-update",
             ]
         )
         

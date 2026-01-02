@@ -10,6 +10,10 @@
 export async function scrapeTopptipsetDrawNumbers(aiScraperUrl: string): Promise<number[]> {
   console.log('[Topptipset Scraper] Scraping current draw numbers via Crawl4AI...')
 
+  // Set up timeout for the fetch request (30 seconds)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
   try {
     const response = await fetch(`${aiScraperUrl}/scrape-raw`, {
       method: 'POST',
@@ -18,6 +22,7 @@ export async function scrapeTopptipsetDrawNumbers(aiScraperUrl: string): Promise
         url: 'https://spela.svenskaspel.se/topptipset',
         js_expression: 'window._svs?.draw?.data?.draws',
       }),
+      signal: controller.signal,
     })
 
     if (!response.ok) {
@@ -57,7 +62,14 @@ export async function scrapeTopptipsetDrawNumbers(aiScraperUrl: string): Promise
 
     return drawNumbers
   } catch (error) {
+    // Provide better error message for timeout
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('[Topptipset Scraper] Request timed out after 30 seconds')
+      throw new Error('Topptipset scraper request timed out')
+    }
     console.error('[Topptipset Scraper] Error scraping draw numbers:', error)
     throw error
+  } finally {
+    clearTimeout(timeoutId)
   }
 }

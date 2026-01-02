@@ -832,13 +832,13 @@ class AIScraper:
                     return {
                         "success": False,
                         "data": None,
-                        "error": f"Browser error (retry failed): {str(retry_error)}"
+                        "error": "Browser error occurred. Check server logs for details."
                     }
 
             return {
                 "success": False,
                 "data": None,
-                "error": str(e)
+                "error": "Scraping failed. Check server logs for details."
             }
 
     async def scrape_batch(
@@ -899,7 +899,7 @@ class AIScraper:
                         results[idx] = {
                             "success": False,
                             "data": None,
-                            "error": str(e),
+                            "error": "Scraping failed. Check server logs for details.",
                             "url": url,
                             "data_type": data_type
                         }
@@ -918,7 +918,7 @@ class AIScraper:
             return [{
                 "success": False,
                 "data": None,
-                "error": str(e),
+                "error": "Batch scraping failed. Check server logs for details.",
                 "url": req.get("url", ""),
                 "data_type": req.get("data_type", "")
             } for req in requests]
@@ -1063,13 +1063,13 @@ class AIScraper:
                         "success": False,
                         "data": None,
                         "tokens": None,
-                        "error": f"Browser error (retry failed): {str(retry_error)}"
+                        "error": "Browser error occurred. Check server logs for details."
                     }
 
             return {
                 "success": False,
                 "data": None,
                 "tokens": None,
-                "error": str(e)
+                "error": "Scraping failed. Check server logs for details."
             }
 

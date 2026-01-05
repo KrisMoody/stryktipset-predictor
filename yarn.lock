@@ -831,10 +831,10 @@
     "@eslint/core" "^0.17.0"
     levn "^0.4.1"
 
-"@faker-js/faker@^10.1.0":
-  version "10.1.0"
-  resolved "https://registry.npmjs.org/@faker-js/faker/-/faker-10.1.0.tgz"
-  integrity sha512-C3mrr3b5dRVlKPJdfrAXS8+dq+rq8Qm5SNRazca0JKgw1HQERFmrVb0towvMmw5uu8hHKNiQasMaR/tydf3Zsg==
+"@faker-js/faker@^10.2.0":
+  version "10.2.0"
+  resolved "https://registry.yarnpkg.com/@faker-js/faker/-/faker-10.2.0.tgz#91028d4086969825795de331c305e8b91414bcb7"
+  integrity sha512-rTXwAsIxpCqzUnZvrxVh3L0QA0NzToqWBLAhV+zDV3MIIwiQhAZHMdPCIaj5n/yADu/tyk12wIPgL6YHGXJP+g==
 
 "@floating-ui/core@^1.7.3":
   version "1.7.3"
@@ -1385,21 +1385,21 @@
     unctx "^2.4.1"
     untyped "^2.0.0"
 
-"@nuxt/kit@^3.13.2", "@nuxt/kit@^3.15.4", "@nuxt/kit@^3.20.1":
-  version "3.20.1"
-  resolved "https://registry.npmjs.org/@nuxt/kit/-/kit-3.20.1.tgz"
-  integrity sha512-TIslaylfI5kd3AxX5qts0qyrIQ9Uq3HAA1bgIIJ+c+zpDfK338YS+YrCWxBBzDMECRCbAS58mqAd2MtJfG1ENA==
+"@nuxt/kit@^3.13.2", "@nuxt/kit@^3.15.4", "@nuxt/kit@^3.20.2":
+  version "3.20.2"
+  resolved "https://registry.yarnpkg.com/@nuxt/kit/-/kit-3.20.2.tgz#6af1b227f15ee9518337b1306829872d17a6e341"
+  integrity sha512-laqfmMcWWNV1FsVmm1+RQUoGY8NIJvCRl0z0K8ikqPukoEry0LXMqlQ+xaf8xJRvoH2/78OhZmsEEsUBTXipcw==
   dependencies:
-    c12 "^3.3.1"
+    c12 "^3.3.2"
     consola "^3.4.2"
     defu "^6.1.4"
     destr "^2.0.5"
     errx "^0.1.0"
-    exsolve "^1.0.7"
+    exsolve "^1.0.8"
     ignore "^7.0.5"
     jiti "^2.6.1"
     klona "^2.0.6"
-    knitwork "^1.2.0"
+    knitwork "^1.3.0"
     mlly "^1.8.0"
     ohash "^2.0.11"
     pathe "^2.0.3"
@@ -1473,13 +1473,13 @@
     rc9 "^2.1.2"
     std-env "^3.8.1"
 
-"@nuxt/test-utils@>=3.13.1", "@nuxt/test-utils@^3.21.0":
-  version "3.21.0"
-  resolved "https://registry.npmjs.org/@nuxt/test-utils/-/test-utils-3.21.0.tgz"
-  integrity sha512-A6XExfgHq88+XuXAU4MMr5QBHS2mWA5qRVSvsMPP2U+YSsnk+Vt7P7dxbvJPE4+n6LHbC1IM0QjTVteo+VCxOA==
+"@nuxt/test-utils@>=3.13.1", "@nuxt/test-utils@^3.22.0":
+  version "3.22.0"
+  resolved "https://registry.yarnpkg.com/@nuxt/test-utils/-/test-utils-3.22.0.tgz#cc406370e059443b4fbe1374913bef92ea546a1e"
+  integrity sha512-Qo2+FKrslfOp5S0z7hrajPATIVRLokMhlVTIuhOgnowE7WdgMdLGTkDQim+p8e6COw3loLabisLG85THdLp3vQ==
   dependencies:
-    "@nuxt/kit" "^3.20.1"
-    c12 "^3.3.2"
+    "@nuxt/kit" "^3.20.2"
+    c12 "^3.3.3"
     consola "^3.4.2"
     defu "^6.1.4"
     destr "^2.0.5"
@@ -1491,7 +1491,7 @@
     local-pkg "^1.1.2"
     magic-string "^0.30.21"
     node-fetch-native "^1.6.7"
-    node-mock-http "^1.0.3"
+    node-mock-http "^1.0.4"
     ofetch "^1.5.1"
     pathe "^2.0.3"
     perfect-debounce "^2.0.0"
@@ -1502,7 +1502,7 @@
     ufo "^1.6.1"
     unplugin "^2.3.11"
     vitest-environment-nuxt "^1.0.1"
-    vue "^3.5.25"
+    vue "^3.5.26"
 
 "@nuxt/ui@^4.3.0":
   version "4.3.0"
@@ -4013,12 +4013,12 @@ c12@3.1.0:
     pkg-types "^2.2.0"
     rc9 "^2.1.2"
 
-c12@^3.3.1, c12@^3.3.2:
-  version "3.3.2"
-  resolved "https://registry.npmjs.org/c12/-/c12-3.3.2.tgz"
-  integrity sha512-QkikB2X5voO1okL3QsES0N690Sn/K9WokXqUsDQsWy5SnYb+psYQFGA10iy1bZHj3fjISKsI67Q90gruvWWM3A==
+c12@^3.3.1, c12@^3.3.2, c12@^3.3.3:
+  version "3.3.3"
+  resolved "https://registry.yarnpkg.com/c12/-/c12-3.3.3.tgz#cab6604e6e6117fc9e62439a8e8144bbbe5edcd6"
+  integrity sha512-750hTRvgBy5kcMNPdh95Qo+XUBeGo8C7nsKSmedDmaQI+E0r82DwHeM6vBewDe4rGFbnxoa4V9pw+sPh5+Iz8Q==
   dependencies:
-    chokidar "^4.0.3"
+    chokidar "^5.0.0"
     confbox "^0.2.2"
     defu "^6.1.4"
     dotenv "^17.2.3"
@@ -7030,10 +7030,10 @@ node-gyp-build@^4.2.2:
   resolved "https://registry.npmjs.org/node-gyp-build/-/node-gyp-build-4.8.4.tgz"
   integrity sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==
 
-node-mock-http@^1.0.2, node-mock-http@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.npmjs.org/node-mock-http/-/node-mock-http-1.0.3.tgz"
-  integrity sha512-jN8dK25fsfnMrVsEhluUTPkBFY+6ybu7jSB1n+ri/vOGjJxU8J9CZhpSGkHXSkFjtUhbmoncG/YG9ta5Ludqog==
+node-mock-http@^1.0.2, node-mock-http@^1.0.3, node-mock-http@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/node-mock-http/-/node-mock-http-1.0.4.tgz#21f2ab4ce2fe4fbe8a660d7c5195a1db85e042a4"
+  integrity sha512-8DY+kFsDkNXy1sJglUfuODx1/opAGJGyrTuFqEoN90oRc2Vk0ZbD4K2qmKXBBEhZQzdKHIVfEJpDU8Ak2NJEvQ==
 
 node-releases@^2.0.27:
   version "2.0.27"

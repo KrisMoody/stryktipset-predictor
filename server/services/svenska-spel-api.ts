@@ -422,7 +422,16 @@ export class SvenskaSpelApiClient {
         month: response.month,
         draws,
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Handle 404 gracefully - future months may not have draws yet
+      const is404 = error?.statusCode === 404 || error?.response?.status === 404
+      if (is404) {
+        console.log(
+          `[Svenska Spel API] No draws available for ${this.gameConfig.displayName} ${year}-${month} (404)`
+        )
+        return { year, month, draws: [] }
+      }
+
       console.error(
         `[Svenska Spel API] Error fetching available ${this.gameConfig.displayName} draws for ${year}-${month}:`,
         error

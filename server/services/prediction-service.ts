@@ -1,5 +1,6 @@
 import { prisma } from '~/server/utils/prisma'
 import { Anthropic } from '@anthropic-ai/sdk'
+import pLimit from 'p-limit'
 import { embeddingsService } from './embeddings-service'
 import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
 import { captureAIError } from '~/server/utils/bugsnag-helpers'
@@ -8,6 +9,12 @@ import { calculateAICost } from '~/server/constants/ai-pricing'
 import { getMatchCalculations, type MatchCalculations } from './statistical-calculations'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Complex Prisma and AI API data */
+
+/**
+ * Concurrency limit for Claude API calls to prevent rate limiting (429 errors)
+ * This limits concurrent requests across all prediction endpoints
+ */
+const CLAUDE_CONCURRENCY_LIMIT = 3
 
 /**
  * Options for generating a prediction
@@ -25,6 +32,12 @@ export interface PredictMatchOptions {
  */
 export class PredictionService {
   private anthropic: Anthropic | null = null
+
+  /**
+   * Concurrency limiter for Claude API calls
+   * Shared across all prediction requests to prevent 429 rate limit errors
+   */
+  private claudeLimit = pLimit(CLAUDE_CONCURRENCY_LIMIT)
 
   /**
    * Lazily initialize and return Anthropic client
@@ -113,7 +126,10 @@ export class PredictionService {
       )
 
       // Generate prediction using Claude with game-specific prompt
-      const prediction = await this.generatePrediction(context, matchId, model, userId, gameType)
+      // Use concurrency limiter to prevent rate limit errors (429)
+      const prediction = await this.claudeLimit(() =>
+        this.generatePrediction(context, matchId, model, userId, gameType)
+      )
 
       if (!prediction) {
         throw new Error('Failed to generate prediction')

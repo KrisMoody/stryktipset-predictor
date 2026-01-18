@@ -55,12 +55,12 @@
             </div>
             <div>
               <p class="text-sm text-gray-600 dark:text-gray-400">Accuracy</p>
-              <p class="text-3xl font-bold">{{ stats.accuracy.toFixed(1) }}%</p>
+              <p class="text-3xl font-bold">{{ stats.accuracy?.toFixed(1) ?? '0.0' }}%</p>
             </div>
             <div>
               <p class="text-sm text-gray-600 dark:text-gray-400">Avg Probability Score</p>
               <p class="text-3xl font-bold">
-                {{ (stats.averageProbabilityScore * 100).toFixed(1) }}%
+                {{ ((stats.averageProbabilityScore ?? 0) * 100).toFixed(1) }}%
               </p>
             </div>
           </div>
@@ -91,7 +91,7 @@
                 </p>
               </div>
               <div class="text-right">
-                <p class="text-2xl font-bold">{{ data.accuracy.toFixed(1) }}%</p>
+                <p class="text-2xl font-bold">{{ data.accuracy?.toFixed(1) ?? '0.0' }}%</p>
                 <p class="text-sm text-gray-600 dark:text-gray-400">accuracy</p>
               </div>
             </div>
@@ -113,11 +113,119 @@
               <div class="text-3xl font-bold mb-2">
                 {{ outcome }}
               </div>
-              <div class="text-2xl font-semibold mb-1">{{ data.accuracy.toFixed(1) }}%</div>
+              <div class="text-2xl font-semibold mb-1">
+                {{ data.accuracy?.toFixed(1) ?? '0.0' }}%
+              </div>
               <p class="text-sm text-gray-600 dark:text-gray-400">
                 {{ data.correct }} / {{ data.total }} correct
               </p>
             </div>
+          </div>
+        </UCard>
+
+        <!-- Statistical Model Performance -->
+        <UCard>
+          <template #header>
+            <div class="flex justify-between items-center">
+              <h2 class="text-2xl font-semibold">Statistical Model Performance</h2>
+              <UButton
+                icon="i-heroicons-arrow-path"
+                size="xs"
+                color="neutral"
+                :loading="refreshingModel"
+                @click="refreshModelPerformance"
+              >
+                Refresh
+              </UButton>
+            </div>
+          </template>
+
+          <div v-if="modelPerformance" class="space-y-6">
+            <!-- Main Metrics -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Matches Analyzed</p>
+                <p class="text-3xl font-bold">
+                  {{ modelPerformance.totalMatches }}
+                </p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Model Accuracy</p>
+                <p class="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                  {{ modelPerformance.modelAccuracy?.toFixed(1) ?? '0.0' }}%
+                </p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Brier Score</p>
+                <p class="text-3xl font-bold">
+                  {{ modelPerformance.brierScore ? modelPerformance.brierScore.toFixed(3) : '-' }}
+                </p>
+                <p class="text-xs text-gray-500">(lower is better)</p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Value Bet Hit Rate</p>
+                <p
+                  class="text-3xl font-bold"
+                  :class="
+                    (modelPerformance.valueOpportunities?.hitRate ?? 0) > 33
+                      ? 'text-green-600 dark:text-green-400'
+                      : ''
+                  "
+                >
+                  {{ modelPerformance.valueOpportunities?.hitRate?.toFixed(1) ?? '0.0' }}%
+                </p>
+                <p class="text-xs text-gray-500">
+                  {{ modelPerformance.valueOpportunities?.correct ?? 0 }}/{{
+                    modelPerformance.valueOpportunities?.total ?? 0
+                  }}
+                  value bets
+                </p>
+              </div>
+            </div>
+
+            <!-- Calibration Chart -->
+            <div v-if="modelPerformance.calibration.length > 0">
+              <h3 class="text-lg font-semibold mb-3">Calibration</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                How well do model probabilities match actual outcomes?
+              </p>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th class="px-3 py-2 text-left">Probability Range</th>
+                      <th class="px-3 py-2 text-center">Avg Predicted</th>
+                      <th class="px-3 py-2 text-center">Actual Win Rate</th>
+                      <th class="px-3 py-2 text-center">Samples</th>
+                      <th class="px-3 py-2 text-center">Calibration</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    <tr v-for="bucket in modelPerformance.calibration" :key="bucket.range">
+                      <td class="px-3 py-2">{{ bucket.range }}</td>
+                      <td class="px-3 py-2 text-center">
+                        {{ ((bucket.predicted ?? 0) * 100).toFixed(1) }}%
+                      </td>
+                      <td class="px-3 py-2 text-center">
+                        {{ ((bucket.actual ?? 0) * 100).toFixed(1) }}%
+                      </td>
+                      <td class="px-3 py-2 text-center">{{ bucket.count }}</td>
+                      <td class="px-3 py-2 text-center">
+                        <span :class="getCalibrationClass(bucket.predicted, bucket.actual)">
+                          {{ getCalibrationDiff(bucket.predicted, bucket.actual) }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-center py-8 text-gray-500">
+            <p>No model performance data available yet.</p>
+            <p class="text-sm mt-1">
+              Run the backfill script to calculate statistics for completed matches.
+            </p>
           </div>
         </UCard>
 
@@ -160,7 +268,7 @@
             <div>
               <p class="text-sm text-gray-600 dark:text-gray-400">Success Rate</p>
               <p class="text-3xl font-bold">
-                {{ scraperHealth.last24Hours.successRate.toFixed(1) }}%
+                {{ scraperHealth.last24Hours?.successRate?.toFixed(1) ?? '0.0' }}%
               </p>
             </div>
           </div>
@@ -215,11 +323,32 @@ interface ScraperHealthData {
   }
 }
 
+interface CalibrationBucket {
+  range: string
+  predicted: number
+  actual: number
+  count: number
+}
+
+interface ModelPerformanceData {
+  totalMatches: number
+  modelAccuracy: number
+  brierScore: number | null
+  valueOpportunities: {
+    total: number
+    correct: number
+    hitRate: number
+    roi: string | number
+  }
+  calibration: CalibrationBucket[]
+}
+
 useHead({
   title: 'Analytics - Stryktipset AI Predictor',
 })
 
 const refreshingHealth = ref(false)
+const refreshingModel = ref(false)
 
 const { data: response, pending } = await useFetch<{
   success: boolean
@@ -242,6 +371,35 @@ const refreshHealth = async () => {
   } finally {
     refreshingHealth.value = false
   }
+}
+
+// Model performance data
+const { data: modelResponse, refresh: refreshModelData } = await useFetch<{
+  success: boolean
+  data?: ModelPerformanceData
+}>('/api/admin/model-performance')
+const modelPerformance = computed(() => modelResponse.value?.data)
+
+const refreshModelPerformance = async () => {
+  refreshingModel.value = true
+  try {
+    await refreshModelData()
+  } finally {
+    refreshingModel.value = false
+  }
+}
+
+const getCalibrationClass = (predicted: number, actual: number): string => {
+  const diff = Math.abs(predicted - actual)
+  if (diff < 0.05) return 'text-green-600 dark:text-green-400'
+  if (diff < 0.1) return 'text-yellow-600 dark:text-yellow-400'
+  return 'text-red-600 dark:text-red-400'
+}
+
+const getCalibrationDiff = (predicted: number, actual: number): string => {
+  const diff = (actual - predicted) * 100
+  const sign = diff >= 0 ? '+' : ''
+  return `${sign}${diff.toFixed(1)}%`
 }
 
 const getConfidenceColor = (confidence: string) => {

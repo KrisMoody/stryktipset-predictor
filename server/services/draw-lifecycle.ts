@@ -7,6 +7,35 @@ import type { DrawLifecycleStatus } from '~/types'
  */
 export class DrawLifecycleService {
   /**
+   * Check if all matches in a draw have results
+   * @param drawId - The database ID of the draw
+   * @returns Whether all matches have result_home, result_away, and outcome set
+   */
+  async checkDrawCompletion(drawId: number): Promise<boolean> {
+    try {
+      const matches = await prisma.matches.findMany({
+        where: { draw_id: drawId },
+        select: {
+          result_home: true,
+          result_away: true,
+          outcome: true,
+        },
+      })
+
+      if (matches.length === 0) {
+        return false
+      }
+
+      return matches.every(
+        match => match.result_home !== null && match.result_away !== null && match.outcome !== null
+      )
+    } catch (error) {
+      console.error(`[Draw Lifecycle] Error checking draw completion for draw ID ${drawId}:`, error)
+      return false
+    }
+  }
+
+  /**
    * Check if a draw should be archived
    */
   async shouldArchive(
@@ -48,18 +77,7 @@ export class DrawLifecycleService {
         }
       }
 
-      // Check if draw status is Completed
-      if (draw.status !== 'Completed') {
-        return {
-          draw_number: drawNumber,
-          is_current: true,
-          archived_at: null,
-          should_archive: false,
-          reason: `Status is ${draw.status}, not Completed`,
-        }
-      }
-
-      // Check if all matches have results
+      // Check if all matches have results (ignore API status field)
       const allMatchesHaveResults = draw.matches.every(
         match => match.result_home !== null && match.result_away !== null && match.outcome !== null
       )
@@ -74,13 +92,16 @@ export class DrawLifecycleService {
         }
       }
 
-      // Should archive
+      // Should archive - all matches have results
+      console.log(
+        `[Draw Lifecycle] Draw ${drawNumber} (${gameType}) ready to archive: all ${draw.matches.length} matches have results`
+      )
       return {
         draw_number: drawNumber,
         is_current: true,
         archived_at: null,
         should_archive: true,
-        reason: 'Draw is completed with all results',
+        reason: 'All matches have results',
       }
     } catch (error) {
       console.error(`[Draw Lifecycle] Error checking if draw ${drawNumber} should archive:`, error)
@@ -95,7 +116,7 @@ export class DrawLifecycleService {
   }
 
   /**
-   * Archive a draw (set is_current = false)
+   * Archive a draw (set is_current = false and status = "Completed")
    */
   async archiveDraw(drawNumber: number, gameType: string = 'stryktipset'): Promise<boolean> {
     try {
@@ -104,12 +125,15 @@ export class DrawLifecycleService {
       await prisma.draws.update({
         where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         data: {
+          status: 'Completed',
           is_current: false,
           archived_at: new Date(),
         },
       })
 
-      console.log(`[Draw Lifecycle] Draw ${drawNumber} archived successfully`)
+      console.log(
+        `[Draw Lifecycle] Draw ${drawNumber} archived successfully (status set to Completed)`
+      )
       return true
     } catch (error) {
       console.error(`[Draw Lifecycle] Error archiving draw ${drawNumber}:`, error)
@@ -128,10 +152,10 @@ export class DrawLifecycleService {
     try {
       console.log('[Draw Lifecycle] Checking for completed draws to archive...')
 
-      // Get all current draws
+      // Get all current draws with game_type
       const currentDraws = await prisma.draws.findMany({
         where: { is_current: true },
-        select: { draw_number: true, status: true },
+        select: { draw_number: true, game_type: true, status: true },
       })
 
       console.log(`[Draw Lifecycle] Found ${currentDraws.length} current draws`)
@@ -144,10 +168,10 @@ export class DrawLifecycleService {
         checked++
 
         // Check if should archive
-        const status = await this.shouldArchive(draw.draw_number)
+        const status = await this.shouldArchive(draw.draw_number, draw.game_type)
 
         if (status.should_archive) {
-          const success = await this.archiveDraw(draw.draw_number)
+          const success = await this.archiveDraw(draw.draw_number, draw.game_type)
           if (success) {
             archived++
           } else {
@@ -198,7 +222,7 @@ export class DrawLifecycleService {
   /**
    * Manually archive a draw (admin action)
    * @param drawNumber - The draw number to archive
-   * @param force - If true, bypass validation checks and archive regardless of status
+   * @param force - If true, bypass validation checks and archive regardless of match results
    * @param gameType - The game type (defaults to 'stryktipset')
    */
   async manualArchiveDraw(
@@ -214,6 +238,7 @@ export class DrawLifecycleService {
       const draw = await prisma.draws.findUnique({
         where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         select: {
+          id: true,
           draw_number: true,
           status: true,
           is_current: true,
@@ -234,18 +259,19 @@ export class DrawLifecycleService {
         }
       }
 
-      // If not forcing, validate that draw is completed
-      if (!force && draw.status !== 'Completed') {
+      // If not forcing, validate that all matches have results
+      const allMatchesComplete = await this.checkDrawCompletion(draw.id)
+      if (!force && !allMatchesComplete) {
         return {
           success: false,
-          error: `Cannot archive: draw status is "${draw.status}", not "Completed". Use force option to override.`,
+          error: 'Cannot archive: not all matches have results. Use force option to override.',
         }
       }
 
       // Log force archive for audit
-      if (force && draw.status !== 'Completed') {
+      if (force && !allMatchesComplete) {
         console.warn(
-          `[Draw Lifecycle] Force archiving draw ${drawNumber} with status "${draw.status}" (admin override)`
+          `[Draw Lifecycle] Force archiving draw ${drawNumber} without all match results (admin override)`
         )
       }
 
@@ -256,16 +282,19 @@ export class DrawLifecycleService {
       await prisma.draws.update({
         where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         data: {
+          status: 'Completed',
           is_current: false,
           archived_at: new Date(),
         },
       })
 
-      console.log(`[Draw Lifecycle] Draw ${drawNumber} manually archived successfully`)
+      console.log(
+        `[Draw Lifecycle] Draw ${drawNumber} manually archived successfully (status set to Completed)`
+      )
 
       return {
         success: true,
-        wasForced: force && draw.status !== 'Completed',
+        wasForced: force && !allMatchesComplete,
       }
     } catch (error) {
       console.error(`[Draw Lifecycle] Error manually archiving draw ${drawNumber}:`, error)

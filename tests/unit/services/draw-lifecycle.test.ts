@@ -13,6 +13,9 @@ const mockPrisma = {
     update: vi.fn(),
     count: vi.fn(),
   },
+  matches: {
+    findMany: vi.fn(),
+  },
 }
 
 vi.mock('~/server/utils/prisma', () => ({
@@ -86,16 +89,7 @@ class TestableDrawLifecycleService {
         }
       }
 
-      if (draw.status !== 'Completed') {
-        return {
-          draw_number: drawNumber,
-          is_current: true,
-          archived_at: null,
-          should_archive: false,
-          reason: `Status is ${draw.status}, not Completed`,
-        }
-      }
-
+      // Check if all matches have results (ignore API status field)
       const allMatchesHaveResults = draw.matches.every(
         (match: any) =>
           match.result_home !== null && match.result_away !== null && match.outcome !== null
@@ -116,7 +110,7 @@ class TestableDrawLifecycleService {
         is_current: true,
         archived_at: null,
         should_archive: true,
-        reason: 'Draw is completed with all results',
+        reason: 'All matches have results',
       }
     } catch (error) {
       return {
@@ -130,13 +124,14 @@ class TestableDrawLifecycleService {
   }
 
   /**
-   * Archive a draw (set is_current = false)
+   * Archive a draw (set is_current = false and status = "Completed")
    */
   async archiveDraw(drawNumber: number, gameType: string = 'stryktipset'): Promise<boolean> {
     try {
       await mockPrisma.draws.update({
         where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         data: {
+          status: 'Completed',
           is_current: false,
           archived_at: expect.any(Date),
         },
@@ -158,7 +153,7 @@ class TestableDrawLifecycleService {
     try {
       const currentDraws = await mockPrisma.draws.findMany({
         where: { is_current: true },
-        select: { draw_number: true, status: true },
+        select: { draw_number: true, game_type: true, status: true },
       })
 
       let checked = 0
@@ -168,10 +163,10 @@ class TestableDrawLifecycleService {
       for (const draw of currentDraws) {
         checked++
 
-        const status = await this.shouldArchive(draw.draw_number)
+        const status = await this.shouldArchive(draw.draw_number, draw.game_type)
 
         if (status.should_archive) {
-          const success = await this.archiveDraw(draw.draw_number)
+          const success = await this.archiveDraw(draw.draw_number, draw.game_type)
           if (success) {
             archived++
           } else {
@@ -213,6 +208,33 @@ class TestableDrawLifecycleService {
   }
 
   /**
+   * Check if all matches in a draw have results (simplified for tests)
+   */
+  async checkDrawCompletion(drawId: number): Promise<boolean> {
+    try {
+      const matches = await mockPrisma.matches.findMany({
+        where: { draw_id: drawId },
+        select: {
+          result_home: true,
+          result_away: true,
+          outcome: true,
+        },
+      })
+
+      if (matches.length === 0) {
+        return false
+      }
+
+      return matches.every(
+        (match: any) =>
+          match.result_home !== null && match.result_away !== null && match.outcome !== null
+      )
+    } catch {
+      return false
+    }
+  }
+
+  /**
    * Manually archive a draw (admin action)
    */
   async manualArchiveDraw(
@@ -228,6 +250,7 @@ class TestableDrawLifecycleService {
       const draw = await mockPrisma.draws.findUnique({
         where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         select: {
+          id: true,
           draw_number: true,
           status: true,
           is_current: true,
@@ -248,16 +271,19 @@ class TestableDrawLifecycleService {
         }
       }
 
-      if (!force && draw.status !== 'Completed') {
+      // Check if all matches have results
+      const allMatchesComplete = await this.checkDrawCompletion(draw.id)
+      if (!force && !allMatchesComplete) {
         return {
           success: false,
-          error: `Cannot archive: draw status is "${draw.status}", not "Completed". Use force option to override.`,
+          error: 'Cannot archive: not all matches have results. Use force option to override.',
         }
       }
 
       await mockPrisma.draws.update({
         where: { game_type_draw_number: { game_type: gameType, draw_number: drawNumber } },
         data: {
+          status: 'Completed',
           is_current: false,
           archived_at: expect.any(Date),
         },
@@ -265,7 +291,7 @@ class TestableDrawLifecycleService {
 
       return {
         success: true,
-        wasForced: force && draw.status !== 'Completed',
+        wasForced: force && !allMatchesComplete,
       }
     } catch (error) {
       return {
@@ -324,17 +350,22 @@ describe('DrawLifecycleService', () => {
       expect(result.archived_at).toBe(archivedDate)
     })
 
-    it('returns should_archive: false when status is not Completed', async () => {
+    it('returns should_archive: true when all matches have results regardless of API status', async () => {
+      // Even if API status is still "Open" or "Closed", if all matches have results, archive
       mockPrisma.draws.findUnique.mockResolvedValue(
         createMockDraw({
-          status: 'Open',
+          status: 'Closed', // API hasn't updated to "Completed" yet
+          matches: [
+            createMockMatch({ result_home: 2, result_away: 1, outcome: '1' }),
+            createMockMatch({ result_home: 0, result_away: 0, outcome: 'X' }),
+          ],
         })
       )
 
       const result = await service.shouldArchive(1)
 
-      expect(result.should_archive).toBe(false)
-      expect(result.reason).toBe('Status is Open, not Completed')
+      expect(result.should_archive).toBe(true)
+      expect(result.reason).toBe('All matches have results')
     })
 
     it('returns should_archive: false when some matches lack results', async () => {
@@ -353,7 +384,7 @@ describe('DrawLifecycleService', () => {
       expect(result.reason).toBe('Not all matches have results')
     })
 
-    it('returns should_archive: true when draw is completed with all results', async () => {
+    it('returns should_archive: true when draw has all match results', async () => {
       mockPrisma.draws.findUnique.mockResolvedValue(
         createMockDraw({
           status: 'Completed',
@@ -368,7 +399,7 @@ describe('DrawLifecycleService', () => {
       const result = await service.shouldArchive(1)
 
       expect(result.should_archive).toBe(true)
-      expect(result.reason).toBe('Draw is completed with all results')
+      expect(result.reason).toBe('All matches have results')
       expect(result.is_current).toBe(true)
     })
 
@@ -419,6 +450,7 @@ describe('DrawLifecycleService', () => {
             },
           },
           data: {
+            status: 'Completed',
             is_current: false,
             archived_at: expect.any(Date),
           },
@@ -465,26 +497,27 @@ describe('DrawLifecycleService', () => {
       expect(result).toEqual({ checked: 0, archived: 0, errors: 0 })
     })
 
-    it('archives completed draws and counts correctly', async () => {
+    it('archives draws with all match results and skips incomplete draws', async () => {
       mockPrisma.draws.findMany.mockResolvedValue([
-        { draw_number: 1, status: 'Completed' },
-        { draw_number: 2, status: 'Open' },
+        { draw_number: 1, game_type: 'stryktipset', status: 'Completed' },
+        { draw_number: 2, game_type: 'stryktipset', status: 'Open' },
       ])
 
-      // First shouldArchive call returns should_archive: true
+      // First shouldArchive call - all matches have results, should archive
       mockPrisma.draws.findUnique
         .mockResolvedValueOnce(
           createMockDraw({
             draw_number: 1,
             status: 'Completed',
-            matches: [createMockMatch()],
+            matches: [createMockMatch()], // Has results
           })
         )
-        // Second shouldArchive call returns should_archive: false (not completed)
+        // Second shouldArchive call - matches without results, should NOT archive
         .mockResolvedValueOnce(
           createMockDraw({
             draw_number: 2,
             status: 'Open',
+            matches: [createMockMatch({ result_home: null, result_away: null, outcome: null })],
           })
         )
 
@@ -498,7 +531,9 @@ describe('DrawLifecycleService', () => {
     })
 
     it('counts errors when archive fails', async () => {
-      mockPrisma.draws.findMany.mockResolvedValue([{ draw_number: 1, status: 'Completed' }])
+      mockPrisma.draws.findMany.mockResolvedValue([
+        { draw_number: 1, game_type: 'stryktipset', status: 'Completed' },
+      ])
 
       mockPrisma.draws.findUnique.mockResolvedValue(
         createMockDraw({
@@ -592,6 +627,7 @@ describe('DrawLifecycleService', () => {
 
     it('returns error when draw is already archived', async () => {
       mockPrisma.draws.findUnique.mockResolvedValue({
+        id: 1,
         draw_number: 1,
         status: 'Completed',
         is_current: false,
@@ -603,26 +639,37 @@ describe('DrawLifecycleService', () => {
       expect(result.error).toBe('Draw is already archived')
     })
 
-    it('returns error when draw is not Completed and force is false', async () => {
+    it('returns error when not all matches have results and force is false', async () => {
       mockPrisma.draws.findUnique.mockResolvedValue({
+        id: 1,
         draw_number: 1,
         status: 'Open',
         is_current: true,
       })
+      // Simulate incomplete matches
+      mockPrisma.matches.findMany.mockResolvedValue([
+        { result_home: 2, result_away: 1, outcome: '1' },
+        { result_home: null, result_away: null, outcome: null },
+      ])
 
       const result = await service.manualArchiveDraw(1, false)
 
       expect(result.success).toBe(false)
       expect(result.error).toContain('Cannot archive')
-      expect(result.error).toContain('Open')
+      expect(result.error).toContain('not all matches have results')
     })
 
-    it('archives successfully when draw is Completed', async () => {
+    it('archives successfully when all matches have results', async () => {
       mockPrisma.draws.findUnique.mockResolvedValue({
+        id: 1,
         draw_number: 1,
-        status: 'Completed',
+        status: 'Closed', // API status doesn't matter
         is_current: true,
       })
+      mockPrisma.matches.findMany.mockResolvedValue([
+        { result_home: 2, result_away: 1, outcome: '1' },
+        { result_home: 0, result_away: 0, outcome: 'X' },
+      ])
       mockPrisma.draws.update.mockResolvedValue({})
 
       const result = await service.manualArchiveDraw(1)
@@ -631,12 +678,18 @@ describe('DrawLifecycleService', () => {
       expect(result.wasForced).toBe(false)
     })
 
-    it('force archives even when draw is not Completed', async () => {
+    it('force archives even when not all matches have results', async () => {
       mockPrisma.draws.findUnique.mockResolvedValue({
+        id: 1,
         draw_number: 1,
         status: 'Open',
         is_current: true,
       })
+      // Incomplete matches
+      mockPrisma.matches.findMany.mockResolvedValue([
+        { result_home: 2, result_away: 1, outcome: '1' },
+        { result_home: null, result_away: null, outcome: null },
+      ])
       mockPrisma.draws.update.mockResolvedValue({})
 
       const result = await service.manualArchiveDraw(1, true)
@@ -645,12 +698,17 @@ describe('DrawLifecycleService', () => {
       expect(result.wasForced).toBe(true)
     })
 
-    it('wasForced is false when force is used but draw was already Completed', async () => {
+    it('wasForced is false when force is used but all matches already have results', async () => {
       mockPrisma.draws.findUnique.mockResolvedValue({
+        id: 1,
         draw_number: 1,
         status: 'Completed',
         is_current: true,
       })
+      mockPrisma.matches.findMany.mockResolvedValue([
+        { result_home: 2, result_away: 1, outcome: '1' },
+        { result_home: 0, result_away: 0, outcome: 'X' },
+      ])
       mockPrisma.draws.update.mockResolvedValue({})
 
       const result = await service.manualArchiveDraw(1, true)
@@ -661,10 +719,14 @@ describe('DrawLifecycleService', () => {
 
     it('handles database error on update', async () => {
       mockPrisma.draws.findUnique.mockResolvedValue({
+        id: 1,
         draw_number: 1,
         status: 'Completed',
         is_current: true,
       })
+      mockPrisma.matches.findMany.mockResolvedValue([
+        { result_home: 2, result_away: 1, outcome: '1' },
+      ])
       mockPrisma.draws.update.mockRejectedValue(new Error('Update failed'))
 
       const result = await service.manualArchiveDraw(1)
@@ -675,10 +737,14 @@ describe('DrawLifecycleService', () => {
 
     it('uses correct game type', async () => {
       mockPrisma.draws.findUnique.mockResolvedValue({
+        id: 1,
         draw_number: 1,
         status: 'Completed',
         is_current: true,
       })
+      mockPrisma.matches.findMany.mockResolvedValue([
+        { result_home: 2, result_away: 1, outcome: '1' },
+      ])
       mockPrisma.draws.update.mockResolvedValue({})
 
       await service.manualArchiveDraw(1, false, 'topptipset')

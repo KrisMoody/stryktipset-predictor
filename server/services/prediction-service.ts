@@ -5,6 +5,7 @@ import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
 import { captureAIError } from '~/server/utils/bugsnag-helpers'
 import type { PredictionData, PredictionModel } from '~/types'
 import { calculateAICost } from '~/server/constants/ai-pricing'
+import { getMatchCalculations, type MatchCalculations } from './statistical-calculations'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Complex Prisma and AI API data */
 
@@ -99,8 +100,17 @@ export class PredictionService {
         5
       )
 
+      // Fetch statistical calculations (Dixon-Coles probabilities, EV, form metrics)
+      const calculations = await getMatchCalculations(matchId)
+
       // Prepare context for Claude
-      const context = this.prepareMatchContext(match, similarMatches, teamMatchups, userContext)
+      const context = this.prepareMatchContext(
+        match,
+        similarMatches,
+        teamMatchups,
+        userContext,
+        calculations
+      )
 
       // Generate prediction using Claude with game-specific prompt
       const prediction = await this.generatePrediction(context, matchId, model, userId, gameType)
@@ -129,7 +139,8 @@ export class PredictionService {
     match: any,
     similarMatches: any[],
     teamMatchups: any[],
-    userContext?: string
+    userContext?: string,
+    calculations?: MatchCalculations | null
   ): string {
     const parts: string[] = []
 
@@ -144,6 +155,173 @@ export class PredictionService {
       parts.push('IMPORTANT: Consider this user-provided information carefully in your analysis.')
       parts.push('If it significantly impacts your prediction (e.g., key player injuries,')
       parts.push('tactical changes, recent news), adjust your probabilities accordingly.')
+      parts.push('')
+      parts.push('')
+    }
+
+    // Statistical Model Baseline (Dixon-Coles probabilities, EV, form metrics)
+    if (calculations) {
+      parts.push('STATISTICAL MODEL BASELINE')
+      parts.push('=========================')
+      parts.push(
+        'The following probabilities are calculated using the Dixon-Coles bivariate Poisson model,'
+      )
+      parts.push(
+        'which incorporates team Elo ratings, attack/defense strengths, and home advantage.'
+      )
+      parts.push('Use these as a mathematical baseline, then adjust based on contextual factors.')
+      parts.push('')
+      parts.push(`Model Probabilities (Dixon-Coles):`)
+      parts.push(`  Home Win (1): ${(calculations.modelProbHome * 100).toFixed(1)}%`)
+      parts.push(`  Draw (X): ${(calculations.modelProbDraw * 100).toFixed(1)}%`)
+      parts.push(`  Away Win (2): ${(calculations.modelProbAway * 100).toFixed(1)}%`)
+      parts.push('')
+      parts.push(`Expected Goals:`)
+      parts.push(`  ${match.homeTeam.name}: ${calculations.expectedHomeGoals.toFixed(2)} xG`)
+      parts.push(`  ${match.awayTeam.name}: ${calculations.expectedAwayGoals.toFixed(2)} xG`)
+      parts.push('')
+
+      // Fair probabilities from odds (margin removed)
+      if (calculations.bookmakerMargin > 0) {
+        parts.push(
+          `Fair Probabilities (Odds with ${(calculations.bookmakerMargin * 100).toFixed(1)}% margin removed):`
+        )
+        parts.push(`  Home Win (1): ${(calculations.fairProbHome * 100).toFixed(1)}%`)
+        parts.push(`  Draw (X): ${(calculations.fairProbDraw * 100).toFixed(1)}%`)
+        parts.push(`  Away Win (2): ${(calculations.fairProbAway * 100).toFixed(1)}%`)
+        parts.push('')
+
+        // Model vs market disagreement
+        const homeDisagreement = Math.abs(calculations.modelProbHome - calculations.fairProbHome)
+        const drawDisagreement = Math.abs(calculations.modelProbDraw - calculations.fairProbDraw)
+        const awayDisagreement = Math.abs(calculations.modelProbAway - calculations.fairProbAway)
+
+        if (homeDisagreement > 0.1 || drawDisagreement > 0.1 || awayDisagreement > 0.1) {
+          parts.push('⚠️ MODEL DISAGREES WITH MARKET:')
+          if (homeDisagreement > 0.1) {
+            const direction =
+              calculations.modelProbHome > calculations.fairProbHome ? 'higher' : 'lower'
+            parts.push(
+              `  Model rates home win ${(homeDisagreement * 100).toFixed(1)}% ${direction} than market`
+            )
+          }
+          if (drawDisagreement > 0.1) {
+            const direction =
+              calculations.modelProbDraw > calculations.fairProbDraw ? 'higher' : 'lower'
+            parts.push(
+              `  Model rates draw ${(drawDisagreement * 100).toFixed(1)}% ${direction} than market`
+            )
+          }
+          if (awayDisagreement > 0.1) {
+            const direction =
+              calculations.modelProbAway > calculations.fairProbAway ? 'higher' : 'lower'
+            parts.push(
+              `  Model rates away win ${(awayDisagreement * 100).toFixed(1)}% ${direction} than market`
+            )
+          }
+          parts.push('')
+        }
+      }
+
+      // Expected Value analysis
+      if (calculations.evHome !== 0 || calculations.evDraw !== 0 || calculations.evAway !== 0) {
+        parts.push(`Expected Value (EV = model_prob × odds - 1):`)
+        parts.push(
+          `  EV Home: ${calculations.evHome > 0 ? '+' : ''}${(calculations.evHome * 100).toFixed(1)}%`
+        )
+        parts.push(
+          `  EV Draw: ${calculations.evDraw > 0 ? '+' : ''}${(calculations.evDraw * 100).toFixed(1)}%`
+        )
+        parts.push(
+          `  EV Away: ${calculations.evAway > 0 ? '+' : ''}${(calculations.evAway * 100).toFixed(1)}%`
+        )
+
+        // Highlight value opportunities (EV > 5%)
+        if (calculations.bestValueOutcome) {
+          const bestEV =
+            calculations.bestValueOutcome === '1'
+              ? calculations.evHome
+              : calculations.bestValueOutcome === 'X'
+                ? calculations.evDraw
+                : calculations.evAway
+          if (bestEV > 0.05) {
+            parts.push('')
+            parts.push(
+              `💰 VALUE OPPORTUNITY: ${calculations.bestValueOutcome} has +${(bestEV * 100).toFixed(1)}% expected value`
+            )
+          }
+        }
+        parts.push('')
+      }
+
+      // Form metrics
+      if (calculations.homeFormEma !== null || calculations.awayFormEma !== null) {
+        parts.push(`Form Metrics (EMA weighted):`)
+        if (calculations.homeFormEma !== null) {
+          parts.push(
+            `  ${match.homeTeam.name}: ${(calculations.homeFormEma * 100).toFixed(0)}% form`
+          )
+        }
+        if (calculations.awayFormEma !== null) {
+          parts.push(
+            `  ${match.awayTeam.name}: ${(calculations.awayFormEma * 100).toFixed(0)}% form`
+          )
+        }
+        parts.push('')
+      }
+
+      // xG trend (regression candidates)
+      if (calculations.homeXgTrend !== null || calculations.awayXgTrend !== null) {
+        parts.push(`xG Trend (last 5 games):`)
+        if (calculations.homeXgTrend !== null) {
+          const trend = calculations.homeXgTrend > 0 ? '+' : ''
+          parts.push(
+            `  ${match.homeTeam.name}: ${trend}${calculations.homeXgTrend.toFixed(2)} xGD/game`
+          )
+        }
+        if (calculations.awayXgTrend !== null) {
+          const trend = calculations.awayXgTrend > 0 ? '+' : ''
+          parts.push(
+            `  ${match.awayTeam.name}: ${trend}${calculations.awayXgTrend.toFixed(2)} xGD/game`
+          )
+        }
+        parts.push('')
+      }
+
+      // Regression warnings
+      if (calculations.homeRegressionFlag || calculations.awayRegressionFlag) {
+        parts.push('⚠️ REGRESSION WARNING:')
+        if (calculations.homeRegressionFlag) {
+          parts.push(
+            `  ${match.homeTeam.name} is ${calculations.homeRegressionFlag} their xG - expect regression`
+          )
+        }
+        if (calculations.awayRegressionFlag) {
+          parts.push(
+            `  ${match.awayTeam.name} is ${calculations.awayRegressionFlag} their xG - expect regression`
+          )
+        }
+        parts.push('')
+      }
+
+      // Contextual factors
+      if (calculations.homeRestDays !== null || calculations.awayRestDays !== null) {
+        parts.push(`Rest Days:`)
+        if (calculations.homeRestDays !== null) {
+          const fatigueWarning = calculations.homeRestDays < 3 ? ' ⚠️ FATIGUE RISK' : ''
+          parts.push(`  ${match.homeTeam.name}: ${calculations.homeRestDays} days${fatigueWarning}`)
+        }
+        if (calculations.awayRestDays !== null) {
+          const fatigueWarning = calculations.awayRestDays < 3 ? ' ⚠️ FATIGUE RISK' : ''
+          parts.push(`  ${match.awayTeam.name}: ${calculations.awayRestDays} days${fatigueWarning}`)
+        }
+        parts.push('')
+      }
+
+      // Data quality indicator
+      parts.push(
+        `Data Quality: ${calculations.dataQuality} (model version: ${calculations.modelVersion})`
+      )
       parts.push('')
       parts.push('')
     }
@@ -685,7 +863,16 @@ Game Context: TOPPTIPSET
             throw new Error(`Match ${matchId} not found`)
           }
 
-          const context = this.prepareMatchContext(match, [], [], options.contexts?.[matchId])
+          // Fetch statistical calculations for batch context
+          const calculations = await getMatchCalculations(matchId)
+
+          const context = this.prepareMatchContext(
+            match,
+            [],
+            [],
+            options.contexts?.[matchId],
+            calculations
+          )
 
           return {
             custom_id: `match_${matchId}`,

@@ -31,8 +31,9 @@ model leagues {
   updated_at DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
   // Relations
-  country countries @relation(fields: [country_id], references: [id], onDelete: Restrict)
-  matches matches[]
+  country        countries        @relation(fields: [country_id], references: [id], onDelete: Restrict)
+  matches        matches[]
+  league_mapping league_mappings?
 
   @@index([country_id])
 }
@@ -47,8 +48,11 @@ model teams {
   updated_at  DateTime @default(now()) @updatedAt @db.Timestamp(6)
 
   // Relations
-  home_matches matches[] @relation("HomeTeam")
-  away_matches matches[] @relation("AwayTeam")
+  home_matches   matches[]        @relation("HomeTeam")
+  away_matches   matches[]        @relation("AwayTeam")
+  team_mapping   team_mappings?
+  unmapped_entry unmapped_teams[]
+  team_ratings   team_ratings[]
 }
 
 // Pool game draws (rounds/coupons) - supports Stryktipset, Europatipset, Topptipset
@@ -130,6 +134,13 @@ model matches {
   created_at   DateTime  @default(now()) @db.Timestamp(6)
   updated_at   DateTime  @default(now()) @updatedAt @db.Timestamp(6)
 
+  // API-Football mapping
+  api_football_fixture_id   Int?
+  api_football_league_id    Int?
+  api_football_home_team_id Int?
+  api_football_away_team_id Int?
+  mapping_confidence        String? @db.VarChar(10) // 'high', 'medium', 'low'
+
   // Relations
   draws              draws                @relation(fields: [draw_id], references: [id], onDelete: Cascade)
   homeTeam           teams                @relation("HomeTeam", fields: [home_team_id], references: [id], onDelete: Restrict)
@@ -139,6 +150,7 @@ model matches {
   match_scraped_data match_scraped_data[]
   match_embeddings   match_embeddings[]
   predictions        predictions[]
+  match_calculations match_calculations?
 
   @@unique([draw_id, match_number])
   @@index([draw_id])
@@ -151,6 +163,8 @@ model matches {
   @@index([kambi_id])
   @@index([home_team_id, away_team_id])
   @@index([league_id, start_time])
+  @@index([api_football_fixture_id])
+  @@index([mapping_confidence])
 }
 
 // Odds data for matches
@@ -186,16 +200,20 @@ model match_odds {
 model match_scraped_data {
   id         Int      @id @default(autoincrement())
   match_id   Int
-  data_type  String   @db.VarChar(50) // "xStats", "statistics", "headToHead", "news"
+  data_type  String   @db.VarChar(50) // "xStats", "statistics", "headToHead", "news", "injuries", "lineup"
   data       Json // Flexible JSON storage for different data types
+  source     String   @default("web-scraping") @db.VarChar(50) // "web-scraping", "api-football", "cache"
+  is_stale   Boolean  @default(false)
   scraped_at DateTime @default(now()) @db.Timestamp(6)
 
   // Relations
   matches matches @relation(fields: [match_id], references: [id], onDelete: Cascade)
 
-  @@unique([match_id, data_type])
+  @@unique([match_id, data_type], name: "match_id_data_type")
   @@index([match_id])
   @@index([data_type])
+  @@index([source])
+  @@index([is_stale])
 }
 
 // Vector embeddings for similarity search
@@ -453,6 +471,234 @@ model user_profiles {
   @@index([user_id])
   @@index([email])
 }
+
+// =====================================================
+// API-FOOTBALL INTEGRATION TABLES
+// =====================================================
+
+// Team mappings between Svenska Spel and API-Football
+model team_mappings {
+  id                   Int       @id @default(autoincrement())
+  svenska_spel_team_id Int       @unique
+  api_football_team_id Int
+  confidence           String    @db.VarChar(10) // 'high', 'medium', 'low'
+  match_method         String    @db.VarChar(50) // 'betradar_id', 'kambi_id', 'fuzzy_match', 'manual'
+  similarity           Decimal?  @db.Decimal(5, 2) // Similarity score for fuzzy matches (0-100)
+  betradar_id          String?   @db.VarChar(100)
+  kambi_id             String?   @db.VarChar(100)
+  verified             Boolean   @default(false)
+  verified_by          String?   @db.VarChar(255)
+  verified_at          DateTime? @db.Timestamp(6)
+  created_at           DateTime  @default(now()) @db.Timestamp(6)
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+
+  // Relations
+  team teams @relation(fields: [svenska_spel_team_id], references: [id], onDelete: Cascade)
+
+  @@index([api_football_team_id])
+  @@index([confidence])
+  @@index([verified])
+}
+
+// League mappings between Svenska Spel and API-Football
+model league_mappings {
+  id                     Int       @id @default(autoincrement())
+  svenska_spel_league_id Int       @unique
+  api_football_league_id Int
+  confidence             String    @db.VarChar(10) // 'high', 'medium', 'low'
+  match_method           String    @db.VarChar(50) // 'exact', 'fuzzy_match', 'manual'
+  similarity             Decimal?  @db.Decimal(5, 2)
+  verified               Boolean   @default(false)
+  verified_by            String?   @db.VarChar(255)
+  verified_at            DateTime? @db.Timestamp(6)
+  created_at             DateTime  @default(now()) @db.Timestamp(6)
+  updated_at             DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+
+  // Relations
+  league leagues @relation(fields: [svenska_spel_league_id], references: [id], onDelete: Cascade)
+
+  @@index([api_football_league_id])
+  @@index([confidence])
+  @@index([verified])
+}
+
+// Teams that couldn't be automatically matched - for admin review
+model unmapped_teams {
+  id                   Int       @id @default(autoincrement())
+  svenska_spel_team_id Int
+  team_name            String    @db.VarChar(255)
+  league_name          String?   @db.VarChar(255)
+  country_name         String?   @db.VarChar(255)
+  betradar_id          String?   @db.VarChar(100)
+  kambi_id             String?   @db.VarChar(100)
+  best_candidates      Json? // Top 3 API-Football matches with scores
+  attempted_at         DateTime  @default(now()) @db.Timestamp(6)
+  retry_count          Int       @default(0)
+  notes                String?   @db.Text
+  resolved             Boolean   @default(false)
+  resolved_at          DateTime? @db.Timestamp(6)
+  resolved_by          String?   @db.VarChar(255)
+
+  // Relations
+  team teams @relation(fields: [svenska_spel_team_id], references: [id], onDelete: Cascade)
+
+  @@index([svenska_spel_team_id])
+  @@index([resolved])
+  @@index([attempted_at])
+}
+
+// API-Football response cache
+model api_football_cache {
+  id         Int      @id @default(autoincrement())
+  endpoint   String   @db.VarChar(255)
+  params     Json     @db.JsonB
+  response   Json     @db.JsonB
+  expires_at DateTime @db.Timestamp(6)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  @@unique([endpoint, params])
+  @@index([expires_at])
+  @@index([endpoint])
+}
+
+// API-Football usage tracking for quota monitoring
+model api_football_usage {
+  id               Int      @id @default(autoincrement())
+  endpoint         String   @db.VarChar(255)
+  params           Json?    @db.JsonB
+  status_code      Int
+  response_time_ms Int?
+  cached           Boolean  @default(false)
+  error_message    String?  @db.Text
+  created_at       DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([endpoint])
+  @@index([created_at])
+  @@index([status_code])
+  @@index([cached])
+}
+
+// Historical matches from API-Football for similarity search
+model historical_matches {
+  id                      Int      @id @default(autoincrement())
+  api_football_fixture_id Int      @unique
+  api_football_league_id  Int
+  season                  Int
+  home_team_id            Int? // API-Football team ID
+  away_team_id            Int? // API-Football team ID
+  home_team_name          String   @db.VarChar(255)
+  away_team_name          String   @db.VarChar(255)
+  match_date              DateTime @db.Timestamp(6)
+  status                  String   @db.VarChar(50) // 'FT', 'NS', etc.
+  score_home              Int?
+  score_away              Int?
+  outcome                 String?  @db.VarChar(5) // '1', 'X', '2'
+  venue_id                Int?
+  venue_name              String?  @db.VarChar(255)
+  statistics              Json?    @db.JsonB // Full match statistics
+  events                  Json?    @db.JsonB // Goals, cards, subs
+  lineups                 Json?    @db.JsonB // Starting lineups
+  has_statistics          Boolean  @default(false)
+  has_events              Boolean  @default(false)
+  has_lineups             Boolean  @default(false)
+  created_at              DateTime @default(now()) @db.Timestamp(6)
+  updated_at              DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+  @@index([api_football_league_id, season])
+  @@index([home_team_id, away_team_id])
+  @@index([match_date])
+  @@index([outcome])
+}
+
+// =====================================================
+// END API-FOOTBALL INTEGRATION TABLES
+// =====================================================
+
+// =====================================================
+// STATISTICAL CALCULATIONS TABLES
+// =====================================================
+
+// Team ratings for Elo-based strength tracking
+// Stores separate ratings for overall Elo, attack strength, and defense strength
+model team_ratings {
+  id              Int      @id @default(autoincrement())
+  team_id         Int
+  rating_type     String   @db.VarChar(20) // 'elo', 'attack', 'defense'
+  rating_value    Decimal  @db.Decimal(10, 4) // Elo: ~1500, Attack/Defense: ~1.0
+  model_version   String   @db.VarChar(20) // e.g., 'v1.0', 'v1.1'
+  matches_played  Int      @default(0) // Number of matches contributing to this rating
+  confidence      String   @db.VarChar(10) // 'low' (<5 matches), 'medium' (5-14), 'high' (15+)
+  last_match_date DateTime? @db.Timestamp(6) // Date of most recent match affecting this rating
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamp(6)
+
+  // Relations
+  team teams @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, rating_type, model_version])
+  @@index([team_id])
+  @@index([rating_type])
+  @@index([model_version])
+  @@index([confidence])
+}
+
+// Pre-calculated match statistics for fast prediction context
+// Stores Dixon-Coles probabilities, fair odds, EV, form metrics, and contextual factors
+model match_calculations {
+  id Int @id @default(autoincrement())
+  match_id Int @unique
+
+  // Dixon-Coles model outputs
+  model_prob_home     Decimal @db.Decimal(5, 4) // P(home win) from statistical model
+  model_prob_draw     Decimal @db.Decimal(5, 4) // P(draw) from statistical model
+  model_prob_away     Decimal @db.Decimal(5, 4) // P(away win) from statistical model
+  expected_home_goals Decimal @db.Decimal(5, 3) // λ_home (expected goals)
+  expected_away_goals Decimal @db.Decimal(5, 3) // λ_away (expected goals)
+
+  // Fair probabilities (bookmaker margin removed)
+  fair_prob_home   Decimal @db.Decimal(5, 4)
+  fair_prob_draw   Decimal @db.Decimal(5, 4)
+  fair_prob_away   Decimal @db.Decimal(5, 4)
+  bookmaker_margin Decimal @db.Decimal(5, 4) // Overround as decimal (e.g., 0.05 = 5%)
+
+  // Expected Value calculations (model prob vs market odds)
+  ev_home            Decimal  @db.Decimal(6, 4) // EV for home bet (can be negative)
+  ev_draw            Decimal  @db.Decimal(6, 4) // EV for draw bet
+  ev_away            Decimal  @db.Decimal(6, 4) // EV for away bet
+  best_value_outcome String?  @db.VarChar(5) // '1', 'X', '2', or null if no positive EV
+
+  // Form metrics (EMA-based)
+  home_form_ema Decimal? @db.Decimal(5, 4) // EMA form score 0-1 (null if insufficient data)
+  away_form_ema Decimal? @db.Decimal(5, 4)
+  home_xg_trend Decimal? @db.Decimal(5, 3) // xG differential trend (positive = improving)
+  away_xg_trend Decimal? @db.Decimal(5, 3)
+
+  // Regression flags
+  home_regression_flag String? @db.VarChar(20) // 'overperforming', 'underperforming', null
+  away_regression_flag String? @db.VarChar(20)
+
+  // Contextual factors
+  home_rest_days   Int? // Days since last match
+  away_rest_days   Int?
+  importance_score Decimal? @db.Decimal(5, 4) // 0-1 based on league position stakes
+
+  // Data quality indicator
+  data_quality  String @db.VarChar(10) // 'full', 'partial', 'minimal'
+  model_version String @db.VarChar(20) // e.g., 'v1.0'
+  calculated_at DateTime @default(now()) @db.Timestamp(6)
+
+  // Relations
+  match matches @relation(fields: [match_id], references: [id], onDelete: Cascade)
+
+  @@index([match_id])
+  @@index([data_quality])
+  @@index([calculated_at])
+  @@index([best_value_outcome])
+}
+
+// =====================================================
+// END STATISTICAL CALCULATIONS TABLES
+// =====================================================
 
 // Betting system definitions (R-systems and U-systems)
 // Data stored in Supabase, migrated from JSON files

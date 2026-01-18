@@ -1,6 +1,13 @@
 import { prisma } from '~/server/utils/prisma'
 import { createApiClient } from './svenska-spel-api'
 import { failedGamesService } from './failed-games-service'
+import { getMatchEnrichmentService } from './api-football'
+import {
+  recalculateDrawStatistics,
+  updateRatingsForCompletedMatch,
+} from './statistical-calculations'
+import { drawLifecycle } from './draw-lifecycle'
+import { drawCacheService } from './draw-cache-service'
 import type { DrawData, DrawEventData, ProviderIdData, GameType } from '~/types'
 import { DEFAULT_GAME_TYPE } from '~/types/game-types'
 import Anthropic from '@anthropic-ai/sdk'
@@ -534,6 +541,21 @@ If you cannot determine the country with confidence, respond: {"country": null}`
         )
       }
 
+      // Enrich matches with API-Football data (runs asynchronously, non-blocking)
+      // This maps teams/leagues to API-Football IDs for enhanced data fetching
+      this.enrichDrawMatches(draw.id).catch(err => {
+        console.warn(`[Draw Sync] Background enrichment failed for draw ${draw.id}:`, err)
+      })
+
+      // Calculate statistical metrics for predictions (runs asynchronously, non-blocking)
+      // This includes Dixon-Coles probabilities, Elo ratings, form metrics, and EV calculations
+      this.calculateStatistics(draw.id).catch(err => {
+        console.warn(
+          `[Draw Sync] Background statistics calculation failed for draw ${draw.id}:`,
+          err
+        )
+      })
+
       return { success: true, matchesProcessed }
     } catch (error) {
       console.error(`[Draw Sync] Error processing ${gameType} draw ${drawData.drawNumber}:`, error)
@@ -648,6 +670,18 @@ If you cannot determine the country with confidence, respond: {"country": null}`
       },
     })
 
+    // Update team ratings if match has a final result
+    if (resultHome !== null && resultAway !== null && matchData.status === 'FT') {
+      this.updateTeamRatings(match.id).catch(err => {
+        console.warn(`[Draw Sync] Background rating update failed for match ${match.id}:`, err)
+      })
+
+      // Check if this completes the draw (all matches have results)
+      this.checkAndArchiveCompletedDraw(drawId, gameType).catch(err => {
+        console.warn(`[Draw Sync] Background draw completion check failed for draw ${drawId}:`, err)
+      })
+    }
+
     // Process odds if available
     if (event.odds || event.startOdds || event.favouriteOdds || event.betMetrics) {
       await this.processMatchOdds(match.id, event, gameType)
@@ -747,6 +781,63 @@ If you cannot determine the country with confidence, respond: {"country": null}`
       })
     } catch (error) {
       console.warn('[Draw Sync] Error storing Svenska Folket data:', error)
+    }
+  }
+
+  /**
+   * Update team Elo ratings after a match completes
+   * Runs in background to not block the sync process
+   */
+  private async updateTeamRatings(matchId: number): Promise<void> {
+    try {
+      const result = await updateRatingsForCompletedMatch(matchId)
+      if (result) {
+        console.log(
+          `[Draw Sync] Updated ratings for match ${matchId}: ` +
+            `home=${result.home.elo.toFixed(0)}, away=${result.away.elo.toFixed(0)}`
+        )
+      }
+    } catch (error) {
+      console.warn(`[Draw Sync] Error updating ratings for match ${matchId}:`, error)
+    }
+  }
+
+  /**
+   * Check if a draw is complete (all matches have results) and archive it
+   * Runs in background after each match result is synced
+   */
+  private async checkAndArchiveCompletedDraw(drawId: number, gameType: GameType): Promise<void> {
+    try {
+      // Get draw info
+      const draw = await prisma.draws.findUnique({
+        where: { id: drawId },
+        select: { draw_number: true, is_current: true },
+      })
+
+      if (!draw || !draw.is_current) {
+        return // Draw not found or already archived
+      }
+
+      // Check if all matches have results
+      const isComplete = await drawLifecycle.checkDrawCompletion(drawId)
+      if (!isComplete) {
+        return // Not all matches have results yet
+      }
+
+      console.log(
+        `[Draw Sync] Draw ${draw.draw_number} (${gameType}) has all match results - archiving...`
+      )
+
+      // Archive the draw (sets status to Completed and is_current to false)
+      const success = await drawLifecycle.archiveDraw(draw.draw_number, gameType)
+      if (success) {
+        // Invalidate cache to reflect archived state
+        drawCacheService.invalidateDrawCache(draw.draw_number, gameType)
+        drawCacheService.invalidateCurrentDrawsCache(gameType)
+        console.log(`[Draw Sync] Draw ${draw.draw_number} (${gameType}) archived successfully`)
+      }
+    } catch (error) {
+      console.warn(`[Draw Sync] Error checking/archiving draw ${drawId}:`, error)
     }
   }
 
@@ -851,6 +942,41 @@ If you cannot determine the country with confidence, respond: {"country": null}`
       // Add 2ms offset for favourite odds
       const favouriteTime = new Date(baseTime.getTime() + 2)
       await processAndStoreOdds(event.favouriteOdds, 'favourite', favouriteTime)
+    }
+  }
+
+  /**
+   * Enrich draw matches with API-Football data
+   * Maps teams and leagues to API-Football IDs for enhanced data fetching
+   */
+  private async enrichDrawMatches(drawId: number): Promise<void> {
+    try {
+      const enrichmentService = getMatchEnrichmentService()
+      const result = await enrichmentService.enrichDraw(drawId)
+
+      console.log(
+        `[Draw Sync] Enrichment complete for draw ${drawId}: ${result.successful}/${result.total} matches mapped`
+      )
+    } catch (error) {
+      console.warn(`[Draw Sync] Error enriching draw ${drawId}:`, error)
+    }
+  }
+
+  /**
+   * Calculate statistical metrics for all matches in a draw
+   * Includes Dixon-Coles probabilities, Elo ratings, form metrics, and EV calculations
+   * Skips matches that already have calculations (unless data has changed)
+   */
+  private async calculateStatistics(drawId: number): Promise<void> {
+    try {
+      const result = await recalculateDrawStatistics(drawId)
+
+      console.log(
+        `[Draw Sync] Statistics calculation complete for draw ${drawId}: ` +
+          `${result.calculated} calculated, ${result.skipped} skipped, ${result.failed} failed`
+      )
+    } catch (error) {
+      console.warn(`[Draw Sync] Error calculating statistics for draw ${drawId}:`, error)
     }
   }
 }

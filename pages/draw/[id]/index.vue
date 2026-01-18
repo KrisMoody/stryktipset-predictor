@@ -118,13 +118,31 @@
                 <div class="md:col-span-9">
                   <div class="space-y-1">
                     <div class="font-semibold">
-                      {{ match.homeTeam.name }}
+                      <MatchTeamRatingTooltip
+                        :team-id="match.homeTeam.id"
+                        :team-name="match.homeTeam.name"
+                      >
+                        <span
+                          class="cursor-help border-b border-dotted border-gray-400 dark:border-gray-500"
+                        >
+                          {{ match.homeTeam.name }}
+                        </span>
+                      </MatchTeamRatingTooltip>
                       <span v-if="match.homeTeam.short_name" class="text-sm text-gray-500 ml-1"
                         >({{ match.homeTeam.short_name }})</span
                       >
                     </div>
                     <div class="font-semibold">
-                      {{ match.awayTeam.name }}
+                      <MatchTeamRatingTooltip
+                        :team-id="match.awayTeam.id"
+                        :team-name="match.awayTeam.name"
+                      >
+                        <span
+                          class="cursor-help border-b border-dotted border-gray-400 dark:border-gray-500"
+                        >
+                          {{ match.awayTeam.name }}
+                        </span>
+                      </MatchTeamRatingTooltip>
                       <span v-if="match.awayTeam.short_name" class="text-sm text-gray-500 ml-1"
                         >({{ match.awayTeam.short_name }})</span
                       >
@@ -365,6 +383,26 @@
                       aria-hidden="true"
                     />
                   </UButton>
+                  <UButton
+                    size="xs"
+                    :variant="expandedSections[match.id]?.model ? 'solid' : 'ghost'"
+                    color="primary"
+                    :aria-expanded="expandedSections[match.id]?.model ?? false"
+                    :aria-controls="`model-panel-${match.id}`"
+                    @click="toggleSection(match.id, 'model')"
+                  >
+                    <UIcon name="i-heroicons-calculator" class="w-3 h-3 mr-1" aria-hidden="true" />
+                    Model Analysis
+                    <UIcon
+                      :name="
+                        expandedSections[match.id]?.model
+                          ? 'i-heroicons-chevron-up'
+                          : 'i-heroicons-chevron-down'
+                      "
+                      class="w-3 h-3 ml-1"
+                      aria-hidden="true"
+                    />
+                  </UButton>
                 </div>
 
                 <!-- AI Analysis Section -->
@@ -427,6 +465,23 @@
                       :match-odds="match.match_odds"
                       :prediction="match.predictions?.[0]"
                       :scraped-data="match.match_scraped_data"
+                    />
+                  </div>
+                </Transition>
+
+                <!-- Model Analysis Section -->
+                <Transition name="slide">
+                  <div
+                    v-if="expandedSections[match.id]?.model"
+                    :id="`model-panel-${match.id}`"
+                    class="mb-4"
+                    role="region"
+                    aria-label="Modellanalys"
+                  >
+                    <MatchModelAnalysis
+                      :match-id="match.id"
+                      :home-team-name="match.homeTeam.name"
+                      :away-team-name="match.awayTeam.name"
                     />
                   </div>
                 </Transition>
@@ -642,6 +697,7 @@ interface ExpandedState {
   statistics: boolean
   h2h: boolean
   odds: boolean
+  model: boolean
 }
 const expandedSections = ref<Record<number, ExpandedState>>({})
 
@@ -653,6 +709,7 @@ const toggleSection = (matchId: number, section: keyof ExpandedState) => {
       statistics: false,
       h2h: false,
       odds: false,
+      model: false,
     }
   }
   expandedSections.value[matchId][section] = !expandedSections.value[matchId][section]
@@ -721,6 +778,7 @@ const hasOddsData = (match: any) => {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 interface Team {
+  id: number
   name: string
   short_name?: string
 }

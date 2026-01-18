@@ -621,16 +621,16 @@ model historical_matches {
 // Team ratings for Elo-based strength tracking
 // Stores separate ratings for overall Elo, attack strength, and defense strength
 model team_ratings {
-  id              Int      @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   team_id         Int
-  rating_type     String   @db.VarChar(20) // 'elo', 'attack', 'defense'
-  rating_value    Decimal  @db.Decimal(10, 4) // Elo: ~1500, Attack/Defense: ~1.0
-  model_version   String   @db.VarChar(20) // e.g., 'v1.0', 'v1.1'
-  matches_played  Int      @default(0) // Number of matches contributing to this rating
-  confidence      String   @db.VarChar(10) // 'low' (<5 matches), 'medium' (5-14), 'high' (15+)
+  rating_type     String    @db.VarChar(20) // 'elo', 'attack', 'defense'
+  rating_value    Decimal   @db.Decimal(10, 4) // Elo: ~1500, Attack/Defense: ~1.0
+  model_version   String    @db.VarChar(20) // e.g., 'v1.0', 'v1.1'
+  matches_played  Int       @default(0) // Number of matches contributing to this rating
+  confidence      String    @db.VarChar(10) // 'low' (<5 matches), 'medium' (5-14), 'high' (15+)
   last_match_date DateTime? @db.Timestamp(6) // Date of most recent match affecting this rating
-  created_at      DateTime @default(now()) @db.Timestamp(6)
-  updated_at      DateTime @default(now()) @updatedAt @db.Timestamp(6)
+  created_at      DateTime  @default(now()) @db.Timestamp(6)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamp(6)
 
   // Relations
   team teams @relation(fields: [team_id], references: [id], onDelete: Cascade)
@@ -645,7 +645,7 @@ model team_ratings {
 // Pre-calculated match statistics for fast prediction context
 // Stores Dixon-Coles probabilities, fair odds, EV, form metrics, and contextual factors
 model match_calculations {
-  id Int @id @default(autoincrement())
+  id       Int @id @default(autoincrement())
   match_id Int @unique
 
   // Dixon-Coles model outputs
@@ -662,10 +662,10 @@ model match_calculations {
   bookmaker_margin Decimal @db.Decimal(5, 4) // Overround as decimal (e.g., 0.05 = 5%)
 
   // Expected Value calculations (model prob vs market odds)
-  ev_home            Decimal  @db.Decimal(6, 4) // EV for home bet (can be negative)
-  ev_draw            Decimal  @db.Decimal(6, 4) // EV for draw bet
-  ev_away            Decimal  @db.Decimal(6, 4) // EV for away bet
-  best_value_outcome String?  @db.VarChar(5) // '1', 'X', '2', or null if no positive EV
+  ev_home            Decimal @db.Decimal(6, 4) // EV for home bet (can be negative)
+  ev_draw            Decimal @db.Decimal(6, 4) // EV for draw bet
+  ev_away            Decimal @db.Decimal(6, 4) // EV for away bet
+  best_value_outcome String? @db.VarChar(5) // '1', 'X', '2', or null if no positive EV
 
   // Form metrics (EMA-based)
   home_form_ema Decimal? @db.Decimal(5, 4) // EMA form score 0-1 (null if insufficient data)
@@ -683,8 +683,8 @@ model match_calculations {
   importance_score Decimal? @db.Decimal(5, 4) // 0-1 based on league position stakes
 
   // Data quality indicator
-  data_quality  String @db.VarChar(10) // 'full', 'partial', 'minimal'
-  model_version String @db.VarChar(20) // e.g., 'v1.0'
+  data_quality  String   @db.VarChar(10) // 'full', 'partial', 'minimal'
+  model_version String   @db.VarChar(20) // e.g., 'v1.0'
   calculated_at DateTime @default(now()) @db.Timestamp(6)
 
   // Relations

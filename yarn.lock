@@ -916,10 +916,10 @@
   dependencies:
     "@iconify/types" "*"
 
-"@iconify/collections@^1.0.628":
-  version "1.0.632"
-  resolved "https://registry.yarnpkg.com/@iconify/collections/-/collections-1.0.632.tgz#fca8c1a476e839f6c0166cd2aa099447eab3b558"
-  integrity sha512-7P03mskPh9cg6O/hnURtQ6nCNKamtKrTGHnVsGX6mJaTpsaLGlpsyGEpayS7trMLvtSvIgKhpN0SPzLwa8HKnA==
+"@iconify/collections@^1.0.636":
+  version "1.0.638"
+  resolved "https://registry.yarnpkg.com/@iconify/collections/-/collections-1.0.638.tgz#406aa2e0d7cc581368b4f3e38aee8a2c95ec4374"
+  integrity sha512-QP163IfZcCxwEghlKGzVZzYS2VZtdBkyc16LbqQ5s92VgL5oZ/9iQKBwLAPZihJxQb2gWtFQir5Fp25Rfs9YFw==
   dependencies:
     "@iconify/types" "*"
 
@@ -1348,12 +1348,12 @@
     unplugin "^2.3.10"
     unstorage "^1.17.2"
 
-"@nuxt/icon@^2.1.1":
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/@nuxt/icon/-/icon-2.1.1.tgz#e194459a41e4e7417cca452f636ae38c7e8a5537"
-  integrity sha512-KX991xA64ttUQYXnLFafOw8EYxmmGRtnd2z1P9PjMOeSxxLXxUL1v9fKH2njqtPkamiOI0fvthxfJpJ4uH71sw==
+"@nuxt/icon@^2.1.1", "@nuxt/icon@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@nuxt/icon/-/icon-2.2.0.tgz#ccf8aff3dfafd6bfa437e189ed7f405335cd712c"
+  integrity sha512-B7Ly5g/nZxHqnjAsApW9zwDLtvaWOAJbNXY0TNIeAD8CZ25T+vYJs7++9o5P8E+pCSg3rwEyGsM4UPRYH3mk3Q==
   dependencies:
-    "@iconify/collections" "^1.0.628"
+    "@iconify/collections" "^1.0.636"
     "@iconify/types" "^2.0.0"
     "@iconify/utils" "^3.1.0"
     "@iconify/vue" "^5.0.0"

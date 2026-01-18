@@ -32,6 +32,27 @@ export default defineNitroPlugin(nitroApp => {
 
     // Context and metadata
     onError: event => {
+      // Filter out transient network errors that are handled by retry logic
+      // These create noise and unnecessary GitHub issues via Bugsnag integration
+      const errorMessage = event.errors[0]?.errorMessage || ''
+      const errorClass = event.errors[0]?.errorClass || ''
+
+      const isTransientNetworkError =
+        errorMessage.includes('TimeoutError') ||
+        errorMessage.includes('The operation was aborted due to timeout') ||
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('ETIMEDOUT') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('socket hang up') ||
+        errorClass === 'TimeoutError' ||
+        errorClass === 'FetchError'
+
+      if (isTransientNetworkError) {
+        // Log locally for debugging but don't report to Bugsnag
+        console.warn(`[Bugsnag] Filtering transient network error: ${errorClass} - ${errorMessage}`)
+        return false
+      }
+
       // Add deployment information
       event.addMetadata('deployment', {
         platform: 'vercel',

@@ -450,36 +450,53 @@ export class SvenskaSpelApiClient {
   }
 
   /**
-   * Fetch current Topptipset draws using hybrid approach
+   * Fetch current Topptipset draws using datepicker API
    *
-   * Topptipset has no /draws list endpoint, so we:
-   * 1. Scrape current draw numbers from the page
-   * 2. Fetch each draw individually via multifetch API (with error isolation)
+   * Topptipset has no /draws list endpoint, but the datepicker API works
+   * and returns draws with their state (Open, Finalized, etc.)
+   *
+   * We query current and next month to handle month boundaries,
+   * then filter for Open draws and fetch each one.
    */
   private async fetchTopptipsetCurrentDraws(): Promise<{ draws: DrawData[] }> {
     try {
-      console.log('[Svenska Spel API] Fetching Topptipset draws via hybrid approach...')
+      console.log('[Svenska Spel API] Fetching Topptipset draws via datepicker API...')
 
-      // Step 1: Scrape current draw numbers from page using AI scraper
-      const config = useRuntimeConfig()
-      const { scrapeTopptipsetDrawNumbers } = await import('./scraper/topptipset-draw-numbers')
-      const drawNumbers = await scrapeTopptipsetDrawNumbers(config.aiScraperUrl)
+      // Step 1: Get current and next month for datepicker queries
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth() + 1 // 1-indexed
 
-      if (drawNumbers.length === 0) {
-        console.warn('[Svenska Spel API] No Topptipset draw numbers found')
+      // Calculate next month (handle year boundary)
+      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
+      const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear
+
+      // Step 2: Fetch available draws for current and next month
+      const [currentMonthData, nextMonthData] = await Promise.all([
+        this.fetchAvailableDraws(currentYear, currentMonth),
+        this.fetchAvailableDraws(nextYear, nextMonth),
+      ])
+
+      // Step 3: Combine and deduplicate draw numbers, filter for Open state
+      const allDraws = [...(currentMonthData.draws || []), ...(nextMonthData.draws || [])]
+      const openDrawNumbers = [
+        ...new Set(allDraws.filter(d => d.drawState === 'Open').map(d => d.drawNumber)),
+      ]
+
+      if (openDrawNumbers.length === 0) {
+        console.log('[Svenska Spel API] No open Topptipset draws found')
         return { draws: [] }
       }
 
       console.log(
-        `[Svenska Spel API] Fetching ${drawNumbers.length} Topptipset draws individually...`
+        `[Svenska Spel API] Found ${openDrawNumbers.length} open Topptipset draws: ${openDrawNumbers.join(', ')}`
       )
 
-      // Step 2: Fetch each draw individually with error isolation
-      // This prevents one failing draw from breaking all others
+      // Step 4: Fetch each open draw individually with error isolation
       const draws: DrawData[] = []
       const failedDraws: number[] = []
 
-      for (const drawNumber of drawNumbers) {
+      for (const drawNumber of openDrawNumbers) {
         try {
           const result = await this.fetchDrawWithMultifetch(drawNumber, false)
           draws.push(result.draw)
@@ -494,11 +511,13 @@ export class SvenskaSpelApiClient {
 
       if (failedDraws.length > 0) {
         console.warn(
-          `[Svenska Spel API] ${failedDraws.length}/${drawNumbers.length} Topptipset draws failed: ${failedDraws.join(', ')}`
+          `[Svenska Spel API] ${failedDraws.length}/${openDrawNumbers.length} Topptipset draws failed: ${failedDraws.join(', ')}`
         )
       }
 
-      console.log(`[Svenska Spel API] Found ${draws.length} Topptipset draws via hybrid approach`)
+      console.log(
+        `[Svenska Spel API] Successfully fetched ${draws.length} Topptipset draws via datepicker API`
+      )
 
       return { draws }
     } catch (error) {
@@ -507,7 +526,7 @@ export class SvenskaSpelApiClient {
       captureOperationError(error, {
         operation: 'api_call',
         service: 'svenska-spel',
-        metadata: { endpoint: 'topptipset-hybrid', method: 'GET', gameType: this.gameType },
+        metadata: { endpoint: 'topptipset-datepicker', method: 'GET', gameType: this.gameType },
       })
 
       throw new Error(`Failed to fetch Topptipset draws: ${error}`)

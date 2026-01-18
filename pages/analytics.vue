@@ -55,12 +55,12 @@
             </div>
             <div>
               <p class="text-sm text-gray-600 dark:text-gray-400">Accuracy</p>
-              <p class="text-3xl font-bold">{{ stats.accuracy.toFixed(1) }}%</p>
+              <p class="text-3xl font-bold">{{ stats.accuracy?.toFixed(1) ?? '0.0' }}%</p>
             </div>
             <div>
               <p class="text-sm text-gray-600 dark:text-gray-400">Avg Probability Score</p>
               <p class="text-3xl font-bold">
-                {{ (stats.averageProbabilityScore * 100).toFixed(1) }}%
+                {{ ((stats.averageProbabilityScore ?? 0) * 100).toFixed(1) }}%
               </p>
             </div>
           </div>
@@ -91,7 +91,7 @@
                 </p>
               </div>
               <div class="text-right">
-                <p class="text-2xl font-bold">{{ data.accuracy.toFixed(1) }}%</p>
+                <p class="text-2xl font-bold">{{ data.accuracy?.toFixed(1) ?? '0.0' }}%</p>
                 <p class="text-sm text-gray-600 dark:text-gray-400">accuracy</p>
               </div>
             </div>
@@ -113,7 +113,9 @@
               <div class="text-3xl font-bold mb-2">
                 {{ outcome }}
               </div>
-              <div class="text-2xl font-semibold mb-1">{{ data.accuracy.toFixed(1) }}%</div>
+              <div class="text-2xl font-semibold mb-1">
+                {{ data.accuracy?.toFixed(1) ?? '0.0' }}%
+              </div>
               <p class="text-sm text-gray-600 dark:text-gray-400">
                 {{ data.correct }} / {{ data.total }} correct
               </p>
@@ -150,7 +152,7 @@
               <div>
                 <p class="text-sm text-gray-600 dark:text-gray-400">Model Accuracy</p>
                 <p class="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                  {{ modelPerformance.modelAccuracy.toFixed(1) }}%
+                  {{ modelPerformance.modelAccuracy?.toFixed(1) ?? '0.0' }}%
                 </p>
               </div>
               <div>
@@ -165,16 +167,16 @@
                 <p
                   class="text-3xl font-bold"
                   :class="
-                    modelPerformance.valueOpportunities.hitRate > 33
+                    (modelPerformance.valueOpportunities?.hitRate ?? 0) > 33
                       ? 'text-green-600 dark:text-green-400'
                       : ''
                   "
                 >
-                  {{ modelPerformance.valueOpportunities.hitRate.toFixed(1) }}%
+                  {{ modelPerformance.valueOpportunities?.hitRate?.toFixed(1) ?? '0.0' }}%
                 </p>
                 <p class="text-xs text-gray-500">
-                  {{ modelPerformance.valueOpportunities.correct }}/{{
-                    modelPerformance.valueOpportunities.total
+                  {{ modelPerformance.valueOpportunities?.correct ?? 0 }}/{{
+                    modelPerformance.valueOpportunities?.total ?? 0
                   }}
                   value bets
                 </p>
@@ -202,9 +204,11 @@
                     <tr v-for="bucket in modelPerformance.calibration" :key="bucket.range">
                       <td class="px-3 py-2">{{ bucket.range }}</td>
                       <td class="px-3 py-2 text-center">
-                        {{ (bucket.predicted * 100).toFixed(1) }}%
+                        {{ ((bucket.predicted ?? 0) * 100).toFixed(1) }}%
                       </td>
-                      <td class="px-3 py-2 text-center">{{ (bucket.actual * 100).toFixed(1) }}%</td>
+                      <td class="px-3 py-2 text-center">
+                        {{ ((bucket.actual ?? 0) * 100).toFixed(1) }}%
+                      </td>
                       <td class="px-3 py-2 text-center">{{ bucket.count }}</td>
                       <td class="px-3 py-2 text-center">
                         <span :class="getCalibrationClass(bucket.predicted, bucket.actual)">
@@ -264,7 +268,7 @@
             <div>
               <p class="text-sm text-gray-600 dark:text-gray-400">Success Rate</p>
               <p class="text-3xl font-bold">
-                {{ scraperHealth.last24Hours.successRate.toFixed(1) }}%
+                {{ scraperHealth.last24Hours?.successRate?.toFixed(1) ?? '0.0' }}%
               </p>
             </div>
           </div>

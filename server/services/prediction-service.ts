@@ -487,6 +487,47 @@ export class PredictionService {
       parts.push('')
     }
 
+    // Injuries from API-Football (separate from lineup data)
+    const injuriesData = match.match_scraped_data?.find((d: any) => d.data_type === 'injuries')
+    if (injuriesData?.data?.injuries?.length > 0) {
+      parts.push('PLAYER INJURIES & ABSENCES')
+      parts.push('==========================')
+      parts.push('(Source: API-Football)')
+      parts.push('')
+
+      const injuries = injuriesData.data.injuries
+      const homeInjuries = injuries.filter(
+        (inj: any) => inj.teamId === injuriesData.data.homeTeamId
+      )
+      const awayInjuries = injuries.filter(
+        (inj: any) => inj.teamId === injuriesData.data.awayTeamId
+      )
+
+      if (homeInjuries.length > 0) {
+        parts.push(`${match.homeTeam.name}:`)
+        for (const injury of homeInjuries) {
+          const severityEmoji =
+            injury.severity === 'severe' ? '🔴' : injury.severity === 'moderate' ? '🟡' : '🟢'
+          parts.push(`  ${severityEmoji} ${injury.playerName} - ${injury.type} (${injury.reason})`)
+        }
+        parts.push('')
+      }
+
+      if (awayInjuries.length > 0) {
+        parts.push(`${match.awayTeam.name}:`)
+        for (const injury of awayInjuries) {
+          const severityEmoji =
+            injury.severity === 'severe' ? '🔴' : injury.severity === 'moderate' ? '🟡' : '🟢'
+          parts.push(`  ${severityEmoji} ${injury.playerName} - ${injury.type} (${injury.reason})`)
+        }
+        parts.push('')
+      }
+
+      // Add severity legend
+      parts.push('Severity: 🔴 Out/Missing | 🟡 Moderate | 🟢 Questionable/Minor')
+      parts.push('')
+    }
+
     // Team statistics
     const statsData = match.match_scraped_data?.find((d: any) => d.data_type === 'statistics')
     if (statsData?.data) {

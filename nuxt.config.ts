@@ -76,6 +76,12 @@ export default defineNuxtConfig({
         process.env.RAPID_API_FOOTBALL_CIRCUIT_BREAKER_TIMEOUT_MS || '300000',
         10
       ),
+      // Data enrichment configuration
+      fetchDuringEnrichment: process.env.API_FOOTBALL_FETCH_DURING_ENRICHMENT === 'true',
+      dataTypes: (process.env.API_FOOTBALL_DATA_TYPES || 'statistics,headToHead,injuries').split(
+        ','
+      ),
+      skipScrapingWhenAvailable: process.env.API_FOOTBALL_SKIP_SCRAPING_WHEN_AVAILABLE === 'true',
     },
 
     // Bugsnag configuration (server-side)

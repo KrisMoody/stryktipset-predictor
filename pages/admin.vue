@@ -718,6 +718,147 @@
         </UCard>
       </div>
 
+      <!-- Team Ratings Section -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-semibold">Team Ratings</h2>
+          <div class="flex gap-2">
+            <USelect
+              v-model="teamRatingsConfidenceFilter"
+              :items="confidenceFilterOptions"
+              size="sm"
+              class="w-32"
+              aria-label="Filter by confidence"
+            />
+            <UButton
+              size="xs"
+              variant="ghost"
+              icon="i-heroicons-arrow-path"
+              :loading="loadingTeamRatings"
+              @click="loadTeamRatings"
+            >
+              Refresh
+            </UButton>
+          </div>
+        </div>
+
+        <UCard>
+          <div v-if="loadingTeamRatings" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
+          </div>
+          <div v-else-if="teamRatingsData?.data" class="space-y-4">
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-4 gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+              <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Total Teams</p>
+                <p class="text-xl font-bold">{{ teamRatingsData.data.summary.totalTeams }}</p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">High Confidence</p>
+                <p class="text-xl font-bold text-green-600 dark:text-green-400">
+                  {{ teamRatingsData.data.summary.confidenceCounts.high }}
+                </p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Medium Confidence</p>
+                <p class="text-xl font-bold text-yellow-600 dark:text-yellow-400">
+                  {{ teamRatingsData.data.summary.confidenceCounts.medium }}
+                </p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Low Confidence</p>
+                <p class="text-xl font-bold text-red-600 dark:text-red-400">
+                  {{ teamRatingsData.data.summary.confidenceCounts.low }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Team List -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th class="px-3 py-2 text-left font-medium">Team</th>
+                    <th class="px-3 py-2 text-center font-medium">Elo</th>
+                    <th class="px-3 py-2 text-center font-medium">Attack</th>
+                    <th class="px-3 py-2 text-center font-medium">Defense</th>
+                    <th class="px-3 py-2 text-center font-medium">Matches</th>
+                    <th class="px-3 py-2 text-center font-medium">Confidence</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                  <tr v-for="team in teamRatingsData.data.teams" :key="team.teamId">
+                    <td class="px-3 py-2">
+                      <span class="font-medium">{{ team.teamName }}</span>
+                      <span v-if="team.shortName" class="text-gray-500 ml-1"
+                        >({{ team.shortName }})</span
+                      >
+                    </td>
+                    <td class="px-3 py-2 text-center font-medium">{{ team.elo.toFixed(0) }}</td>
+                    <td
+                      class="px-3 py-2 text-center"
+                      :class="
+                        team.attack > 1
+                          ? 'text-green-600 dark:text-green-400'
+                          : team.attack < 1
+                            ? 'text-red-600 dark:text-red-400'
+                            : ''
+                      "
+                    >
+                      {{ team.attack.toFixed(2) }}
+                    </td>
+                    <td
+                      class="px-3 py-2 text-center"
+                      :class="
+                        team.defense < 1
+                          ? 'text-green-600 dark:text-green-400'
+                          : team.defense > 1
+                            ? 'text-red-600 dark:text-red-400'
+                            : ''
+                      "
+                    >
+                      {{ team.defense.toFixed(2) }}
+                    </td>
+                    <td class="px-3 py-2 text-center">{{ team.matchesPlayed }}</td>
+                    <td class="px-3 py-2 text-center">
+                      <UBadge
+                        :color="
+                          team.confidence === 'high'
+                            ? 'success'
+                            : team.confidence === 'medium'
+                              ? 'warning'
+                              : 'error'
+                        "
+                        variant="soft"
+                        size="xs"
+                      >
+                        {{ team.confidence }}
+                      </UBadge>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <div v-if="teamRatingsData.data.pagination.hasMore" class="flex justify-center pt-4">
+              <UButton
+                size="sm"
+                variant="soft"
+                :loading="loadingMoreTeamRatings"
+                @click="loadMoreTeamRatings"
+              >
+                Load More
+              </UButton>
+            </div>
+          </div>
+          <div v-else class="text-center py-8 text-gray-500">
+            <p>No team ratings found.</p>
+            <p class="text-sm mt-1">Run the init-team-ratings script to initialize ratings.</p>
+          </div>
+        </UCard>
+      </div>
+
       <!-- AI Metrics Section -->
       <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
@@ -1157,6 +1298,21 @@ const datePresetOptions = [
   { label: 'Last month', value: 'lastMonth' },
 ]
 
+// Team Ratings states
+const loadingTeamRatings = ref(false)
+const loadingMoreTeamRatings = ref(false)
+const teamRatingsConfidenceFilter = ref('all')
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
+const teamRatingsData = ref<any>(null)
+const teamRatingsOffset = ref(0)
+
+const confidenceFilterOptions = [
+  { label: 'All', value: 'all' },
+  { label: 'Low', value: 'low' },
+  { label: 'Medium', value: 'medium' },
+  { label: 'High', value: 'high' },
+]
+
 // Scraper Metrics states
 const loadingScraperMetrics = ref(false)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
@@ -1235,6 +1391,7 @@ onMounted(async () => {
     loadCurrentDraws(),
     loadPendingFinalization(),
     loadFailedGames(),
+    loadTeamRatings(),
   ])
 
   // Refresh schedule status every minute
@@ -1708,4 +1865,52 @@ function getRecommendationColor(priority: string): string {
 watch(aiMetricsPreset, () => {
   loadAiMetrics()
 })
+
+// Watch for team ratings confidence filter changes
+watch(teamRatingsConfidenceFilter, () => {
+  teamRatingsOffset.value = 0
+  loadTeamRatings()
+})
+
+// Team Ratings functions
+async function loadTeamRatings() {
+  loadingTeamRatings.value = true
+  teamRatingsOffset.value = 0
+  try {
+    const query: Record<string, string> = { limit: '50', offset: '0' }
+    if (teamRatingsConfidenceFilter.value !== 'all') {
+      query.confidence = teamRatingsConfidenceFilter.value
+    }
+    teamRatingsData.value = await $fetch('/api/admin/team-ratings', { query })
+  } catch (error) {
+    console.error('Error loading team ratings:', error)
+    teamRatingsData.value = { success: false, error: 'Failed to load' }
+  } finally {
+    loadingTeamRatings.value = false
+  }
+}
+
+async function loadMoreTeamRatings() {
+  loadingMoreTeamRatings.value = true
+  try {
+    const newOffset = teamRatingsOffset.value + 50
+    const query: Record<string, string> = { limit: '50', offset: String(newOffset) }
+    if (teamRatingsConfidenceFilter.value !== 'all') {
+      query.confidence = teamRatingsConfidenceFilter.value
+    }
+    const moreData = await $fetch<{
+      success: boolean
+      data?: { teams: unknown[]; pagination: { hasMore: boolean } }
+    }>('/api/admin/team-ratings', { query })
+    if (moreData.success && moreData.data) {
+      teamRatingsData.value.data.teams.push(...moreData.data.teams)
+      teamRatingsData.value.data.pagination = moreData.data.pagination
+      teamRatingsOffset.value = newOffset
+    }
+  } catch (error) {
+    console.error('Error loading more team ratings:', error)
+  } finally {
+    loadingMoreTeamRatings.value = false
+  }
+}
 </script>

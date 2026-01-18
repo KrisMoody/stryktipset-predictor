@@ -35,7 +35,19 @@
       "Bash(fi)",
       "Bash(done)",
       "Bash(gh issue view:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(openspec list:*)",
+      "Bash(openspec show:*)",
+      "Bash(openspec validate:*)",
+      "Bash(npx prisma:*)",
+      "Skill(openspec:archive)",
+      "Skill(openspec:archive:*)",
+      "Bash(openspec archive:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx nuxi prepare:*)",
+      "Bash(npx openspec:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd statistical calculations system with Dixon-Coles model\n\nImplement a comprehensive statistical model for football match prediction:\n\n- Elo rating system with separate attack/defense strength components\n- Dixon-Coles bivariate Poisson model for 1X2 probabilities\n- Form calculator with EMA smoothing and xG trend analysis\n- Value calculator with fair odds, EV, and Kelly Criterion sizing\n- Integration with prediction service to enhance AI prompts\n- Admin UI components for model analysis and team ratings\n- Auto-close completed draws based on match status\n- Database migrations for team_ratings and match_calculations tables\n- Scripts for rating initialization, backfilling, and model validation\n- OpenSpec documentation and proposals for the feature\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ],
     "deny": [],
     "ask": []

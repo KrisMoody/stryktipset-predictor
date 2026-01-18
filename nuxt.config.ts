@@ -45,6 +45,39 @@ export default defineNuxtConfig({
     allowedEmails: process.env.ALLOWED_EMAILS || '',
     supabaseSecretKey: process.env.SUPABASE_SECRET_KEY || '',
 
+    // API-Football configuration
+    apiFootball: {
+      apiKey: process.env.API_FOOTBALL_API_KEY || '',
+      baseUrl: process.env.API_FOOTBALL_BASE_URL || 'https://v3.football.api-sports.io',
+      enabled: process.env.ENABLE_API_FOOTBALL === 'true',
+      maxRequestsPerMinute: parseInt(process.env.API_FOOTBALL_MAX_REQUESTS_PER_MINUTE || '2', 10),
+      circuitBreakerThreshold: parseInt(
+        process.env.API_FOOTBALL_CIRCUIT_BREAKER_THRESHOLD || '3',
+        10
+      ),
+      circuitBreakerTimeoutMs: parseInt(
+        process.env.API_FOOTBALL_CIRCUIT_BREAKER_TIMEOUT_MS || '300000',
+        10
+      ),
+      // RapidAPI alternative endpoint configuration
+      rapidApiKey: process.env.RAPID_API_KEY || '',
+      rapidApiBaseUrl:
+        process.env.RAPID_API_FOOTBALL_BASE_URL || 'https://api-football-v1.p.rapidapi.com/v3',
+      rapidApiHost: process.env.RAPID_API_FOOTBALL_HOST || 'api-football-v1.p.rapidapi.com',
+      rapidApiMaxRequestsPerMinute: parseInt(
+        process.env.RAPID_API_FOOTBALL_MAX_REQUESTS_PER_MINUTE || '2',
+        10
+      ),
+      rapidApiCircuitBreakerThreshold: parseInt(
+        process.env.RAPID_API_FOOTBALL_CIRCUIT_BREAKER_THRESHOLD || '3',
+        10
+      ),
+      rapidApiCircuitBreakerTimeoutMs: parseInt(
+        process.env.RAPID_API_FOOTBALL_CIRCUIT_BREAKER_TIMEOUT_MS || '300000',
+        10
+      ),
+    },
+
     // Bugsnag configuration (server-side)
     bugsnagApiKey: process.env.BUGSNAG_API_KEY || '',
     bugsnagReleaseStage: process.env.BUGSNAG_RELEASE_STAGE || 'production',

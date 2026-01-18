@@ -150,13 +150,11 @@ class FailedGamesService {
    * Delete a failed game record (e.g., after successful match creation)
    */
   async deleteFailedGame(drawId: number, matchNumber: number): Promise<void> {
-    try {
-      await prisma.failed_games.delete({
-        where: { draw_id_match_number: { draw_id: drawId, match_number: matchNumber } },
-      })
+    const deleted = await prisma.failed_games.deleteMany({
+      where: { draw_id: drawId, match_number: matchNumber },
+    })
+    if (deleted.count > 0) {
       console.log(`[FailedGames] Deleted failed game record: draw ${drawId}, match ${matchNumber}`)
-    } catch {
-      // Record might not exist, which is fine
     }
   }
 

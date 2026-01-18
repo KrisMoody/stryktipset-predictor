@@ -49,10 +49,15 @@ class ProgressiveScraper {
             include: {
               match_scraped_data: {
                 where: {
-                  data_type: { in: ['xStats', 'statistics', 'headToHead'] },
+                  data_type: { in: ['xStats', 'statistics', 'headToHead', 'lineup', 'injuries'] },
                 },
                 orderBy: {
                   scraped_at: 'desc',
+                },
+                select: {
+                  data_type: true,
+                  scraped_at: true,
+                  source: true,
                 },
               },
             },
@@ -102,6 +107,15 @@ class ProgressiveScraper {
         }
 
         const thresholdTime = new Date(Date.now() - thresholdHours * 60 * 60 * 1000)
+        // API-Football data has a longer freshness period (24h)
+        const apiFootballThresholdTime = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+        // Get runtime config for skipScrapingWhenAvailable setting
+        const runtimeConfig = useRuntimeConfig()
+        const apiFootballConfig = runtimeConfig.apiFootball as {
+          skipScrapingWhenAvailable?: boolean
+        }
+        const skipWhenApiAvailable = apiFootballConfig?.skipScrapingWhenAvailable ?? false
 
         for (const match of draw.matches) {
           // Check which data types need refreshing
@@ -109,6 +123,17 @@ class ProgressiveScraper {
 
           for (const dataType of dataTypes) {
             const latestScrape = match.match_scraped_data.find(d => d.data_type === dataType)
+
+            // Skip scraping if API-Football data is fresh and skipWhenApiAvailable is enabled
+            if (skipWhenApiAvailable && latestScrape?.source === 'api-football') {
+              // API-Football data uses longer threshold (24h)
+              if (latestScrape.scraped_at >= apiFootballThresholdTime) {
+                console.log(
+                  `[Progressive Scraper] Skipping ${dataType} for match ${match.id} - API-Football data is fresh`
+                )
+                continue // Data is fresh, skip this type
+              }
+            }
 
             if (!latestScrape || latestScrape.scraped_at < thresholdTime) {
               staleDataTypes.push(dataType)

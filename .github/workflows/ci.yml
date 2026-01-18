@@ -253,7 +253,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: nuxt-build
           path: .output
@@ -336,7 +336,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: nuxt-build
           path: .output

@@ -322,7 +322,11 @@ export class MatchEnrichmentService {
         cacheTtlSeconds: 30 * 24 * 60 * 60, // Cache for 30 days
       })
 
-      if (!response.response || response.response.length === 0) {
+      if (
+        !response.response ||
+        !Array.isArray(response.response) ||
+        response.response.length === 0
+      ) {
         return null
       }
 

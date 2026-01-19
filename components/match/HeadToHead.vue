@@ -137,15 +137,47 @@ const props = defineProps<{
 
 const showAll = ref(false)
 
-// Extract H2H data
+// Extract H2H data (handles both web-scraped and API-Football formats)
 const h2hData = computed((): HeadToHeadData | null => {
   if (!props.scrapedData) return null
   const h2h = props.scrapedData.find(d => d.data_type === 'headToHead')
   if (!h2h?.data) return null
-  const data = h2h.data as HeadToHeadData
-  // Validate that data has required shape
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = h2h.data as any
+
+  // Check if data is in API-Football format (has lastMatches instead of matches)
+  if ('lastMatches' in data && !('matches' in data)) {
+    // Normalize API-Football format to UI format
+    return {
+      matches: data.lastMatches.map(
+        (m: {
+          date: string
+          homeTeamName: string
+          awayTeamName: string
+          homeGoals: number
+          awayGoals: number
+          league?: string
+        }) => ({
+          date: m.date,
+          homeTeam: m.homeTeamName,
+          awayTeam: m.awayTeamName,
+          score: `${m.homeGoals}-${m.awayGoals}`,
+          competition: m.league,
+        })
+      ),
+      summary: {
+        homeWins: data.homeWins || 0,
+        draws: data.draws || 0,
+        awayWins: data.awayWins || 0,
+        totalMatches: data.totalMatches || data.lastMatches?.length || 0,
+      },
+    }
+  }
+
+  // Standard web-scraped format - validate that data has required shape
   if (!('matches' in data)) return null
-  return data
+  return data as HeadToHeadData
 })
 
 // Calculate percentages for visual bar

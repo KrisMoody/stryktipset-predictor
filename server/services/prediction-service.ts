@@ -528,6 +528,329 @@ export class PredictionService {
       parts.push('')
     }
 
+    // API-Football Predictions (External Model Comparison)
+    const apiPredictionsData = match.match_scraped_data?.find(
+      (d: any) => d.data_type === 'api_predictions'
+    )
+    if (apiPredictionsData?.data) {
+      parts.push('EXTERNAL MODEL COMPARISON')
+      parts.push('=========================')
+      parts.push('(Source: API-Football AI predictions)')
+      parts.push('')
+
+      const pred = apiPredictionsData.data
+      if (pred.predictions) {
+        parts.push('Win Probabilities:')
+        parts.push(`  Home Win: ${pred.predictions.percent?.home || 'N/A'}`)
+        parts.push(`  Draw: ${pred.predictions.percent?.draw || 'N/A'}`)
+        parts.push(`  Away Win: ${pred.predictions.percent?.away || 'N/A'}`)
+        parts.push('')
+
+        if (pred.predictions.winner) {
+          parts.push(
+            `Predicted Winner: ${pred.predictions.winner.name} (${pred.predictions.winner.comment || ''})`
+          )
+        }
+        if (pred.predictions.advice) {
+          parts.push(`Betting Advice: ${pred.predictions.advice}`)
+        }
+        if (pred.predictions.goals) {
+          parts.push(
+            `Expected Goals: Home ${pred.predictions.goals.home}, Away ${pred.predictions.goals.away}`
+          )
+        }
+        parts.push('')
+      }
+
+      if (pred.comparison) {
+        parts.push('Team Comparison Metrics:')
+        if (pred.comparison.form) {
+          parts.push(`  Form: Home ${pred.comparison.form.home}, Away ${pred.comparison.form.away}`)
+        }
+        if (pred.comparison.attack) {
+          parts.push(
+            `  Attack: Home ${pred.comparison.attack.home}, Away ${pred.comparison.attack.away}`
+          )
+        }
+        if (pred.comparison.defense) {
+          parts.push(
+            `  Defense: Home ${pred.comparison.defense.home}, Away ${pred.comparison.defense.away}`
+          )
+        }
+        if (pred.comparison.total) {
+          parts.push(
+            `  Overall: Home ${pred.comparison.total.home}, Away ${pred.comparison.total.away}`
+          )
+        }
+        parts.push('')
+      }
+
+      // Flag discrepancies between API-Football predictions and our model
+      if (calculations && pred.predictions?.percent) {
+        const apiHomePercent = parseFloat(pred.predictions.percent.home?.replace('%', '') || '0')
+        const apiDrawPercent = parseFloat(pred.predictions.percent.draw?.replace('%', '') || '0')
+        const apiAwayPercent = parseFloat(pred.predictions.percent.away?.replace('%', '') || '0')
+
+        const homeDiscrepancy = Math.abs(calculations.modelProbHome * 100 - apiHomePercent)
+        const drawDiscrepancy = Math.abs(calculations.modelProbDraw * 100 - apiDrawPercent)
+        const awayDiscrepancy = Math.abs(calculations.modelProbAway * 100 - apiAwayPercent)
+
+        if (homeDiscrepancy > 15 || drawDiscrepancy > 15 || awayDiscrepancy > 15) {
+          parts.push('⚠️ PREDICTION DISCREPANCY:')
+          parts.push('Our Dixon-Coles model differs from API-Football by >15%:')
+          if (homeDiscrepancy > 15) {
+            parts.push(
+              `  Home Win: Our model ${(calculations.modelProbHome * 100).toFixed(1)}% vs API-Football ${apiHomePercent}%`
+            )
+          }
+          if (drawDiscrepancy > 15) {
+            parts.push(
+              `  Draw: Our model ${(calculations.modelProbDraw * 100).toFixed(1)}% vs API-Football ${drawDiscrepancy}%`
+            )
+          }
+          if (awayDiscrepancy > 15) {
+            parts.push(
+              `  Away Win: Our model ${(calculations.modelProbAway * 100).toFixed(1)}% vs API-Football ${apiAwayPercent}%`
+            )
+          }
+          parts.push('Consider investigating the cause of this discrepancy.')
+          parts.push('')
+        }
+      }
+    }
+
+    // Team Season Statistics (from API-Football)
+    const teamSeasonStatsData = match.match_scraped_data?.find(
+      (d: any) => d.data_type === 'team_season_stats'
+    )
+    if (teamSeasonStatsData?.data) {
+      parts.push('TEAM SEASON STATISTICS')
+      parts.push('======================')
+      parts.push('(Source: API-Football)')
+      parts.push('')
+
+      const stats = teamSeasonStatsData.data
+
+      if (stats.homeTeam) {
+        const home = stats.homeTeam
+        parts.push(`${home.name} (Season ${stats.season}):`)
+        if (home.form) {
+          parts.push(`  Form: ${home.form}`)
+        }
+        if (home.fixtures) {
+          const f = home.fixtures
+          parts.push(
+            `  Played: ${f.played?.total || 0} (Home: ${f.played?.home || 0}, Away: ${f.played?.away || 0})`
+          )
+          parts.push(
+            `  Wins: ${f.wins?.total || 0} (Home: ${f.wins?.home || 0}, Away: ${f.wins?.away || 0})`
+          )
+          parts.push(`  Draws: ${f.draws?.total || 0}`)
+          parts.push(`  Losses: ${f.loses?.total || 0}`)
+        }
+        if (home.goals) {
+          const g = home.goals
+          parts.push(
+            `  Goals For: ${g.for?.total?.total || 0} (Avg: ${g.for?.average?.total || 'N/A'}/game)`
+          )
+          parts.push(
+            `  Goals Against: ${g.against?.total?.total || 0} (Avg: ${g.against?.average?.total || 'N/A'}/game)`
+          )
+        }
+        if (home.cleanSheet) {
+          parts.push(`  Clean Sheets: ${home.cleanSheet.total || 0}`)
+        }
+        if (home.failedToScore) {
+          parts.push(`  Failed to Score: ${home.failedToScore.total || 0} games`)
+        }
+        // Highlight notable patterns
+        if (home.biggest?.streak?.wins && home.biggest.streak.wins >= 3) {
+          parts.push(`  📈 Notable: ${home.biggest.streak.wins}-match winning streak!`)
+        }
+        if (home.biggest?.streak?.loses && home.biggest.streak.loses >= 3) {
+          parts.push(`  📉 Notable: ${home.biggest.streak.loses}-match losing streak`)
+        }
+        parts.push('')
+      }
+
+      if (stats.awayTeam) {
+        const away = stats.awayTeam
+        parts.push(`${away.name} (Season ${stats.season}):`)
+        if (away.form) {
+          parts.push(`  Form: ${away.form}`)
+        }
+        if (away.fixtures) {
+          const f = away.fixtures
+          parts.push(
+            `  Played: ${f.played?.total || 0} (Home: ${f.played?.home || 0}, Away: ${f.played?.away || 0})`
+          )
+          parts.push(
+            `  Wins: ${f.wins?.total || 0} (Home: ${f.wins?.home || 0}, Away: ${f.wins?.away || 0})`
+          )
+          parts.push(`  Draws: ${f.draws?.total || 0}`)
+          parts.push(`  Losses: ${f.loses?.total || 0}`)
+        }
+        if (away.goals) {
+          const g = away.goals
+          parts.push(
+            `  Goals For: ${g.for?.total?.total || 0} (Avg: ${g.for?.average?.total || 'N/A'}/game)`
+          )
+          parts.push(
+            `  Goals Against: ${g.against?.total?.total || 0} (Avg: ${g.against?.average?.total || 'N/A'}/game)`
+          )
+        }
+        if (away.cleanSheet) {
+          parts.push(`  Clean Sheets: ${away.cleanSheet.total || 0}`)
+        }
+        if (away.failedToScore) {
+          parts.push(`  Failed to Score: ${away.failedToScore.total || 0} games`)
+        }
+        // Highlight notable patterns
+        if (away.biggest?.streak?.wins && away.biggest.streak.wins >= 3) {
+          parts.push(`  📈 Notable: ${away.biggest.streak.wins}-match winning streak!`)
+        }
+        if (away.biggest?.streak?.loses && away.biggest.streak.loses >= 3) {
+          parts.push(`  📉 Notable: ${away.biggest.streak.loses}-match losing streak`)
+        }
+        parts.push('')
+      }
+    }
+
+    // League Standings (from API-Football)
+    const standingsData = match.match_scraped_data?.find((d: any) => d.data_type === 'standings')
+    if (standingsData?.data?.standings) {
+      const standings = standingsData.data.standings
+      const homeTeamStanding = standings.find(
+        (s: any) => s.teamId === match.api_football_home_team_id
+      )
+      const awayTeamStanding = standings.find(
+        (s: any) => s.teamId === match.api_football_away_team_id
+      )
+
+      if (homeTeamStanding || awayTeamStanding) {
+        parts.push('LEAGUE STANDINGS')
+        parts.push('================')
+        parts.push(`League: ${standingsData.data.leagueName} (${standingsData.data.season})`)
+        parts.push('')
+
+        if (homeTeamStanding) {
+          const s = homeTeamStanding
+          parts.push(
+            `${match.homeTeam.name}: ${s.rank}${this.getOrdinalSuffix(s.rank)} place, ${s.points} pts`
+          )
+          parts.push(
+            `  Record: ${s.all?.win || 0}W-${s.all?.draw || 0}D-${s.all?.lose || 0}L (GD: ${s.goalsDiff > 0 ? '+' : ''}${s.goalsDiff})`
+          )
+          if (s.form) {
+            parts.push(`  Form: ${s.form}`)
+          }
+          // Flag promotion/relegation positions
+          if (s.description) {
+            if (
+              s.description.toLowerCase().includes('promotion') ||
+              s.description.toLowerCase().includes('champions league')
+            ) {
+              parts.push(`  🏆 ${s.description}`)
+            } else if (s.description.toLowerCase().includes('relegation')) {
+              parts.push(`  ⚠️ ${s.description}`)
+            } else {
+              parts.push(`  📍 ${s.description}`)
+            }
+          }
+        }
+
+        if (awayTeamStanding) {
+          const s = awayTeamStanding
+          parts.push(
+            `${match.awayTeam.name}: ${s.rank}${this.getOrdinalSuffix(s.rank)} place, ${s.points} pts`
+          )
+          parts.push(
+            `  Record: ${s.all?.win || 0}W-${s.all?.draw || 0}D-${s.all?.lose || 0}L (GD: ${s.goalsDiff > 0 ? '+' : ''}${s.goalsDiff})`
+          )
+          if (s.form) {
+            parts.push(`  Form: ${s.form}`)
+          }
+          // Flag promotion/relegation positions
+          if (s.description) {
+            if (
+              s.description.toLowerCase().includes('promotion') ||
+              s.description.toLowerCase().includes('champions league')
+            ) {
+              parts.push(`  🏆 ${s.description}`)
+            } else if (s.description.toLowerCase().includes('relegation')) {
+              parts.push(`  ⚠️ ${s.description}`)
+            } else {
+              parts.push(`  📍 ${s.description}`)
+            }
+          }
+        }
+        parts.push('')
+      }
+    }
+
+    // Confirmed Lineups (from API-Football)
+    const apiLineupsData = match.match_scraped_data?.find((d: any) => d.data_type === 'api_lineups')
+    if (apiLineupsData?.data?.lineups?.length > 0) {
+      parts.push('CONFIRMED LINEUPS')
+      parts.push('=================')
+      parts.push('(Source: API-Football - Confirmed team sheets)')
+      parts.push('')
+
+      for (const lineup of apiLineupsData.data.lineups) {
+        parts.push(`${lineup.teamName}:`)
+        if (lineup.formation) {
+          parts.push(`  Formation: ${lineup.formation}`)
+        }
+        if (lineup.coach) {
+          parts.push(`  Manager: ${lineup.coach.name}`)
+        }
+        if (lineup.startXI?.length > 0) {
+          parts.push(`  Starting XI:`)
+          // Group by position
+          const byPosition: Record<string, any[]> = {}
+          for (const player of lineup.startXI) {
+            const pos = player.position || 'Unknown'
+            if (!byPosition[pos]) byPosition[pos] = []
+            byPosition[pos].push(player)
+          }
+          // Display in order: GK, D, M, F
+          const posOrder = ['G', 'D', 'M', 'F']
+          for (const pos of posOrder) {
+            if (byPosition[pos]) {
+              const players = byPosition[pos].map((p: any) => `${p.name} (#${p.number})`).join(', ')
+              parts.push(`    ${pos === 'G' ? 'GK' : pos}: ${players}`)
+            }
+          }
+        }
+        parts.push('')
+      }
+
+      // Cross-reference with injuries to highlight confirmed absences
+      if (injuriesData?.data?.injuries?.length > 0) {
+        const confirmAbsences: string[] = []
+
+        for (const lineup of apiLineupsData.data.lineups) {
+          const allPlayers = [...(lineup.startXI || []), ...(lineup.substitutes || [])]
+          const presentPlayerIds = new Set(allPlayers.map((p: any) => p.id))
+
+          // Check which injured players are NOT in the lineup
+          for (const injury of injuriesData.data.injuries) {
+            if (injury.teamId === lineup.teamId && !presentPlayerIds.has(injury.playerId)) {
+              confirmAbsences.push(`${injury.playerName} (${lineup.teamName}) - ${injury.type}`)
+            }
+          }
+        }
+
+        if (confirmAbsences.length > 0) {
+          parts.push('CONFIRMED ABSENCES (injured players not in lineup):')
+          for (const absence of confirmAbsences) {
+            parts.push(`  ❌ ${absence}`)
+          }
+          parts.push('')
+        }
+      }
+    }
+
     // Team statistics
     const statsData = match.match_scraped_data?.find((d: any) => d.data_type === 'statistics')
     if (statsData?.data) {
@@ -604,6 +927,15 @@ export class PredictionService {
     }
 
     return parts.join('\n')
+  }
+
+  /**
+   * Get ordinal suffix for a number (1st, 2nd, 3rd, etc.)
+   */
+  private getOrdinalSuffix(n: number): string {
+    const s = ['th', 'st', 'nd', 'rd']
+    const v = n % 100
+    return s[(v - 20) % 10] ?? s[v] ?? 'th'
   }
 
   /**

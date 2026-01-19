@@ -186,7 +186,7 @@
                       :disabled="!isActionAllowed"
                       @click="scrapeMatch(match.id)"
                     >
-                      Scrape
+                      Fetch Data
                     </UButton>
                   </div>
 
@@ -928,15 +928,15 @@ const scrapeMatch = async (matchId: number) => {
     })
     await refresh()
     toast.add({
-      title: 'Scrape Complete',
-      description: `Match #${matchId} data scraped successfully`,
+      title: 'Data Fetched',
+      description: `Match #${matchId} data fetched successfully`,
       color: 'success',
     })
   } catch (error) {
-    console.error('Error scraping match:', error)
+    console.error('Error fetching match data:', error)
     toast.add({
-      title: 'Scrape Failed',
-      description: error instanceof Error ? error.message : 'Failed to scrape match data',
+      title: 'Fetch Failed',
+      description: error instanceof Error ? error.message : 'Failed to fetch match data',
       color: 'error',
     })
   } finally {

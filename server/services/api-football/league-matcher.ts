@@ -150,7 +150,8 @@ export class LeagueMatcher {
       cacheTtlSeconds: CACHE_TTL_SECONDS,
     })
 
-    this.leagueCache = response.response
+    // Ensure we always return an array, even if API returns undefined/null
+    this.leagueCache = response.response ?? []
     return this.leagueCache
   }
 

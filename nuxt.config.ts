@@ -82,6 +82,11 @@ export default defineNuxtConfig({
         ','
       ),
       skipScrapingWhenAvailable: process.env.API_FOOTBALL_SKIP_SCRAPING_WHEN_AVAILABLE === 'true',
+      // New data endpoint feature flags (added for enhanced integration)
+      enablePredictions: process.env.API_FOOTBALL_ENABLE_PREDICTIONS !== 'false', // Default: true
+      enableTeamStats: process.env.API_FOOTBALL_ENABLE_TEAM_STATS !== 'false', // Default: true
+      enableStandings: process.env.API_FOOTBALL_ENABLE_STANDINGS !== 'false', // Default: true
+      enableLineups: process.env.API_FOOTBALL_ENABLE_LINEUPS === 'true', // Default: false (manual trigger)
     },
 
     // Bugsnag configuration (server-side)

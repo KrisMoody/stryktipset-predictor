@@ -193,8 +193,8 @@ export interface ApiFootballInjury {
     id: number
     name: string
     photo: string
-    type: string // 'Missing Fixture', 'Questionable', etc.
-    reason: string // 'Injury', 'Suspended', etc.
+    type: string // Injury type: 'Muscle Injury', 'Knee Injury', 'Suspended', etc.
+    reason: string // Detailed description: 'Hamstring', 'ACL', 'Red Card', etc.
   }
   team: {
     id: number
@@ -214,6 +214,163 @@ export interface ApiFootballInjury {
     country: string
     logo: string
     flag: string | null
+  }
+}
+
+// ============================================================================
+// API-Football Predictions Types (from /predictions endpoint)
+// ============================================================================
+
+export interface ApiFootballPredictionWinner {
+  id: number
+  name: string
+  comment: string // e.g., "Win or Draw"
+}
+
+export interface ApiFootballPredictionPercent {
+  home: string // e.g., "45%"
+  draw: string // e.g., "25%"
+  away: string // e.g., "30%"
+}
+
+export interface ApiFootballPredictionGoals {
+  home: string // e.g., "1.5"
+  away: string // e.g., "1.2"
+}
+
+export interface ApiFootballPrediction {
+  winner: ApiFootballPredictionWinner | null
+  win_or_draw: boolean
+  under_over: string | null // e.g., "+2.5"
+  goals: ApiFootballPredictionGoals
+  advice: string // e.g., "Double chance : Home or Draw"
+  percent: ApiFootballPredictionPercent
+}
+
+export interface ApiFootballComparisonMetric {
+  home: string // e.g., "60%"
+  away: string // e.g., "40%"
+}
+
+export interface ApiFootballComparison {
+  form: ApiFootballComparisonMetric
+  att: ApiFootballComparisonMetric // Attack strength
+  def: ApiFootballComparisonMetric // Defense strength
+  poisson_distribution: ApiFootballComparisonMetric
+  h2h: ApiFootballComparisonMetric
+  goals: ApiFootballComparisonMetric
+  total: ApiFootballComparisonMetric
+}
+
+export interface ApiFootballTeamPredictionStats {
+  id: number
+  name: string
+  logo: string
+  last_5: {
+    form: string // e.g., "WWDLW"
+    att: string
+    def: string
+    goals: {
+      for: { total: number; average: string }
+      against: { total: number; average: string }
+    }
+  }
+  league: {
+    form: string
+    fixtures: {
+      played: { home: number; away: number; total: number }
+      wins: { home: number; away: number; total: number }
+      draws: { home: number; away: number; total: number }
+      loses: { home: number; away: number; total: number }
+    }
+    goals: {
+      for: {
+        total: { home: number; away: number; total: number }
+        average: { home: string; away: string; total: string }
+      }
+      against: {
+        total: { home: number; away: number; total: number }
+        average: { home: string; away: string; total: string }
+      }
+    }
+    biggest: {
+      streak: { wins: number; draws: number; loses: number }
+      wins: { home: string | null; away: string | null }
+      loses: { home: string | null; away: string | null }
+      goals: { for: { home: number; away: number }; against: { home: number; away: number } }
+    }
+    clean_sheet: { home: number; away: number; total: number }
+    failed_to_score: { home: number; away: number; total: number }
+    penalty: {
+      scored: { total: number; percentage: string }
+      missed: { total: number; percentage: string }
+    }
+  }
+}
+
+export interface ApiFootballPredictionResponse {
+  predictions: ApiFootballPrediction
+  league: {
+    id: number
+    name: string
+    country: string
+    logo: string
+    flag: string
+    season: number
+  }
+  teams: {
+    home: ApiFootballTeamPredictionStats
+    away: ApiFootballTeamPredictionStats
+  }
+  comparison: ApiFootballComparison
+  h2h: ApiFootballH2HResponse[] // Historical head-to-head fixtures
+}
+
+// ============================================================================
+// API-Football Standings Types (from /standings endpoint)
+// ============================================================================
+
+export interface ApiFootballStandingTeam {
+  id: number
+  name: string
+  logo: string
+}
+
+export interface ApiFootballStandingStats {
+  played: number
+  win: number
+  draw: number
+  lose: number
+  goals: {
+    for: number
+    against: number
+  }
+}
+
+export interface ApiFootballStandingEntry {
+  rank: number
+  team: ApiFootballStandingTeam
+  points: number
+  goalsDiff: number
+  group: string
+  form: string | null // e.g., "WWDLW"
+  status: string // e.g., "same", "up", "down"
+  description: string | null // e.g., "Promotion - Champions League"
+  all: ApiFootballStandingStats
+  home: ApiFootballStandingStats
+  away: ApiFootballStandingStats
+  update: string // ISO datetime
+}
+
+export interface ApiFootballStandingsResponse {
+  league: {
+    id: number
+    name: string
+    country: string
+    logo: string
+    flag: string | null
+    season: number
+    standings: ApiFootballStandingEntry[][] // Array of arrays for groups/stages
   }
 }
 

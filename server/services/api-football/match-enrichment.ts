@@ -20,6 +20,10 @@ import type {
   ApiFootballTeamStatistics,
   ApiFootballH2HResponse,
   ApiFootballInjury,
+  ApiFootballPredictionResponse,
+  ApiFootballSeasonStatisticsResponse,
+  ApiFootballStandingsResponse,
+  ApiFootballLineup,
 } from './types'
 
 // ============================================================================
@@ -29,6 +33,10 @@ import type {
 const STATISTICS_CACHE_TTL = 24 * 60 * 60 // 24 hours
 const H2H_CACHE_TTL = 30 * 24 * 60 * 60 // 30 days (historical data)
 const INJURIES_CACHE_TTL = 60 * 60 // 1 hour (injuries change frequently)
+const PREDICTIONS_CACHE_TTL = 2 * 60 * 60 // 2 hours (predictions update 2h before kickoff)
+const TEAM_STATS_CACHE_TTL = 24 * 60 * 60 // 24 hours (updates after fixtures)
+const STANDINGS_CACHE_TTL = 24 * 60 * 60 // 24 hours (updates after fixtures)
+const LINEUPS_CACHE_TTL = 30 * 60 // 30 minutes (can change close to kickoff)
 
 // ============================================================================
 // Types
@@ -48,6 +56,10 @@ export interface EnrichmentResult {
     statistics: boolean
     headToHead: boolean
     injuries: boolean
+    predictions: boolean
+    teamStats: boolean
+    standings: boolean
+    lineups: boolean
   }
 }
 
@@ -236,6 +248,10 @@ export class MatchEnrichmentService {
         enabled?: boolean
         fetchDuringEnrichment?: boolean
         dataTypes?: string[]
+        enablePredictions?: boolean
+        enableTeamStats?: boolean
+        enableStandings?: boolean
+        enableLineups?: boolean
       }
 
       if (
@@ -245,7 +261,15 @@ export class MatchEnrichmentService {
         apiAwayTeamId
       ) {
         const dataTypes = apiFootballConfig.dataTypes || ['statistics', 'headToHead', 'injuries']
-        result.dataFetched = { statistics: false, headToHead: false, injuries: false }
+        result.dataFetched = {
+          statistics: false,
+          headToHead: false,
+          injuries: false,
+          predictions: false,
+          teamStats: false,
+          standings: false,
+          lineups: false,
+        }
 
         // Fetch statistics (requires fixture ID)
         if (dataTypes.includes('statistics') && apiFixtureId) {
@@ -282,8 +306,68 @@ export class MatchEnrichmentService {
           }
         }
 
+        // Fetch API-Football predictions (requires fixture ID)
+        if (
+          (dataTypes.includes('predictions') || apiFootballConfig.enablePredictions !== false) &&
+          apiFixtureId
+        ) {
+          try {
+            const fetched = await this.fetchAndStorePredictions(matchId, apiFixtureId)
+            result.dataFetched.predictions = fetched
+          } catch (error) {
+            console.warn(
+              `[MatchEnrichment] Error fetching predictions for match ${matchId}:`,
+              error
+            )
+          }
+        }
+
+        // Fetch team season statistics (requires league ID)
+        if (
+          (dataTypes.includes('teamStats') || apiFootballConfig.enableTeamStats !== false) &&
+          apiLeagueId
+        ) {
+          try {
+            const season = new Date(match.start_time).getFullYear()
+            const fetched = await this.fetchAndStoreTeamSeasonStats(
+              matchId,
+              apiHomeTeamId,
+              apiAwayTeamId,
+              apiLeagueId,
+              season
+            )
+            result.dataFetched.teamStats = fetched
+          } catch (error) {
+            console.warn(`[MatchEnrichment] Error fetching team stats for match ${matchId}:`, error)
+          }
+        }
+
+        // Fetch standings (requires league ID)
+        if (
+          (dataTypes.includes('standings') || apiFootballConfig.enableStandings !== false) &&
+          apiLeagueId
+        ) {
+          try {
+            const season = new Date(match.start_time).getFullYear()
+            const fetched = await this.fetchAndStoreStandings(matchId, apiLeagueId, season)
+            result.dataFetched.standings = fetched
+          } catch (error) {
+            console.warn(`[MatchEnrichment] Error fetching standings for match ${matchId}:`, error)
+          }
+        }
+
+        // Fetch lineups (only if explicitly enabled - typically fetched closer to match time)
+        if (dataTypes.includes('lineups') && apiFootballConfig.enableLineups && apiFixtureId) {
+          try {
+            const fetched = await this.fetchAndStoreLineups(matchId, apiFixtureId)
+            result.dataFetched.lineups = fetched
+          } catch (error) {
+            console.warn(`[MatchEnrichment] Error fetching lineups for match ${matchId}:`, error)
+          }
+        }
+
         console.log(
-          `[MatchEnrichment] Data fetched for match ${matchId}: stats=${result.dataFetched.statistics}, h2h=${result.dataFetched.headToHead}, injuries=${result.dataFetched.injuries}`
+          `[MatchEnrichment] Data fetched for match ${matchId}: stats=${result.dataFetched.statistics}, h2h=${result.dataFetched.headToHead}, injuries=${result.dataFetched.injuries}, predictions=${result.dataFetched.predictions}, teamStats=${result.dataFetched.teamStats}, standings=${result.dataFetched.standings}`
         )
       }
     } catch (error) {
@@ -589,14 +673,15 @@ export class MatchEnrichmentService {
       }
 
       // Normalize injuries
+      // API-Football docs: player.type = injury category, player.reason = detailed description
       const normalizedInjuries = allInjuries.map(injury => ({
         playerId: injury.player.id,
         playerName: injury.player.name,
         teamId: injury.team.id,
         teamName: injury.team.name,
-        type: injury.player.type, // 'Missing Fixture', 'Questionable', etc.
-        reason: injury.player.reason, // 'Injury', 'Suspended', etc.
-        severity: this.parseSeverity(injury.player.type),
+        type: injury.player.type, // Injury category: 'Muscle Injury', 'Knee Injury', 'Suspended', etc.
+        reason: injury.player.reason, // Detailed description: 'Hamstring', 'ACL', 'Red Card', etc.
+        severity: this.parseSeverity(injury.player.type, injury.player.reason),
       }))
 
       const normalizedData = {
@@ -610,6 +695,282 @@ export class MatchEnrichmentService {
       return true
     } catch (error) {
       console.warn(`[MatchEnrichment] Error fetching injuries:`, error)
+      return false
+    }
+  }
+
+  /**
+   * Fetch and store API-Football predictions
+   * Endpoint: GET /predictions?fixture={fixtureId}
+   */
+  private async fetchAndStorePredictions(matchId: number, fixtureId: number): Promise<boolean> {
+    if (!this.client.isConfigured() || this.client.isCircuitOpen()) {
+      return false
+    }
+
+    try {
+      const response = await this.client.get<ApiFootballPredictionResponse[]>(
+        '/predictions',
+        { fixture: fixtureId },
+        { cacheTtlSeconds: PREDICTIONS_CACHE_TTL }
+      )
+
+      if (!response.response || response.response.length === 0) {
+        return false
+      }
+
+      const prediction = response.response[0]!
+
+      // Normalize and store the prediction data
+      const normalizedData = {
+        fixtureId,
+        predictions: {
+          winner: prediction.predictions.winner,
+          winOrDraw: prediction.predictions.win_or_draw,
+          underOver: prediction.predictions.under_over,
+          goals: prediction.predictions.goals,
+          advice: prediction.predictions.advice,
+          percent: {
+            home: prediction.predictions.percent.home,
+            draw: prediction.predictions.percent.draw,
+            away: prediction.predictions.percent.away,
+          },
+        },
+        comparison: {
+          form: prediction.comparison.form,
+          attack: prediction.comparison.att,
+          defense: prediction.comparison.def,
+          poissonDistribution: prediction.comparison.poisson_distribution,
+          h2h: prediction.comparison.h2h,
+          goals: prediction.comparison.goals,
+          total: prediction.comparison.total,
+        },
+        teams: {
+          home: {
+            id: prediction.teams.home.id,
+            name: prediction.teams.home.name,
+            last5Form: prediction.teams.home.last_5?.form,
+            last5GoalsFor: prediction.teams.home.last_5?.goals?.for?.total,
+            last5GoalsAgainst: prediction.teams.home.last_5?.goals?.against?.total,
+          },
+          away: {
+            id: prediction.teams.away.id,
+            name: prediction.teams.away.name,
+            last5Form: prediction.teams.away.last_5?.form,
+            last5GoalsFor: prediction.teams.away.last_5?.goals?.for?.total,
+            last5GoalsAgainst: prediction.teams.away.last_5?.goals?.against?.total,
+          },
+        },
+        fetchedAt: new Date().toISOString(),
+      }
+
+      await this.storeMatchData(matchId, 'api_predictions', normalizedData)
+      return true
+    } catch (error) {
+      console.warn(`[MatchEnrichment] Error fetching predictions:`, error)
+      return false
+    }
+  }
+
+  /**
+   * Fetch and store team season statistics for both teams
+   * Endpoint: GET /teams/statistics?league={leagueId}&season={season}&team={teamId}
+   */
+  private async fetchAndStoreTeamSeasonStats(
+    matchId: number,
+    homeTeamId: number,
+    awayTeamId: number,
+    leagueId: number,
+    season: number
+  ): Promise<boolean> {
+    if (!this.client.isConfigured() || this.client.isCircuitOpen()) {
+      return false
+    }
+
+    try {
+      // Fetch statistics for both teams
+      const [homeStatsResponse, awayStatsResponse] = await Promise.all([
+        this.client.get<ApiFootballSeasonStatisticsResponse>(
+          '/teams/statistics',
+          { league: leagueId, season, team: homeTeamId },
+          { cacheTtlSeconds: TEAM_STATS_CACHE_TTL }
+        ),
+        this.client.get<ApiFootballSeasonStatisticsResponse>(
+          '/teams/statistics',
+          { league: leagueId, season, team: awayTeamId },
+          { cacheTtlSeconds: TEAM_STATS_CACHE_TTL }
+        ),
+      ])
+
+      const homeStats = homeStatsResponse.response
+      const awayStats = awayStatsResponse.response
+
+      if (!homeStats && !awayStats) {
+        return false
+      }
+
+      // Normalize and store the team statistics
+      const normalizedData = {
+        leagueId,
+        season,
+        homeTeam: homeStats
+          ? {
+              id: homeStats.team.id,
+              name: homeStats.team.name,
+              form: homeStats.form,
+              fixtures: homeStats.fixtures,
+              goals: homeStats.goals,
+              biggest: homeStats.biggest,
+              cleanSheet: homeStats.clean_sheet,
+              failedToScore: homeStats.failed_to_score,
+              penalty: homeStats.penalty,
+            }
+          : null,
+        awayTeam: awayStats
+          ? {
+              id: awayStats.team.id,
+              name: awayStats.team.name,
+              form: awayStats.form,
+              fixtures: awayStats.fixtures,
+              goals: awayStats.goals,
+              biggest: awayStats.biggest,
+              cleanSheet: awayStats.clean_sheet,
+              failedToScore: awayStats.failed_to_score,
+              penalty: awayStats.penalty,
+            }
+          : null,
+        fetchedAt: new Date().toISOString(),
+      }
+
+      await this.storeMatchData(matchId, 'team_season_stats', normalizedData)
+      return true
+    } catch (error) {
+      console.warn(`[MatchEnrichment] Error fetching team season stats:`, error)
+      return false
+    }
+  }
+
+  /**
+   * Fetch and store league standings
+   * Endpoint: GET /standings?league={leagueId}&season={season}
+   */
+  private async fetchAndStoreStandings(
+    matchId: number,
+    leagueId: number,
+    season: number
+  ): Promise<boolean> {
+    if (!this.client.isConfigured() || this.client.isCircuitOpen()) {
+      return false
+    }
+
+    try {
+      const response = await this.client.get<ApiFootballStandingsResponse[]>(
+        '/standings',
+        { league: leagueId, season },
+        { cacheTtlSeconds: STANDINGS_CACHE_TTL }
+      )
+
+      if (!response.response || response.response.length === 0) {
+        return false
+      }
+
+      const standingsData = response.response[0]!
+
+      // Flatten the standings array (handles groups/stages)
+      const allStandings = standingsData.league.standings.flat()
+
+      // Normalize standings entries
+      const normalizedStandings = allStandings.map(entry => ({
+        rank: entry.rank,
+        teamId: entry.team.id,
+        teamName: entry.team.name,
+        teamLogo: entry.team.logo,
+        points: entry.points,
+        goalsDiff: entry.goalsDiff,
+        group: entry.group,
+        form: entry.form,
+        status: entry.status,
+        description: entry.description,
+        all: entry.all,
+        home: entry.home,
+        away: entry.away,
+      }))
+
+      const normalizedData = {
+        leagueId,
+        leagueName: standingsData.league.name,
+        season,
+        country: standingsData.league.country,
+        standings: normalizedStandings,
+        fetchedAt: new Date().toISOString(),
+      }
+
+      await this.storeMatchData(matchId, 'standings', normalizedData)
+      return true
+    } catch (error) {
+      console.warn(`[MatchEnrichment] Error fetching standings:`, error)
+      return false
+    }
+  }
+
+  /**
+   * Fetch and store confirmed lineups
+   * Endpoint: GET /fixtures/lineups?fixture={fixtureId}
+   * Note: Lineups are typically available 1 hour before kickoff
+   */
+  private async fetchAndStoreLineups(matchId: number, fixtureId: number): Promise<boolean> {
+    if (!this.client.isConfigured() || this.client.isCircuitOpen()) {
+      return false
+    }
+
+    try {
+      const response = await this.client.get<ApiFootballLineup[]>(
+        '/fixtures/lineups',
+        { fixture: fixtureId },
+        { cacheTtlSeconds: LINEUPS_CACHE_TTL }
+      )
+
+      if (!response.response || response.response.length === 0) {
+        return false
+      }
+
+      // Normalize lineup data for both teams
+      const normalizedLineups = response.response.map(lineup => ({
+        teamId: lineup.team.id,
+        teamName: lineup.team.name,
+        formation: lineup.formation,
+        coach: lineup.coach
+          ? {
+              id: lineup.coach.id,
+              name: lineup.coach.name,
+            }
+          : null,
+        startXI: lineup.startXI.map(p => ({
+          id: p.player.id,
+          name: p.player.name,
+          number: p.player.number,
+          position: p.player.pos,
+          grid: p.player.grid,
+        })),
+        substitutes: lineup.substitutes.map(p => ({
+          id: p.player.id,
+          name: p.player.name,
+          number: p.player.number,
+          position: p.player.pos,
+        })),
+      }))
+
+      const normalizedData = {
+        fixtureId,
+        lineups: normalizedLineups,
+        isConfirmed: true,
+        fetchedAt: new Date().toISOString(),
+      }
+
+      await this.storeMatchData(matchId, 'api_lineups', normalizedData)
+      return true
+    } catch (error) {
+      console.warn(`[MatchEnrichment] Error fetching lineups:`, error)
       return false
     }
   }
@@ -637,16 +998,57 @@ export class MatchEnrichmentService {
   }
 
   /**
-   * Parse injury severity from type string
+   * Parse injury severity from injury type string
+   * Based on API-Football documentation:
+   * - player.type contains injury category (e.g., "Muscle Injury", "Knee Injury", "Suspended")
+   * - player.reason contains detailed description (e.g., "Hamstring", "ACL", "Red Card")
    */
-  private parseSeverity(type: string): 'minor' | 'moderate' | 'severe' {
-    const typeLower = type.toLowerCase()
-    if (typeLower.includes('questionable') || typeLower.includes('doubt')) {
-      return 'minor'
-    }
-    if (typeLower.includes('out') || typeLower.includes('missing')) {
+  private parseSeverity(injuryType: string, reason?: string): 'minor' | 'moderate' | 'severe' {
+    const typeLower = injuryType.toLowerCase()
+    const reasonLower = (reason || '').toLowerCase()
+
+    // Severe injuries - long-term or confirmed out
+    if (
+      typeLower.includes('knee') ||
+      typeLower.includes('acl') ||
+      typeLower.includes('mcl') ||
+      typeLower.includes('ankle') ||
+      typeLower.includes('achilles') ||
+      typeLower.includes('back') ||
+      reasonLower.includes('surgery') ||
+      reasonLower.includes('fracture') ||
+      reasonLower.includes('ligament')
+    ) {
       return 'severe'
     }
+
+    // Suspended players are always out
+    if (typeLower.includes('suspended') || typeLower.includes('red card')) {
+      return 'severe'
+    }
+
+    // Minor injuries - questionable or short-term
+    if (
+      typeLower.includes('minor') ||
+      typeLower.includes('knock') ||
+      typeLower.includes('bruise') ||
+      typeLower.includes('illness') ||
+      reasonLower.includes('rest') ||
+      reasonLower.includes('precaution')
+    ) {
+      return 'minor'
+    }
+
+    // Muscle injuries vary - default to moderate
+    if (
+      typeLower.includes('muscle') ||
+      typeLower.includes('hamstring') ||
+      typeLower.includes('calf')
+    ) {
+      return 'moderate'
+    }
+
+    // Default to moderate for unknown injury types
     return 'moderate'
   }
 
@@ -740,6 +1142,10 @@ export class MatchEnrichmentService {
     statistics: boolean
     headToHead: boolean
     injuries: boolean
+    predictions: boolean
+    teamStats: boolean
+    standings: boolean
+    lineups: boolean
     error?: string
   }> {
     const result = {
@@ -748,17 +1154,23 @@ export class MatchEnrichmentService {
       statistics: false,
       headToHead: false,
       injuries: false,
+      predictions: false,
+      teamStats: false,
+      standings: false,
+      lineups: false,
     }
 
     try {
-      // Get match with API-Football IDs
+      // Get match with API-Football IDs and league info
       let match = await prisma.matches.findUnique({
         where: { id: matchId },
         select: {
           id: true,
+          start_time: true,
           api_football_fixture_id: true,
           api_football_home_team_id: true,
           api_football_away_team_id: true,
+          api_football_league_id: true,
         },
       })
 
@@ -780,9 +1192,11 @@ export class MatchEnrichmentService {
           where: { id: matchId },
           select: {
             id: true,
+            start_time: true,
             api_football_fixture_id: true,
             api_football_home_team_id: true,
             api_football_away_team_id: true,
+            api_football_league_id: true,
           },
         })
 
@@ -801,33 +1215,84 @@ export class MatchEnrichmentService {
       const homeTeamId = match.api_football_home_team_id!
       const awayTeamId = match.api_football_away_team_id!
       const fixtureId = match.api_football_fixture_id
+      const leagueId = match.api_football_league_id
+      const season = new Date(match.start_time).getFullYear()
 
       // Fetch all data types in parallel
-      const [statsResult, h2hResult, injuriesResult] = await Promise.all([
+      const [
+        statsResult,
+        h2hResult,
+        injuriesResult,
+        predictionsResult,
+        teamStatsResult,
+        standingsResult,
+        lineupsResult,
+      ] = await Promise.all([
+        // Statistics (requires fixture ID)
         fixtureId
           ? this.fetchAndStoreStatistics(matchId, fixtureId).catch(err => {
               console.warn(`[MatchEnrichment] Statistics fetch failed:`, err)
               return false
             })
           : Promise.resolve(false),
+        // Head-to-head
         this.fetchAndStoreH2H(matchId, homeTeamId, awayTeamId).catch(err => {
           console.warn(`[MatchEnrichment] H2H fetch failed:`, err)
           return false
         }),
+        // Injuries
         this.fetchAndStoreInjuries(matchId, homeTeamId, awayTeamId, fixtureId || undefined).catch(
           err => {
             console.warn(`[MatchEnrichment] Injuries fetch failed:`, err)
             return false
           }
         ),
+        // Predictions (requires fixture ID)
+        fixtureId
+          ? this.fetchAndStorePredictions(matchId, fixtureId).catch(err => {
+              console.warn(`[MatchEnrichment] Predictions fetch failed:`, err)
+              return false
+            })
+          : Promise.resolve(false),
+        // Team season stats (requires league ID)
+        leagueId
+          ? this.fetchAndStoreTeamSeasonStats(
+              matchId,
+              homeTeamId,
+              awayTeamId,
+              leagueId,
+              season
+            ).catch(err => {
+              console.warn(`[MatchEnrichment] Team stats fetch failed:`, err)
+              return false
+            })
+          : Promise.resolve(false),
+        // Standings (requires league ID)
+        leagueId
+          ? this.fetchAndStoreStandings(matchId, leagueId, season).catch(err => {
+              console.warn(`[MatchEnrichment] Standings fetch failed:`, err)
+              return false
+            })
+          : Promise.resolve(false),
+        // Lineups (requires fixture ID, usually available 1h before kickoff)
+        fixtureId
+          ? this.fetchAndStoreLineups(matchId, fixtureId).catch(err => {
+              console.warn(`[MatchEnrichment] Lineups fetch failed:`, err)
+              return false
+            })
+          : Promise.resolve(false),
       ])
 
       result.statistics = statsResult
       result.headToHead = h2hResult
       result.injuries = injuriesResult
+      result.predictions = predictionsResult
+      result.teamStats = teamStatsResult
+      result.standings = standingsResult
+      result.lineups = lineupsResult
 
       console.log(
-        `[MatchEnrichment] fetchAllDataForMatch(${matchId}): stats=${result.statistics}, h2h=${result.headToHead}, injuries=${result.injuries}`
+        `[MatchEnrichment] fetchAllDataForMatch(${matchId}): stats=${result.statistics}, h2h=${result.headToHead}, injuries=${result.injuries}, predictions=${result.predictions}, teamStats=${result.teamStats}, standings=${result.standings}, lineups=${result.lineups}`
       )
 
       return result

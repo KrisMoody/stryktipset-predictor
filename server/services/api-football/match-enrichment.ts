@@ -728,6 +728,114 @@ export class MatchEnrichmentService {
       byConfidence: confidenceCounts,
     }
   }
+
+  /**
+   * Fetch all available API-Football data for a match on-demand.
+   * This is called when the user clicks "Fetch Data" button.
+   * It ensures the match is mapped first, then fetches all data types.
+   */
+  async fetchAllDataForMatch(matchId: number): Promise<{
+    mapped: boolean
+    fixtureId: number | null
+    statistics: boolean
+    headToHead: boolean
+    injuries: boolean
+    error?: string
+  }> {
+    const result = {
+      mapped: false,
+      fixtureId: null as number | null,
+      statistics: false,
+      headToHead: false,
+      injuries: false,
+    }
+
+    try {
+      // Get match with API-Football IDs
+      let match = await prisma.matches.findUnique({
+        where: { id: matchId },
+        select: {
+          id: true,
+          api_football_fixture_id: true,
+          api_football_home_team_id: true,
+          api_football_away_team_id: true,
+        },
+      })
+
+      if (!match) {
+        return { ...result, error: 'Match not found' }
+      }
+
+      // If not mapped, try to map it first
+      if (!match.api_football_home_team_id || !match.api_football_away_team_id) {
+        console.log(`[MatchEnrichment] Match ${matchId} not mapped, attempting enrichment...`)
+        const enrichResult = await this.enrichMatch(matchId)
+
+        if (!enrichResult.success) {
+          return { ...result, error: enrichResult.error || 'Failed to map match to API-Football' }
+        }
+
+        // Refresh match data after enrichment
+        match = await prisma.matches.findUnique({
+          where: { id: matchId },
+          select: {
+            id: true,
+            api_football_fixture_id: true,
+            api_football_home_team_id: true,
+            api_football_away_team_id: true,
+          },
+        })
+
+        if (!match) {
+          return { ...result, error: 'Match not found after enrichment' }
+        }
+      }
+
+      result.mapped = !!(match.api_football_home_team_id && match.api_football_away_team_id)
+      result.fixtureId = match.api_football_fixture_id
+
+      if (!result.mapped) {
+        return { ...result, error: 'Could not map teams to API-Football' }
+      }
+
+      const homeTeamId = match.api_football_home_team_id!
+      const awayTeamId = match.api_football_away_team_id!
+      const fixtureId = match.api_football_fixture_id
+
+      // Fetch all data types in parallel
+      const [statsResult, h2hResult, injuriesResult] = await Promise.all([
+        fixtureId
+          ? this.fetchAndStoreStatistics(matchId, fixtureId).catch(err => {
+              console.warn(`[MatchEnrichment] Statistics fetch failed:`, err)
+              return false
+            })
+          : Promise.resolve(false),
+        this.fetchAndStoreH2H(matchId, homeTeamId, awayTeamId).catch(err => {
+          console.warn(`[MatchEnrichment] H2H fetch failed:`, err)
+          return false
+        }),
+        this.fetchAndStoreInjuries(matchId, homeTeamId, awayTeamId, fixtureId || undefined).catch(
+          err => {
+            console.warn(`[MatchEnrichment] Injuries fetch failed:`, err)
+            return false
+          }
+        ),
+      ])
+
+      result.statistics = statsResult
+      result.headToHead = h2hResult
+      result.injuries = injuriesResult
+
+      console.log(
+        `[MatchEnrichment] fetchAllDataForMatch(${matchId}): stats=${result.statistics}, h2h=${result.headToHead}, injuries=${result.injuries}`
+      )
+
+      return result
+    } catch (error) {
+      console.error(`[MatchEnrichment] fetchAllDataForMatch error:`, error)
+      return { ...result, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  }
 }
 
 // ============================================================================

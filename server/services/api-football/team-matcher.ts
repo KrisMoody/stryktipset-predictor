@@ -352,7 +352,13 @@ export class TeamMatcher {
 
       return this.findBestMatch(teamName, response.response)
     } catch (error) {
-      console.warn(`[TeamMatcher] Global search failed for "${teamName}":`, error)
+      // Gracefully handle circuit breaker - don't spam logs with expected failures
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes('Circuit breaker is open')) {
+        // Silent degradation - team will be stored for later retry
+        return null
+      }
+      console.warn(`[TeamMatcher] Global search failed for "${teamName}":`, errorMessage)
       return null
     }
   }

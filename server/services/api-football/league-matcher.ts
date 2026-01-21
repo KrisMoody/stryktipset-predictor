@@ -22,20 +22,73 @@ import type {
 const CACHE_TTL_SECONDS = 30 * 24 * 60 * 60 // 30 days - leagues don't change often
 
 // Common league name mappings for Swedish/English variations
+// Keys are descriptive, values include BOTH Svenska Spel names AND API-Football names
 const LEAGUE_NAME_ALIASES: Record<string, string[]> = {
+  // Top European leagues
   'Premier League': ['Premier League', 'English Premier League', 'EPL'],
-  'La Liga': ['La Liga', 'LaLiga', 'Primera Division', 'Spanish La Liga'],
+  'La Liga': ['La Liga', 'LaLiga', 'Spanish La Liga', 'Primera Division'],
   Bundesliga: ['Bundesliga', 'German Bundesliga', '1. Bundesliga'],
-  'Serie A': ['Serie A', 'Italian Serie A', 'Serie A TIM'],
+  'Serie A Italy': ['Serie A', 'Italian Serie A', 'Serie A TIM'],
   'Ligue 1': ['Ligue 1', 'French Ligue 1', 'Ligue 1 Uber Eats'],
+
+  // English lower tiers (API-Football uses "Championship", "League One", "League Two")
+  Championship: ['Championship', 'EFL Championship', 'English Championship'],
+  'League One': ['League One', 'EFL League One', 'English League One'],
+  'League Two': ['League Two', 'EFL League Two', 'English League Two'],
+
+  // Scandinavian leagues
   Allsvenskan: ['Allsvenskan', 'Swedish Allsvenskan'],
   Superettan: ['Superettan', 'Swedish Superettan'],
+  Eliteserien: ['Eliteserien', 'Norwegian Eliteserien', 'Tippeligaen'],
+  Superligaen: ['Superligaen', 'Danish Superliga', 'Danish Superligaen'],
+
+  // Other European leagues
   Eredivisie: ['Eredivisie', 'Dutch Eredivisie'],
   'Primeira Liga': ['Primeira Liga', 'Liga Portugal', 'Portuguese Liga'],
-  'Scottish Premiership': ['Scottish Premiership', 'SPFL Premiership'],
+  'Scottish Premiership': ['Scottish Premiership', 'SPFL Premiership', 'Premiership'],
+
+  // South American leagues
+  'Liga Profesional Argentina': [
+    'Liga Profesional',
+    'Liga Profesional Argentina',
+    'Argentine Primera Division',
+    'Superliga Argentina',
+    'Primera División Argentina',
+    'Primera Division Argentina',
+  ],
+  'Serie A Brazil': ['Brasileirao', 'Brasileirão', 'Serie A Brazil', 'Campeonato Brasileiro'],
+
+  // Central America
+  'Primera Division Costa Rica': [
+    'Primera Division',
+    'Primera Division, Clausura',
+    'Primera Division, Apertura',
+    'Liga FPD',
+    'Primera Division Costa Rica',
+  ],
+
+  // European competitions (API-Football uses "UEFA Europa League", etc.)
   'Champions League': ['Champions League', 'UEFA Champions League', 'UCL'],
   'Europa League': ['Europa League', 'UEFA Europa League', 'UEL'],
   'Conference League': ['Conference League', 'UEFA Europa Conference League', 'UECL'],
+
+  // International
+  Friendlies: [
+    'Friendlies',
+    'International Friendlies',
+    'Internationella vänskapsmatcher',
+    'Friendly',
+    'Club Friendly',
+    'Friendly International',
+  ],
+
+  // World Cup qualifiers
+  'World Cup Qualifiers': [
+    'World Cup Qualifiers',
+    'World Cup - Qualification',
+    'WC Qualification',
+    'VM-kval',
+  ],
 }
 
 // Country name mappings
@@ -142,17 +195,46 @@ export class LeagueMatcher {
    * Get all leagues from API-Football (cached)
    */
   async getAllLeagues(): Promise<ApiFootballLeagueResponse[]> {
-    if (this.leagueCache) {
+    if (this.leagueCache && this.leagueCache.length > 0) {
       return this.leagueCache
     }
 
-    const response = await this.client.get<ApiFootballLeagueResponse[]>('/leagues', undefined, {
-      cacheTtlSeconds: CACHE_TTL_SECONDS,
-    })
+    try {
+      console.log('[LeagueMatcher] Fetching leagues from API-Football...')
+      // Bypass circuit breaker for leagues - this is critical initialization data
+      // and should always attempt to fetch if not cached
+      const response = await this.client.get<ApiFootballLeagueResponse[]>('/leagues', undefined, {
+        cacheTtlSeconds: CACHE_TTL_SECONDS,
+        skipCircuitBreaker: true, // Don't let team search failures block leagues fetch
+      })
 
-    // Ensure we always return an array, even if API returns undefined/null
-    this.leagueCache = response.response ?? []
-    return this.leagueCache
+      const leagues = response.response ?? []
+      console.log(`[LeagueMatcher] Received ${leagues.length} leagues from API-Football`)
+
+      // Only cache if we got actual data
+      if (leagues.length > 0) {
+        this.leagueCache = leagues
+      } else {
+        console.warn('[LeagueMatcher] API returned empty leagues list - check API key and quota')
+        // Check if there are errors in the response
+        if (response.errors && Object.keys(response.errors).length > 0) {
+          console.error('[LeagueMatcher] API errors:', JSON.stringify(response.errors))
+        }
+      }
+
+      return leagues
+    } catch (error) {
+      console.error('[LeagueMatcher] Failed to fetch leagues:', error)
+      return []
+    }
+  }
+
+  /**
+   * Clear the in-memory league cache (useful for testing or after cache invalidation)
+   */
+  clearCache(): void {
+    this.leagueCache = null
+    console.log('[LeagueMatcher] In-memory cache cleared')
   }
 
   /**
@@ -167,17 +249,55 @@ export class LeagueMatcher {
 
     const allLeagues = await this.getAllLeagues()
 
+    // Debug: Check if we have leagues to search
+    if (allLeagues.length === 0) {
+      console.warn(
+        `[LeagueMatcher] No leagues available from API-Football for matching "${leagueName}"`
+      )
+      return null
+    }
+
     // Strategy 1: Exact match (with aliases)
     const exactMatch = this.findExactMatch(leagueName, countryName, allLeagues)
     if (exactMatch) {
       return exactMatch
     }
 
-    // Strategy 2: Fuzzy match
+    // Strategy 2: Fuzzy match with country context
     const fuzzyMatch = this.findFuzzyMatch(leagueName, countryName, allLeagues)
     if (fuzzyMatch) {
       return fuzzyMatch
     }
+
+    // Strategy 3: Fuzzy match WITHOUT country filter (fallback for ambiguous leagues)
+    // This catches cases like "Championship" where we don't know if it's England
+    if (countryName) {
+      const fuzzyMatchNoCountry = this.findFuzzyMatch(leagueName, undefined, allLeagues)
+      if (
+        fuzzyMatchNoCountry &&
+        fuzzyMatchNoCountry.similarity &&
+        fuzzyMatchNoCountry.similarity >= 85
+      ) {
+        // Only accept high-confidence matches when ignoring country
+        return fuzzyMatchNoCountry
+      }
+    }
+
+    // Log top candidates when no match found (always, not just in dev)
+    const topCandidates = allLeagues
+      .map(l => ({
+        name: l.league.name,
+        country: l.country.name,
+        id: l.league.id,
+        similarity: calculateSimilarity(leagueName, l.league.name),
+      }))
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 3)
+
+    console.warn(
+      `[LeagueMatcher] No match for "${leagueName}" (country: ${countryName || 'none'}). ` +
+        `Top candidates: ${topCandidates.map(c => `${c.name}=${c.similarity}%`).join(', ')}`
+    )
 
     return null
   }
@@ -232,12 +352,16 @@ export class LeagueMatcher {
     const normalizedCountry = countryName ? normalizeString(countryName) : undefined
 
     // Check against aliases first
-    for (const [canonical, aliases] of Object.entries(LEAGUE_NAME_ALIASES)) {
+    // The aliases array contains both Svenska Spel names AND API-Football names
+    // We need to find if input matches any alias, then search for ANY alias in API-Football
+    for (const [_canonical, aliases] of Object.entries(LEAGUE_NAME_ALIASES)) {
       const normalizedAliases = aliases.map(normalizeString)
       if (normalizedAliases.includes(normalizedName)) {
-        // Found an alias match, look for the canonical league
+        // Found an alias match - now search for ANY of the aliases in API-Football
+        // (API-Football might use a different name than our canonical key)
         const league = allLeagues.find(l => {
-          const nameMatch = normalizeString(l.league.name) === normalizeString(canonical)
+          const apiLeagueName = normalizeString(l.league.name)
+          const nameMatch = normalizedAliases.includes(apiLeagueName)
           if (!nameMatch) return false
 
           // If country specified, must match
@@ -307,19 +431,40 @@ export class LeagueMatcher {
     }
 
     // Calculate similarity for each candidate
+    // Use multiple matching strategies and take the best score
     const scored: Array<{ league: ApiFootballLeagueResponse; similarity: number }> = candidates.map(
-      league => ({
-        league,
-        similarity: calculateSimilarity(leagueName, league.league.name),
-      })
+      league => {
+        const levenshteinScore = calculateSimilarity(leagueName, league.league.name)
+
+        // Boost score if key words match (e.g., "Championship" in both)
+        const inputWords = normalizeString(leagueName)
+          .split(' ')
+          .filter(w => w.length > 3)
+        const leagueWords = normalizeString(league.league.name)
+          .split(' ')
+          .filter(w => w.length > 3)
+        const matchingWords = inputWords.filter(w => leagueWords.includes(w))
+        const wordMatchBoost = matchingWords.length > 0 ? 15 : 0
+
+        // Boost if the input is a substring or vice versa
+        const normalInput = normalizeString(leagueName)
+        const normalLeague = normalizeString(league.league.name)
+        const substringBoost =
+          normalInput.includes(normalLeague) || normalLeague.includes(normalInput) ? 10 : 0
+
+        return {
+          league,
+          similarity: Math.min(100, levenshteinScore + wordMatchBoost + substringBoost),
+        }
+      }
     )
 
     // Sort by similarity (descending)
     scored.sort((a, b) => b.similarity - a.similarity)
 
-    // Take best match if similarity >= 80%
+    // Take best match if similarity >= 70% (lowered threshold due to boosts)
     const best = scored[0]
-    if (best && best.similarity >= 80) {
+    if (best && best.similarity >= 70) {
       return {
         svenskaSpelLeagueId: 0,
         apiFootballLeagueId: best.league.league.id,

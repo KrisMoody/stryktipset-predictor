@@ -3,8 +3,8 @@
  * These extend Nuxt UI's default tokens for the redesigned interface.
  */
 
-@import "tailwindcss" reference;
-@import "@nuxt/ui" reference;
+@import 'tailwindcss' reference;
+@import '@nuxt/ui' reference;
 
 /* ==========================================================================
    EV (Expected Value) Color Tokens

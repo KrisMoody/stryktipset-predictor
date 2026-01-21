@@ -20,13 +20,15 @@ export interface ApiFootballConfig {
   maxRequestsPerMinute: number
   circuitBreakerThreshold: number
   circuitBreakerTimeoutMs: number
-  // RapidAPI alternative configuration
+  dailyRequestLimit: number // Daily API call quota for direct API (Pro tier: 7,500/day)
+  // RapidAPI alternative configuration (free tier has strict limits)
   rapidApiKey: string
   rapidApiBaseUrl: string
   rapidApiHost: string
   rapidApiMaxRequestsPerMinute: number
   rapidApiCircuitBreakerThreshold: number
   rapidApiCircuitBreakerTimeoutMs: number
+  rapidApiDailyRequestLimit: number // RapidAPI free tier: 100 requests/day
 }
 
 type ApiProvider = 'direct' | 'rapidapi'
@@ -175,6 +177,96 @@ class RateLimiter {
 }
 
 // ============================================================================
+// Daily Quota Tracker
+// ============================================================================
+
+class DailyQuotaTracker {
+  private requestCount: number = 0
+  private currentDay: string = ''
+  private readonly dailyLimit: number
+  private initialized: boolean = false
+
+  constructor(dailyLimit: number) {
+    this.dailyLimit = dailyLimit
+  }
+
+  /**
+   * Initialize from database on first use
+   */
+  private async initialize(): Promise<void> {
+    if (this.initialized) return
+
+    const today = this.getTodayString()
+    this.currentDay = today
+
+    // Count today's non-cached API calls from the database
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+
+    try {
+      const count = await prisma.api_football_usage.count({
+        where: {
+          created_at: { gte: todayStart },
+          cached: false,
+        },
+      })
+      this.requestCount = count
+      console.log(`[DailyQuota] Initialized: ${count}/${this.dailyLimit} requests used today`)
+    } catch (error) {
+      console.warn('[DailyQuota] Failed to initialize from database, starting fresh:', error)
+      this.requestCount = 0
+    }
+
+    this.initialized = true
+  }
+
+  private getTodayString(): string {
+    return new Date().toISOString().split('T')[0]!
+  }
+
+  /**
+   * Check if there's quota remaining for today
+   */
+  async hasQuotaRemaining(): Promise<boolean> {
+    await this.initialize()
+
+    // Reset counter if day changed
+    const today = this.getTodayString()
+    if (today !== this.currentDay) {
+      console.log(`[DailyQuota] New day detected, resetting counter`)
+      this.currentDay = today
+      this.requestCount = 0
+    }
+
+    return this.requestCount < this.dailyLimit
+  }
+
+  /**
+   * Record an API call (non-cached)
+   */
+  recordRequest(): void {
+    this.requestCount++
+
+    if (this.requestCount === this.dailyLimit) {
+      console.warn(`[DailyQuota] Daily limit of ${this.dailyLimit} requests reached!`)
+    } else if (this.requestCount % 10 === 0 || this.requestCount >= this.dailyLimit - 10) {
+      console.log(`[DailyQuota] ${this.requestCount}/${this.dailyLimit} requests used today`)
+    }
+  }
+
+  /**
+   * Get current quota status
+   */
+  getStatus(): { used: number; limit: number; remaining: number } {
+    return {
+      used: this.requestCount,
+      limit: this.dailyLimit,
+      remaining: Math.max(0, this.dailyLimit - this.requestCount),
+    }
+  }
+}
+
+// ============================================================================
 // API-Football Client
 // ============================================================================
 
@@ -182,6 +274,7 @@ export class ApiFootballClient {
   private readonly config: ApiFootballConfig
   private readonly circuitBreaker: CircuitBreaker
   private readonly rateLimiter: RateLimiter
+  private readonly dailyQuotaTracker: DailyQuotaTracker
   private readonly memoryCache: Map<string, CacheEntry<unknown>> = new Map()
   private readonly provider: ApiProvider
 
@@ -200,11 +293,11 @@ export class ApiFootballClient {
       circuitBreakerThreshold:
         config?.circuitBreakerThreshold ||
         (apiFootballConfig.circuitBreakerThreshold as number) ||
-        3,
+        10, // Allow more transient failures before opening (was 3)
       circuitBreakerTimeoutMs:
         config?.circuitBreakerTimeoutMs ||
         (apiFootballConfig.circuitBreakerTimeoutMs as number) ||
-        5 * 60 * 1000, // 5 minutes
+        60 * 1000, // 1 minute recovery time (was 5 minutes)
       // RapidAPI configuration
       rapidApiKey: config?.rapidApiKey || (apiFootballConfig.rapidApiKey as string) || '',
       rapidApiBaseUrl:
@@ -222,20 +315,26 @@ export class ApiFootballClient {
       rapidApiCircuitBreakerThreshold:
         config?.rapidApiCircuitBreakerThreshold ||
         (apiFootballConfig.rapidApiCircuitBreakerThreshold as number) ||
-        3,
+        10, // Allow more transient failures before opening (was 3)
       rapidApiCircuitBreakerTimeoutMs:
         config?.rapidApiCircuitBreakerTimeoutMs ||
         (apiFootballConfig.rapidApiCircuitBreakerTimeoutMs as number) ||
-        5 * 60 * 1000, // 5 minutes
+        60 * 1000, // 1 minute recovery time (was 5 minutes)
+      rapidApiDailyRequestLimit:
+        config?.rapidApiDailyRequestLimit ||
+        (apiFootballConfig.rapidApiDailyRequestLimit as number) ||
+        100, // RapidAPI free tier: 100 requests/day
+      dailyRequestLimit:
+        config?.dailyRequestLimit || (apiFootballConfig.dailyRequestLimit as number) || 7500, // Direct API Pro tier: 7,500 requests/day
     }
 
     // Determine which provider to use: prefer direct API if configured, otherwise RapidAPI
     this.provider = this.config.apiKey ? 'direct' : this.config.rapidApiKey ? 'rapidapi' : 'direct'
 
     if (this.provider === 'rapidapi') {
-      console.log('[ApiFootball] Using RapidAPI provider')
+      console.log('[ApiFootball] Using RapidAPI provider (free tier: 100 req/day limit)')
     } else if (this.config.apiKey) {
-      console.log('[ApiFootball] Using direct API provider')
+      console.log('[ApiFootball] Using direct API provider (Pro tier: 7,500 req/day limit)')
     }
 
     // Use provider-specific settings for circuit breaker and rate limiter
@@ -251,9 +350,14 @@ export class ApiFootballClient {
       this.provider === 'rapidapi'
         ? this.config.rapidApiMaxRequestsPerMinute
         : this.config.maxRequestsPerMinute
+    const dailyLimit =
+      this.provider === 'rapidapi'
+        ? this.config.rapidApiDailyRequestLimit
+        : this.config.dailyRequestLimit
 
     this.circuitBreaker = new CircuitBreaker(cbThreshold, cbTimeout)
     this.rateLimiter = new RateLimiter(maxRequests)
+    this.dailyQuotaTracker = new DailyQuotaTracker(dailyLimit)
   }
 
   /**
@@ -316,6 +420,7 @@ export class ApiFootballClient {
       cacheTtlSeconds?: number
       skipCache?: boolean
       skipRateLimit?: boolean
+      skipCircuitBreaker?: boolean
     }
   ): Promise<ApiFootballResponse<T>> {
     const cacheKey = this.buildCacheKey(endpoint, params)
@@ -324,27 +429,57 @@ export class ApiFootballClient {
     if (!options?.skipCache) {
       const cached = this.getFromMemoryCache<ApiFootballResponse<T>>(cacheKey)
       if (cached) {
-        console.log(`[ApiFootball] Cache hit (memory): ${endpoint}`)
-        await this.trackUsage(endpoint, params, 200, 0, true)
-        return cached
+        // Don't return cached empty responses - they should be refetched
+        const hasData = Array.isArray(cached.response)
+          ? cached.response.length > 0
+          : !!cached.response
+        if (hasData) {
+          console.log(`[ApiFootball] Cache hit (memory): ${endpoint}`)
+          await this.trackUsage(endpoint, params, 200, 0, true)
+          return cached
+        } else {
+          console.log(`[ApiFootball] Skipping empty cached response for ${endpoint}`)
+          this.memoryCache.delete(cacheKey) // Clean up empty cache entry
+        }
       }
 
       // Check database cache
       const dbCached = await this.getFromDbCache<ApiFootballResponse<T>>(endpoint, params)
       if (dbCached) {
-        console.log(`[ApiFootball] Cache hit (db): ${endpoint}`)
-        await this.trackUsage(endpoint, params, 200, 0, true)
-        // Also store in memory cache for faster access
-        if (options?.cacheTtlSeconds) {
-          this.setMemoryCache(cacheKey, dbCached, options.cacheTtlSeconds)
+        // Don't return cached empty responses - they should be refetched
+        const hasData = Array.isArray(dbCached.response)
+          ? dbCached.response.length > 0
+          : !!dbCached.response
+        if (hasData) {
+          console.log(`[ApiFootball] Cache hit (db): ${endpoint}`)
+          await this.trackUsage(endpoint, params, 200, 0, true)
+          // Also store in memory cache for faster access
+          if (options?.cacheTtlSeconds) {
+            this.setMemoryCache(cacheKey, dbCached, options.cacheTtlSeconds)
+          }
+          return dbCached
+        } else {
+          console.log(`[ApiFootball] Skipping empty db cache for ${endpoint}, will refetch`)
+          // Delete the empty cache entry from database
+          await prisma.api_football_cache.deleteMany({
+            where: { endpoint, params: params ?? {} },
+          })
         }
-        return dbCached
       }
     }
 
-    // Check circuit breaker
-    if (this.circuitBreaker.isOpen()) {
+    // Check circuit breaker (can be bypassed for critical requests like /leagues)
+    if (!options?.skipCircuitBreaker && this.circuitBreaker.isOpen()) {
       throw new Error('Circuit breaker is open - API-Football is temporarily unavailable')
+    }
+
+    // Check daily quota before making request
+    if (!(await this.dailyQuotaTracker.hasQuotaRemaining())) {
+      const status = this.dailyQuotaTracker.getStatus()
+      throw new Error(
+        `Daily API quota exhausted (${status.used}/${status.limit}). ` +
+          `Quota resets at midnight UTC. Cached data will still be served.`
+      )
     }
 
     // Wait for rate limit slot
@@ -357,7 +492,12 @@ export class ApiFootballClient {
     let errorMessage: string | undefined
 
     try {
-      const url = new URL(endpoint, this.getEffectiveBaseUrl())
+      // Build the URL properly - need to handle path joining correctly
+      // new URL('/endpoint', 'https://host/v3') would incorrectly give 'https://host/endpoint'
+      // We need 'https://host/v3/endpoint' instead
+      const baseUrl = this.getEffectiveBaseUrl()
+      const fullPath = baseUrl.endsWith('/') ? baseUrl + endpoint.slice(1) : baseUrl + endpoint
+      const url = new URL(fullPath)
       if (params) {
         Object.entries(params).forEach(([key, value]) => {
           url.searchParams.append(key, String(value))
@@ -369,6 +509,9 @@ export class ApiFootballClient {
       const response = await this.fetchWithRetry<ApiFootballResponse<T>>(url.toString())
       statusCode = 200
 
+      // Record this API call against daily quota
+      this.dailyQuotaTracker.recordRequest()
+
       // Check for API errors in response
       if (response.errors && Object.keys(response.errors).length > 0) {
         const errorStr = JSON.stringify(response.errors)
@@ -379,10 +522,15 @@ export class ApiFootballClient {
 
       this.circuitBreaker.recordSuccess()
 
-      // Cache the response
-      if (options?.cacheTtlSeconds && !errorMessage) {
+      // Cache the response - but don't cache empty responses for endpoints that should return data
+      const hasData = Array.isArray(response.response)
+        ? response.response.length > 0
+        : !!response.response
+      if (options?.cacheTtlSeconds && !errorMessage && hasData) {
         this.setMemoryCache(cacheKey, response, options.cacheTtlSeconds)
         await this.setDbCache(endpoint, params, response, options.cacheTtlSeconds)
+      } else if (!hasData) {
+        console.warn(`[ApiFootball] Not caching empty response for ${endpoint}`)
       }
 
       return response
@@ -499,7 +647,7 @@ export class ApiFootballClient {
       const cached = await prisma.api_football_cache.findFirst({
         where: {
           endpoint,
-          params: paramsJson,
+          params: { equals: paramsJson },
           expires_at: { gt: new Date() },
         },
       })
@@ -630,6 +778,13 @@ export class ApiFootballClient {
   }
 
   /**
+   * Get local daily quota status (no API call needed)
+   */
+  getDailyQuotaStatus(): { used: number; limit: number; remaining: number } {
+    return this.dailyQuotaTracker.getStatus()
+  }
+
+  /**
    * Get today's usage statistics from our tracking table
    */
   async getTodayUsageStats(): Promise<{
@@ -670,6 +825,36 @@ export class ApiFootballClient {
       cachedRequests: cachedCount,
       errorCount,
       avgResponseTimeMs: Math.round(stats._avg.response_time_ms || 0),
+    }
+  }
+
+  /**
+   * Clear cache for a specific endpoint or all endpoints
+   */
+  async clearCache(endpoint?: string): Promise<number> {
+    // Clear memory cache
+    if (endpoint) {
+      // Clear matching keys from memory cache
+      for (const key of this.memoryCache.keys()) {
+        if (key.startsWith(endpoint)) {
+          this.memoryCache.delete(key)
+        }
+      }
+    } else {
+      this.memoryCache.clear()
+    }
+
+    // Clear database cache
+    try {
+      const where = endpoint ? { endpoint } : {}
+      const result = await prisma.api_football_cache.deleteMany({ where })
+      console.log(
+        `[ApiFootball] Cleared ${result.count} cache entries${endpoint ? ` for ${endpoint}` : ''}`
+      )
+      return result.count
+    } catch (error) {
+      console.error('[ApiFootball] Failed to clear database cache:', error)
+      return 0
     }
   }
 }

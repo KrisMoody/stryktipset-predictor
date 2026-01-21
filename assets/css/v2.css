@@ -1,0 +1,275 @@
+/**
+ * UI V2 Design Tokens and Utilities
+ * These extend Nuxt UI's default tokens for the redesigned interface.
+ */
+
+@import "tailwindcss" reference;
+@import "@nuxt/ui" reference;
+
+/* ==========================================================================
+   EV (Expected Value) Color Tokens
+   ========================================================================== */
+
+:root {
+  /* EV visualization colors */
+  --ev-negative: var(--ui-color-red-500);
+  --ev-neutral: var(--ui-color-gray-500);
+  --ev-opportunity: var(--ui-color-green-500);
+  --ev-strong: var(--ui-color-emerald-500);
+  --ev-exceptional: var(--ui-color-amber-500);
+
+  /* Confidence meter colors */
+  --confidence-low: var(--ui-color-red-500);
+  --confidence-medium: var(--ui-color-yellow-500);
+  --confidence-high: var(--ui-color-green-500);
+
+  /* Odds movement colors */
+  --odds-up: var(--ui-color-red-500);
+  --odds-down: var(--ui-color-green-500);
+  --odds-stable: var(--ui-color-gray-400);
+
+  /* Sidebar dimensions */
+  --sidebar-width: 256px;
+  --sidebar-collapsed-width: 64px;
+
+  /* Bottom nav height */
+  --bottom-nav-height: 64px;
+}
+
+.dark {
+  --ev-negative: var(--ui-color-red-400);
+  --ev-neutral: var(--ui-color-gray-400);
+  --ev-opportunity: var(--ui-color-green-400);
+  --ev-strong: var(--ui-color-emerald-400);
+  --ev-exceptional: var(--ui-color-amber-400);
+
+  --confidence-low: var(--ui-color-red-400);
+  --confidence-medium: var(--ui-color-yellow-400);
+  --confidence-high: var(--ui-color-green-400);
+
+  --odds-up: var(--ui-color-red-400);
+  --odds-down: var(--ui-color-green-400);
+  --odds-stable: var(--ui-color-gray-500);
+}
+
+/* ==========================================================================
+   V2 Sidebar Styles
+   ========================================================================== */
+
+.v2-sidebar {
+  width: var(--sidebar-width);
+  transition: width 0.2s ease;
+}
+
+.v2-sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+/* ==========================================================================
+   Progress Ring Component
+   ========================================================================== */
+
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-ring__circle {
+  transition: stroke-dashoffset 0.35s ease;
+  transform-origin: 50% 50%;
+}
+
+/* ==========================================================================
+   Odds Ticker Animation
+   ========================================================================== */
+
+@keyframes odds-flash-up {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgb(239 68 68 / 0.2);
+  }
+}
+
+@keyframes odds-flash-down {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgb(34 197 94 / 0.2);
+  }
+}
+
+.odds-flash-up {
+  animation: odds-flash-up 0.5s ease;
+}
+
+.odds-flash-down {
+  animation: odds-flash-down 0.5s ease;
+}
+
+/* ==========================================================================
+   Confidence Meter
+   ========================================================================== */
+
+.confidence-meter {
+  --meter-value: 0;
+  background: conic-gradient(
+    var(--meter-color, var(--confidence-medium)) calc(var(--meter-value) * 1%),
+    var(--ui-color-gray-200) 0
+  );
+}
+
+.dark .confidence-meter {
+  background: conic-gradient(
+    var(--meter-color, var(--confidence-medium)) calc(var(--meter-value) * 1%),
+    var(--ui-color-gray-700) 0
+  );
+}
+
+/* ==========================================================================
+   Value Badge Styles
+   ========================================================================== */
+
+.value-badge {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+}
+
+.value-badge--opportunity {
+  @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400;
+}
+
+.value-badge--strong {
+  @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400;
+}
+
+.value-badge--exceptional {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400;
+}
+
+/* ==========================================================================
+   Data Tabs
+   ========================================================================== */
+
+.data-tabs {
+  @apply border-b border-gray-200 dark:border-gray-700;
+}
+
+.data-tab {
+  @apply px-4 py-2 text-sm font-medium border-b-2 border-transparent;
+  @apply text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200;
+  @apply transition-colors duration-150;
+}
+
+.data-tab--active {
+  @apply text-primary-600 border-primary-500 dark:text-primary-400 dark:border-primary-400;
+}
+
+.data-tab--has-data::after {
+  content: '';
+  @apply inline-block w-1.5 h-1.5 ml-1.5 rounded-full bg-primary-500;
+}
+
+/* ==========================================================================
+   Match Card V2
+   ========================================================================== */
+
+.match-card-v2 {
+  @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700;
+  @apply transition-shadow duration-200;
+}
+
+.match-card-v2:hover {
+  @apply shadow-md;
+}
+
+.match-card-v2__header {
+  @apply px-4 py-3 border-b border-gray-100 dark:border-gray-700;
+}
+
+.match-card-v2__body {
+  @apply p-4;
+}
+
+.match-card-v2__footer {
+  @apply px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700;
+}
+
+/* ==========================================================================
+   Command Palette
+   ========================================================================== */
+
+.command-palette-backdrop {
+  @apply fixed inset-0 bg-black/50 z-50;
+}
+
+.command-palette {
+  @apply fixed top-1/4 left-1/2 -translate-x-1/2 w-full max-w-lg;
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden z-50;
+}
+
+.command-palette__input {
+  @apply w-full px-4 py-3 text-lg bg-transparent border-b border-gray-200 dark:border-gray-700;
+  @apply focus:outline-none;
+}
+
+.command-palette__results {
+  @apply max-h-80 overflow-y-auto;
+}
+
+.command-palette__item {
+  @apply px-4 py-3 flex items-center gap-3 cursor-pointer;
+  @apply hover:bg-gray-100 dark:hover:bg-gray-700;
+}
+
+.command-palette__item--selected {
+  @apply bg-primary-50 dark:bg-primary-900/20;
+}
+
+/* ==========================================================================
+   Quick Stats Bar
+   ========================================================================== */
+
+.quick-stats {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+}
+
+.quick-stat {
+  @apply bg-white dark:bg-gray-800 rounded-lg p-4;
+  @apply border border-gray-200 dark:border-gray-700;
+}
+
+.quick-stat__value {
+  @apply text-2xl font-bold text-gray-900 dark:text-white;
+}
+
+.quick-stat__label {
+  @apply text-sm text-gray-500 dark:text-gray-400;
+}
+
+/* ==========================================================================
+   Mobile Bottom Nav
+   ========================================================================== */
+
+.mobile-bottom-nav {
+  @apply fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-gray-900;
+  @apply border-t border-gray-200 dark:border-gray-800;
+  @apply flex items-center justify-around px-2;
+  @apply z-40;
+}
+
+.mobile-bottom-nav__item {
+  @apply flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg;
+  @apply text-gray-500 dark:text-gray-400;
+  @apply transition-colors duration-150;
+}
+
+.mobile-bottom-nav__item--active {
+  @apply text-primary-600 dark:text-primary-400;
+}
+
+.mobile-bottom-nav__item:active {
+  @apply bg-gray-100 dark:bg-gray-800;
+}

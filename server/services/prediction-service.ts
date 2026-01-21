@@ -7,6 +7,7 @@ import { captureAIError } from '~/server/utils/bugsnag-helpers'
 import type { PredictionData, PredictionModel } from '~/types'
 import { calculateAICost } from '~/server/constants/ai-pricing'
 import { getMatchCalculations, type MatchCalculations } from './statistical-calculations'
+import { getMatchEnrichmentService } from './api-football/match-enrichment'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Complex Prisma and AI API data */
 
@@ -96,6 +97,41 @@ export class PredictionService {
 
       if (!match) {
         throw new Error(`Match ${matchId} not found`)
+      }
+
+      // Ensure match has fresh statistics and H2H data before generating prediction
+      // This is a safety net - data should already be fetched during draw sync
+      try {
+        const enrichmentService = getMatchEnrichmentService()
+        const fetchResult = await enrichmentService.fetchMatchDataIfNeeded(matchId, {
+          skipQuotaCheck: true, // For predictions, always try to fetch (user triggered)
+          skipFinishedMatches: false, // Allow re-prediction of finished matches
+          dataTypes: ['headToHead', 'statistics', 'team_season_stats'],
+        })
+
+        if (fetchResult.needed) {
+          if (fetchResult.fetched) {
+            console.log(
+              `[Prediction Service] Fetched missing data for match ${matchId} before prediction`
+            )
+            // Reload match_scraped_data after fetching
+            const refreshedScrapedData = await prisma.match_scraped_data.findMany({
+              where: { match_id: matchId },
+            })
+            // Update match object with fresh scraped data
+            ;(match as any).match_scraped_data = refreshedScrapedData
+          } else if (fetchResult.skipped) {
+            console.warn(
+              `[Prediction Service] Could not fetch data for match ${matchId}: ${fetchResult.reason}`
+            )
+          }
+        }
+      } catch (error) {
+        // Log but don't fail - proceed with prediction using available data
+        console.warn(
+          `[Prediction Service] Error ensuring data for match ${matchId}:`,
+          error instanceof Error ? error.message : error
+        )
       }
 
       // Generate embedding first (if not exists)

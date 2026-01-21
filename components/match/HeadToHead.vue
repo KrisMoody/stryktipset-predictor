@@ -109,6 +109,29 @@
       </div>
     </div>
 
+    <!-- Data Source Indicator -->
+    <div
+      v-if="h2hData && h2hData.matches && h2hData.matches.length > 0 && dataSourceInfo"
+      class="flex items-center justify-end gap-2 text-xs text-gray-400 dark:text-gray-500 mt-4"
+    >
+      <span class="flex items-center gap-1">
+        <UIcon
+          :name="
+            dataSourceInfo.source === 'api-football' ? 'i-heroicons-cloud' : 'i-heroicons-globe-alt'
+          "
+          class="w-3 h-3"
+        />
+        <span
+          >via
+          {{ dataSourceInfo.source === 'api-football' ? 'API-Football' : 'web scraping' }}</span
+        >
+      </span>
+      <span v-if="dataSourceInfo.scrapedAt" class="text-gray-300 dark:text-gray-600">•</span>
+      <span v-if="dataSourceInfo.scrapedAt">
+        {{ formatRelativeTime(dataSourceInfo.scrapedAt) }}
+      </span>
+    </div>
+
     <!-- Empty State -->
     <div
       v-if="!h2hData || !h2hData.matches || h2hData.matches.length === 0"
@@ -127,6 +150,8 @@ import type { HeadToHeadData, HeadToHeadMatch } from '~/types'
 interface ScrapedDataItem {
   data_type: string
   data: unknown
+  source?: string
+  scraped_at?: string | Date
 }
 
 const props = defineProps<{
@@ -136,6 +161,36 @@ const props = defineProps<{
 }>()
 
 const showAll = ref(false)
+
+// Get data source info for display
+const dataSourceInfo = computed(() => {
+  if (!props.scrapedData) return null
+
+  const h2hItem = props.scrapedData.find(d => d.data_type === 'headToHead')
+  if (!h2hItem) return null
+
+  return {
+    source: h2hItem.source || 'unknown',
+    scrapedAt: h2hItem.scraped_at ? new Date(h2hItem.scraped_at) : null,
+  }
+})
+
+// Format relative time (e.g., "2 hours ago")
+const formatRelativeTime = (date: Date | null): string => {
+  if (!date) return ''
+
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return 'just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString()
+}
 
 // Extract H2H data (handles both web-scraped and API-Football formats)
 const h2hData = computed((): HeadToHeadData | null => {

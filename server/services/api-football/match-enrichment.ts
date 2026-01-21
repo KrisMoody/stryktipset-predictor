@@ -38,9 +38,58 @@ const TEAM_STATS_CACHE_TTL = 24 * 60 * 60 // 24 hours (updates after fixtures)
 const STANDINGS_CACHE_TTL = 24 * 60 * 60 // 24 hours (updates after fixtures)
 const LINEUPS_CACHE_TTL = 30 * 60 // 30 minutes (can change close to kickoff)
 
+// Cache TTLs in seconds for checking data freshness (same values but named for clarity)
+const CACHE_TTL_BY_TYPE: Record<string, number> = {
+  headToHead: H2H_CACHE_TTL,
+  statistics: STATISTICS_CACHE_TTL,
+  team_season_stats: TEAM_STATS_CACHE_TTL,
+  standings: STANDINGS_CACHE_TTL,
+  injuries: INJURIES_CACHE_TTL,
+  api_predictions: PREDICTIONS_CACHE_TTL,
+  api_lineups: LINEUPS_CACHE_TTL,
+}
+
+// Delay between sequential API requests (in ms) to respect rate limits
+const REQUEST_DELAY_MS = 500
+
+// Quota threshold for auto-fetch (pause auto-fetch when usage exceeds this %)
+const QUOTA_THRESHOLD_PERCENT = 95
+
+// Helper: delay between requests
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 // ============================================================================
 // Types
 // ============================================================================
+
+export interface DataFreshnessResult {
+  dataType: string
+  exists: boolean
+  isFresh: boolean
+  scrapedAt: Date | null
+  source: string | null
+}
+
+export interface EnsureDataResult {
+  matchId: number
+  hasFreshData: boolean
+  missing: string[]
+  stale: string[]
+  details: DataFreshnessResult[]
+}
+
+export interface FetchDataResult {
+  mapped: boolean
+  fixtureId: number | null
+  statistics: boolean
+  headToHead: boolean
+  injuries: boolean
+  predictions: boolean
+  teamStats: boolean
+  standings: boolean
+  lineups: boolean
+  error?: string
+}
 
 export interface EnrichmentResult {
   matchId: number
@@ -369,6 +418,16 @@ export class MatchEnrichmentService {
         console.log(
           `[MatchEnrichment] Data fetched for match ${matchId}: stats=${result.dataFetched.statistics}, h2h=${result.dataFetched.headToHead}, injuries=${result.dataFetched.injuries}, predictions=${result.dataFetched.predictions}, teamStats=${result.dataFetched.teamStats}, standings=${result.dataFetched.standings}`
         )
+      }
+
+      // Auto-fetch data in background if enabled and mapping was successful
+      // This is separate from fetchDuringEnrichment - it runs async/non-blocking
+      const enableAutoFetch = process.env.ENABLE_AUTO_FETCH !== 'false'
+      if (enableAutoFetch && apiHomeTeamId && apiAwayTeamId) {
+        // Run in background (non-blocking) - don't await
+        this.fetchDataAfterEnrichment(matchId).catch(err => {
+          console.warn(`[MatchEnrichment] Background auto-fetch failed for match ${matchId}:`, err)
+        })
       }
     } catch (error) {
       result.error = error instanceof Error ? error.message : 'Unknown error'
@@ -1136,18 +1195,7 @@ export class MatchEnrichmentService {
    * This is called when the user clicks "Fetch Data" button.
    * It ensures the match is mapped first, then fetches all data types.
    */
-  async fetchAllDataForMatch(matchId: number): Promise<{
-    mapped: boolean
-    fixtureId: number | null
-    statistics: boolean
-    headToHead: boolean
-    injuries: boolean
-    predictions: boolean
-    teamStats: boolean
-    standings: boolean
-    lineups: boolean
-    error?: string
-  }> {
+  async fetchAllDataForMatch(matchId: number): Promise<FetchDataResult> {
     const result = {
       mapped: false,
       fixtureId: null as number | null,
@@ -1298,6 +1346,354 @@ export class MatchEnrichmentService {
       return result
     } catch (error) {
       console.error(`[MatchEnrichment] fetchAllDataForMatch error:`, error)
+      return { ...result, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  }
+
+  // ==========================================================================
+  // Automatic Data Fetching Methods
+  // ==========================================================================
+
+  /**
+   * Check if a match has fresh data for specific data types.
+   * Returns freshness status for each requested data type.
+   */
+  async hasFreshData(
+    matchId: number,
+    dataTypes: string[] = ['headToHead', 'statistics', 'team_season_stats', 'standings']
+  ): Promise<DataFreshnessResult[]> {
+    const now = new Date()
+
+    const existingData = await prisma.match_scraped_data.findMany({
+      where: {
+        match_id: matchId,
+        data_type: { in: dataTypes },
+      },
+      select: {
+        data_type: true,
+        scraped_at: true,
+        source: true,
+        is_stale: true,
+      },
+    })
+
+    const dataMap = new Map(existingData.map(d => [d.data_type, d]))
+
+    return dataTypes.map(dataType => {
+      const data = dataMap.get(dataType)
+      if (!data) {
+        return {
+          dataType,
+          exists: false,
+          isFresh: false,
+          scrapedAt: null,
+          source: null,
+        }
+      }
+
+      const cacheTtl = CACHE_TTL_BY_TYPE[dataType] || STATISTICS_CACHE_TTL
+      const ageSeconds = (now.getTime() - data.scraped_at.getTime()) / 1000
+      const isFresh = !data.is_stale && ageSeconds < cacheTtl
+
+      return {
+        dataType,
+        exists: true,
+        isFresh,
+        scrapedAt: data.scraped_at,
+        source: data.source,
+      }
+    })
+  }
+
+  /**
+   * Check what data is missing or stale for a match.
+   * Used to determine if data fetching is needed before prediction.
+   */
+  async ensureMatchData(
+    matchId: number,
+    requiredDataTypes: string[] = ['headToHead', 'statistics']
+  ): Promise<EnsureDataResult> {
+    const freshnessResults = await this.hasFreshData(matchId, requiredDataTypes)
+
+    const missing = freshnessResults.filter(r => !r.exists).map(r => r.dataType)
+    const stale = freshnessResults.filter(r => r.exists && !r.isFresh).map(r => r.dataType)
+    const hasFreshData = missing.length === 0 && stale.length === 0
+
+    return {
+      matchId,
+      hasFreshData,
+      missing,
+      stale,
+      details: freshnessResults,
+    }
+  }
+
+  /**
+   * Check if auto-fetch should be skipped due to quota.
+   * Returns true if quota usage is above threshold.
+   */
+  private isQuotaExhausted(): boolean {
+    const status = this.client.getDailyQuotaStatus()
+    const usagePercent = (status.used / status.limit) * 100
+    return usagePercent >= QUOTA_THRESHOLD_PERCENT
+  }
+
+  /**
+   * Fetch match data if needed (missing or stale).
+   * Combines check + fetch into a single callable function.
+   * Used by both draw sync and prediction flows.
+   *
+   * @param matchId - The match ID
+   * @param options - Options for fetching
+   * @returns Object indicating if data was fetched and success status
+   */
+  async fetchMatchDataIfNeeded(
+    matchId: number,
+    options: {
+      skipQuotaCheck?: boolean
+      skipFinishedMatches?: boolean
+      dataTypes?: string[]
+    } = {}
+  ): Promise<{
+    needed: boolean
+    fetched: boolean
+    skipped: boolean
+    reason?: string
+    result?: FetchDataResult
+  }> {
+    const {
+      skipQuotaCheck = false,
+      skipFinishedMatches = true,
+      dataTypes = ['headToHead', 'statistics'],
+    } = options
+
+    // Check if match is finished
+    if (skipFinishedMatches) {
+      const match = await prisma.matches.findUnique({
+        where: { id: matchId },
+        select: { status: true },
+      })
+
+      if (match?.status === 'FT') {
+        return { needed: false, fetched: false, skipped: true, reason: 'Match is finished' }
+      }
+    }
+
+    // Check if data is already fresh
+    const dataStatus = await this.ensureMatchData(matchId, dataTypes)
+
+    if (dataStatus.hasFreshData) {
+      return { needed: false, fetched: false, skipped: false }
+    }
+
+    // Check quota
+    if (!skipQuotaCheck && this.isQuotaExhausted()) {
+      console.warn(
+        `[MatchEnrichment] Skipping auto-fetch for match ${matchId}: quota threshold (${QUOTA_THRESHOLD_PERCENT}%) exceeded`
+      )
+      return { needed: true, fetched: false, skipped: true, reason: 'Quota threshold exceeded' }
+    }
+
+    // Fetch data
+    console.log(
+      `[MatchEnrichment] Fetching data for match ${matchId}: missing=[${dataStatus.missing.join(',')}], stale=[${dataStatus.stale.join(',')}]`
+    )
+
+    const result = await this.fetchAllDataForMatch(matchId)
+
+    return {
+      needed: true,
+      fetched: !result.error,
+      skipped: false,
+      result,
+    }
+  }
+
+  /**
+   * Automatically fetch data after successful enrichment.
+   * Called after enrichMatch() when auto-fetch is enabled.
+   * Runs in background (non-blocking).
+   */
+  async fetchDataAfterEnrichment(matchId: number): Promise<void> {
+    try {
+      const fetchResult = await this.fetchMatchDataIfNeeded(matchId, {
+        skipQuotaCheck: false,
+        skipFinishedMatches: true,
+        dataTypes: ['headToHead', 'statistics', 'team_season_stats', 'standings'],
+      })
+
+      if (fetchResult.skipped) {
+        console.log(
+          `[MatchEnrichment] Auto-fetch skipped for match ${matchId}: ${fetchResult.reason}`
+        )
+      } else if (fetchResult.fetched) {
+        console.log(`[MatchEnrichment] Auto-fetch completed for match ${matchId}`)
+      }
+    } catch (error) {
+      console.warn(`[MatchEnrichment] Auto-fetch failed for match ${matchId}:`, error)
+    }
+  }
+
+  /**
+   * Fetch all data types sequentially with delays between requests.
+   * This is the rate-limited version used for automatic fetching.
+   */
+  async fetchAllDataForMatchSequential(matchId: number): Promise<FetchDataResult> {
+    const result = {
+      mapped: false,
+      fixtureId: null as number | null,
+      statistics: false,
+      headToHead: false,
+      injuries: false,
+      predictions: false,
+      teamStats: false,
+      standings: false,
+      lineups: false,
+    }
+
+    try {
+      // Get match with API-Football IDs and league info
+      let match = await prisma.matches.findUnique({
+        where: { id: matchId },
+        select: {
+          id: true,
+          start_time: true,
+          api_football_fixture_id: true,
+          api_football_home_team_id: true,
+          api_football_away_team_id: true,
+          api_football_league_id: true,
+        },
+      })
+
+      if (!match) {
+        return { ...result, error: 'Match not found' }
+      }
+
+      // If not mapped, try to map it first
+      if (!match.api_football_home_team_id || !match.api_football_away_team_id) {
+        console.log(`[MatchEnrichment] Match ${matchId} not mapped, attempting enrichment...`)
+        const enrichResult = await this.enrichMatch(matchId)
+
+        if (!enrichResult.success) {
+          return { ...result, error: enrichResult.error || 'Failed to map match to API-Football' }
+        }
+
+        // Refresh match data after enrichment
+        match = await prisma.matches.findUnique({
+          where: { id: matchId },
+          select: {
+            id: true,
+            start_time: true,
+            api_football_fixture_id: true,
+            api_football_home_team_id: true,
+            api_football_away_team_id: true,
+            api_football_league_id: true,
+          },
+        })
+
+        if (!match) {
+          return { ...result, error: 'Match not found after enrichment' }
+        }
+      }
+
+      result.mapped = !!(match.api_football_home_team_id && match.api_football_away_team_id)
+      result.fixtureId = match.api_football_fixture_id
+
+      if (!result.mapped) {
+        return { ...result, error: 'Could not map teams to API-Football' }
+      }
+
+      const homeTeamId = match.api_football_home_team_id!
+      const awayTeamId = match.api_football_away_team_id!
+      const fixtureId = match.api_football_fixture_id
+      const leagueId = match.api_football_league_id
+      const season = new Date(match.start_time).getFullYear()
+
+      // Fetch data types sequentially with delays (priority order from design.md)
+
+      // 1. Head-to-head (highest priority)
+      try {
+        result.headToHead = await this.fetchAndStoreH2H(matchId, homeTeamId, awayTeamId)
+      } catch (err) {
+        console.warn(`[MatchEnrichment] H2H fetch failed:`, err)
+      }
+      await delay(REQUEST_DELAY_MS)
+
+      // 2. Team season stats
+      if (leagueId) {
+        try {
+          result.teamStats = await this.fetchAndStoreTeamSeasonStats(
+            matchId,
+            homeTeamId,
+            awayTeamId,
+            leagueId,
+            season
+          )
+        } catch (err) {
+          console.warn(`[MatchEnrichment] Team stats fetch failed:`, err)
+        }
+        await delay(REQUEST_DELAY_MS)
+      }
+
+      // 3. Standings
+      if (leagueId) {
+        try {
+          result.standings = await this.fetchAndStoreStandings(matchId, leagueId, season)
+        } catch (err) {
+          console.warn(`[MatchEnrichment] Standings fetch failed:`, err)
+        }
+        await delay(REQUEST_DELAY_MS)
+      }
+
+      // 4. Statistics
+      if (fixtureId) {
+        try {
+          result.statistics = await this.fetchAndStoreStatistics(matchId, fixtureId)
+        } catch (err) {
+          console.warn(`[MatchEnrichment] Statistics fetch failed:`, err)
+        }
+        await delay(REQUEST_DELAY_MS)
+      }
+
+      // 5. Injuries
+      try {
+        result.injuries = await this.fetchAndStoreInjuries(
+          matchId,
+          homeTeamId,
+          awayTeamId,
+          fixtureId || undefined
+        )
+      } catch (err) {
+        console.warn(`[MatchEnrichment] Injuries fetch failed:`, err)
+      }
+      await delay(REQUEST_DELAY_MS)
+
+      // 6. Predictions
+      if (fixtureId) {
+        try {
+          result.predictions = await this.fetchAndStorePredictions(matchId, fixtureId)
+        } catch (err) {
+          console.warn(`[MatchEnrichment] Predictions fetch failed:`, err)
+        }
+        await delay(REQUEST_DELAY_MS)
+      }
+
+      // 7. Lineups (lowest priority - usually not available until close to kickoff)
+      if (fixtureId) {
+        try {
+          result.lineups = await this.fetchAndStoreLineups(matchId, fixtureId)
+        } catch (err) {
+          console.warn(`[MatchEnrichment] Lineups fetch failed:`, err)
+        }
+      }
+
+      console.log(
+        `[MatchEnrichment] fetchAllDataForMatchSequential(${matchId}): h2h=${result.headToHead}, stats=${result.statistics}, teamStats=${result.teamStats}, standings=${result.standings}, injuries=${result.injuries}, predictions=${result.predictions}, lineups=${result.lineups}`
+      )
+
+      return result
+    } catch (error) {
+      console.error(`[MatchEnrichment] fetchAllDataForMatchSequential error:`, error)
       return { ...result, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }

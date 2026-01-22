@@ -26,6 +26,16 @@
           </span>
           <UButton
             size="xs"
+            color="neutral"
+            variant="soft"
+            :loading="fetching"
+            :disabled="!canFetch"
+            @click="$emit('fetch')"
+          >
+            <UIcon name="i-heroicons-arrow-down-tray" class="w-3 h-3" />
+          </UButton>
+          <UButton
+            size="xs"
             color="primary"
             :loading="predicting"
             :disabled="!canPredict"
@@ -125,11 +135,14 @@ const props = defineProps<{
   match: MatchData
   predicting?: boolean
   canPredict?: boolean
+  fetching?: boolean
+  canFetch?: boolean
 }>()
 
 defineEmits<{
   predict: []
   reevaluate: []
+  fetch: []
 }>()
 
 const prediction = computed(() => props.match.predictions?.[0] || null)

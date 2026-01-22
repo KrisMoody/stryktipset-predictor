@@ -53,6 +53,17 @@
         View Matches
       </UButton>
       <UButton
+        color="neutral"
+        variant="soft"
+        size="sm"
+        :loading="fetchingData"
+        :disabled="!canFetch"
+        @click="$emit('fetchData')"
+      >
+        <UIcon name="i-heroicons-arrow-down-tray" class="w-3 h-3 mr-1" />
+        Fetch Data
+      </UButton>
+      <UButton
         v-if="!isComplete"
         color="success"
         variant="soft"
@@ -92,10 +103,13 @@ const props = defineProps<{
   draw: DrawData
   generating?: boolean
   canGenerate?: boolean
+  fetchingData?: boolean
+  canFetch?: boolean
 }>()
 
 defineEmits<{
   generate: []
+  fetchData: []
 }>()
 
 const totalMatches = computed(() => props.draw.matches?.length || 0)

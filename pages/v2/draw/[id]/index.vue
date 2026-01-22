@@ -31,6 +31,17 @@
         </div>
         <div class="flex items-center gap-2">
           <UButton
+            color="neutral"
+            variant="soft"
+            size="sm"
+            :loading="fetchingAll"
+            :disabled="!isActionAllowed"
+            @click="fetchAllData"
+          >
+            <UIcon name="i-heroicons-arrow-down-tray" class="w-4 h-4 mr-1" />
+            Fetch All Data
+          </UButton>
+          <UButton
             v-if="hasAnyPredictions"
             color="warning"
             variant="soft"
@@ -76,8 +87,11 @@
           :match="match"
           :predicting="predicting[match.id]"
           :can-predict="isActionAllowed"
+          :fetching="fetching[match.id]"
+          :can-fetch="isActionAllowed"
           @predict="predictMatch(match.id)"
           @reevaluate="openReEvaluationModal(match)"
+          @fetch="fetchMatchData(match.id)"
         />
       </div>
 
@@ -179,6 +193,8 @@ onMounted(async () => {
 watch(gameType, () => loadScheduleStatus())
 
 const predicting = ref<Record<number, boolean>>({})
+const fetching = ref<Record<number, boolean>>({})
+const fetchingAll = ref(false)
 
 // Re-evaluation modal states
 interface CurrentPrediction {
@@ -325,6 +341,76 @@ async function handleReEvaluated() {
 
 async function handleReEvaluateAllConfirmed() {
   await refresh()
+}
+
+async function fetchMatchData(matchId: number) {
+  fetching.value[matchId] = true
+  try {
+    await $fetch(`/api/matches/${matchId}/scrape`, {
+      method: 'POST',
+      body: { dataTypes: ['xStats', 'statistics', 'headToHead', 'news', 'lineup'] },
+    })
+    await refresh()
+    toast.add({
+      title: 'Data Fetched',
+      description: 'Match data fetched successfully',
+      color: 'success',
+    })
+  } catch (err) {
+    console.error('Error fetching match data:', err)
+    toast.add({
+      title: 'Fetch Failed',
+      description: err instanceof Error ? err.message : 'Failed to fetch match data',
+      color: 'error',
+    })
+  } finally {
+    fetching.value[matchId] = false
+  }
+}
+
+async function fetchAllData() {
+  if (!draw.value?.matches) return
+
+  fetchingAll.value = true
+  const matches = draw.value.matches
+  let successCount = 0
+  let failCount = 0
+
+  toast.add({
+    title: 'Fetching Data',
+    description: `Processing ${matches.length} matches...`,
+    color: 'info',
+  })
+
+  for (const match of matches) {
+    try {
+      await $fetch(`/api/matches/${match.id}/scrape`, {
+        method: 'POST',
+        body: { dataTypes: ['xStats', 'statistics', 'headToHead', 'news', 'lineup'] },
+      })
+      successCount++
+    } catch (err) {
+      console.error(`Error fetching data for match ${match.id}:`, err)
+      failCount++
+    }
+  }
+
+  await refresh()
+  fetchingAll.value = false
+
+  if (failCount === 0) {
+    toast.add({
+      title: 'Data Fetch Complete',
+      description: `Successfully fetched data for ${successCount} matches`,
+      color: 'success',
+    })
+  } else {
+    toast.add({
+      title: 'Data Fetch Partially Complete',
+      description: `${successCount} succeeded, ${failCount} failed`,
+      color: 'warning',
+    })
+  }
 }
 
 function formatDate(date: string) {

@@ -17,6 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "nuxt typecheck",
+    "check:all": "yarn lint && yarn typecheck && yarn format:check && npx prisma validate",
+    "test:quick": "vitest run tests/unit/ --reporter=dot",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

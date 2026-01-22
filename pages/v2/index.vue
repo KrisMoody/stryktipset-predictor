@@ -68,7 +68,10 @@
         :draw="draw"
         :generating="generatingPredictions[draw.draw_number]"
         :can-generate="isActionAllowed"
+        :fetching-data="fetchingData[draw.draw_number]"
+        :can-fetch="isActionAllowed"
         @generate="generatePredictions(draw.draw_number)"
+        @fetch-data="fetchDrawData(draw.draw_number)"
       />
     </div>
 
@@ -117,6 +120,7 @@ const isActionAllowed = computed(() => {
 
 const syncing = ref(false)
 const generatingPredictions = ref<Record<number, boolean>>({})
+const fetchingData = ref<Record<number, boolean>>({})
 
 // Load schedule status
 async function loadScheduleStatus() {
@@ -275,5 +279,51 @@ function generatePredictions(drawNumber: number) {
       })
     }
   })
+}
+
+async function fetchDrawData(drawNumber: number) {
+  const draw = draws.value.find(d => d.draw_number === drawNumber)
+  if (!draw || !draw.matches) return
+
+  fetchingData.value[drawNumber] = true
+  const matches = draw.matches
+  let successCount = 0
+  let failCount = 0
+
+  toast.add({
+    title: 'Fetching Data',
+    description: `Processing ${matches.length} matches for draw ${drawNumber}...`,
+    color: 'info',
+  })
+
+  for (const match of matches) {
+    try {
+      await $fetch(`/api/matches/${match.id}/scrape`, {
+        method: 'POST',
+        body: { dataTypes: ['xStats', 'statistics', 'headToHead', 'news', 'lineup'] },
+      })
+      successCount++
+    } catch (err) {
+      console.error(`Error fetching data for match ${match.id}:`, err)
+      failCount++
+    }
+  }
+
+  await refresh()
+  fetchingData.value[drawNumber] = false
+
+  if (failCount === 0) {
+    toast.add({
+      title: 'Data Fetch Complete',
+      description: `Successfully fetched data for ${successCount} matches`,
+      color: 'success',
+    })
+  } else {
+    toast.add({
+      title: 'Data Fetch Partially Complete',
+      description: `${successCount} succeeded, ${failCount} failed`,
+      color: 'warning',
+    })
+  }
 }
 </script>

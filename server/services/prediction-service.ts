@@ -87,9 +87,7 @@ export class PredictionService {
             },
           },
           match_odds: {
-            where: { type: 'current' },
             orderBy: { collected_at: 'desc' },
-            take: 1,
           },
           match_scraped_data: true,
         },
@@ -406,9 +404,14 @@ export class PredictionService {
     parts.push(`Match Date: ${new Date(match.start_time).toISOString().split('T')[0]}`)
     parts.push('')
 
-    // Odds information
-    if (match.match_odds && match.match_odds.length > 0) {
-      const odds = match.match_odds[0]
+    // Odds information - get Svenska Spel odds (type='current')
+    const svenskaSpelOdds = match.match_odds?.find(
+      (o: any) =>
+        o.type === 'current' &&
+        (o.source === 'stryktipset' || o.source === 'europatipset' || o.source === 'topptipset')
+    )
+    if (svenskaSpelOdds) {
+      const odds = svenskaSpelOdds
       parts.push('ODDS & MARKET SENTIMENT')
       parts.push('======================')
       parts.push(`Home Win (1): ${odds.home_odds} (${odds.home_probability}%)`)
@@ -430,6 +433,127 @@ export class PredictionService {
         parts.push(`  X: ${odds.tio_tidningars_tips_draw}/10 experts`)
         parts.push(`  2: ${odds.tio_tidningars_tips_away}/10 experts`)
       }
+      parts.push('')
+    }
+
+    // Market Odds Comparison (from multiple bookmakers)
+    const marketOddsData = match.match_scraped_data?.find((d: any) => d.data_type === 'market_odds')
+    if (marketOddsData?.data?.consensus) {
+      parts.push('MARKET ODDS COMPARISON')
+      parts.push('======================')
+      parts.push('(Source: API-Football - Multiple bookmakers)')
+      parts.push('')
+
+      const consensus = marketOddsData.data.consensus
+      const bookmakers = marketOddsData.data.bookmakers || []
+
+      // Market consensus probabilities
+      if (consensus.fairProbabilities) {
+        parts.push('Market Consensus (fair probabilities, margin removed):')
+        parts.push(`  Home Win (1): ${consensus.fairProbabilities.home.toFixed(1)}%`)
+        parts.push(`  Draw (X): ${consensus.fairProbabilities.draw.toFixed(1)}%`)
+        parts.push(`  Away Win (2): ${consensus.fairProbabilities.away.toFixed(1)}%`)
+        parts.push('')
+      }
+
+      // Compare with Svenska Spel odds for value signals
+      if (svenskaSpelOdds) {
+        const ssHomeProb = parseFloat(svenskaSpelOdds.home_probability?.toString() || '0')
+        const ssDrawProb = parseFloat(svenskaSpelOdds.draw_probability?.toString() || '0')
+        const ssAwayProb = parseFloat(svenskaSpelOdds.away_probability?.toString() || '0')
+
+        if (consensus.fairProbabilities && ssHomeProb > 0) {
+          const homeDiff = ssHomeProb - consensus.fairProbabilities.home
+          const drawDiff = ssDrawProb - consensus.fairProbabilities.draw
+          const awayDiff = ssAwayProb - consensus.fairProbabilities.away
+
+          parts.push('Svenska Spel vs Market Consensus:')
+          parts.push(
+            `  Home: SS ${ssHomeProb.toFixed(1)}% vs Market ${consensus.fairProbabilities.home.toFixed(1)}% (${homeDiff > 0 ? '+' : ''}${homeDiff.toFixed(1)}%)`
+          )
+          parts.push(
+            `  Draw: SS ${ssDrawProb.toFixed(1)}% vs Market ${consensus.fairProbabilities.draw.toFixed(1)}% (${drawDiff > 0 ? '+' : ''}${drawDiff.toFixed(1)}%)`
+          )
+          parts.push(
+            `  Away: SS ${ssAwayProb.toFixed(1)}% vs Market ${consensus.fairProbabilities.away.toFixed(1)}% (${awayDiff > 0 ? '+' : ''}${awayDiff.toFixed(1)}%)`
+          )
+          parts.push('')
+
+          // Flag value signals (>5% difference)
+          const VALUE_THRESHOLD = 5
+          const valueSignals: string[] = []
+
+          if (Math.abs(homeDiff) > VALUE_THRESHOLD) {
+            const direction = homeDiff > 0 ? 'overvalues' : 'undervalues'
+            valueSignals.push(
+              `Svenska Spel ${direction} Home Win by ${Math.abs(homeDiff).toFixed(1)}%`
+            )
+          }
+          if (Math.abs(drawDiff) > VALUE_THRESHOLD) {
+            const direction = drawDiff > 0 ? 'overvalues' : 'undervalues'
+            valueSignals.push(`Svenska Spel ${direction} Draw by ${Math.abs(drawDiff).toFixed(1)}%`)
+          }
+          if (Math.abs(awayDiff) > VALUE_THRESHOLD) {
+            const direction = awayDiff > 0 ? 'overvalues' : 'undervalues'
+            valueSignals.push(
+              `Svenska Spel ${direction} Away Win by ${Math.abs(awayDiff).toFixed(1)}%`
+            )
+          }
+
+          if (valueSignals.length > 0) {
+            parts.push('⚠️ VALUE SIGNALS:')
+            for (const signal of valueSignals) {
+              parts.push(`  • ${signal}`)
+            }
+            parts.push('')
+          }
+        }
+      }
+
+      // Bookmaker breakdown (from loaded match_odds data)
+      if (bookmakers.length > 0 && match.match_odds) {
+        parts.push(`Bookmaker Breakdown (${bookmakers.length} bookmakers):`)
+
+        // Get market odds from loaded match_odds (type='market', not 'market_consensus')
+        const marketOddsRecords = match.match_odds.filter(
+          (o: any) => o.type === 'market' && o.source !== 'market_consensus'
+        )
+
+        // Group by source, take most recent
+        const bookmakerOdds = new Map<string, any>()
+        for (const record of marketOddsRecords) {
+          if (!bookmakerOdds.has(record.source)) {
+            bookmakerOdds.set(record.source, record)
+          }
+        }
+
+        for (const [source, odds] of bookmakerOdds) {
+          const isSharp = source.toLowerCase().includes('pinnacle')
+          const sharpLabel = isSharp ? ' (sharp)' : ''
+          parts.push(
+            `  ${source}: ${parseFloat(odds.home_odds).toFixed(2)} / ${parseFloat(odds.draw_odds).toFixed(2)} / ${parseFloat(odds.away_odds).toFixed(2)}${sharpLabel}`
+          )
+        }
+        parts.push('')
+      }
+
+      // Market disagreement (standard deviation)
+      if (consensus.standardDeviation) {
+        const avgStdDev =
+          (consensus.standardDeviation.home +
+            consensus.standardDeviation.draw +
+            consensus.standardDeviation.away) /
+          3
+        if (avgStdDev > 2) {
+          parts.push(
+            `⚠️ HIGH MARKET DISAGREEMENT: Bookmakers disagree significantly (avg std dev: ${avgStdDev.toFixed(1)}%)`
+          )
+          parts.push('This suggests uncertainty - consider hedging or avoiding spik.')
+          parts.push('')
+        }
+      }
+
+      parts.push(`Market Margin: ${consensus.averageMargin?.toFixed(1) || 'N/A'}%`)
       parts.push('')
     }
 

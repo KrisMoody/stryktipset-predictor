@@ -24,6 +24,7 @@ import type {
   ApiFootballSeasonStatisticsResponse,
   ApiFootballStandingsResponse,
   ApiFootballLineup,
+  ApiFootballOddsResponse,
 } from './types'
 
 // ============================================================================
@@ -37,6 +38,7 @@ const PREDICTIONS_CACHE_TTL = 2 * 60 * 60 // 2 hours (predictions update 2h befo
 const TEAM_STATS_CACHE_TTL = 24 * 60 * 60 // 24 hours (updates after fixtures)
 const STANDINGS_CACHE_TTL = 24 * 60 * 60 // 24 hours (updates after fixtures)
 const LINEUPS_CACHE_TTL = 30 * 60 // 30 minutes (can change close to kickoff)
+const MARKET_ODDS_CACHE_TTL = 30 * 60 // 30 minutes (odds change more frequently)
 
 // Cache TTLs in seconds for checking data freshness (same values but named for clarity)
 const CACHE_TTL_BY_TYPE: Record<string, number> = {
@@ -47,7 +49,17 @@ const CACHE_TTL_BY_TYPE: Record<string, number> = {
   injuries: INJURIES_CACHE_TTL,
   api_predictions: PREDICTIONS_CACHE_TTL,
   api_lineups: LINEUPS_CACHE_TTL,
+  market_odds: MARKET_ODDS_CACHE_TTL,
 }
+
+// Target bookmakers for market odds (curated list of reliable bookmakers)
+const TARGET_BOOKMAKERS = [
+  'Pinnacle', // Sharp bookmaker, efficient lines
+  'Bet365', // High liquidity
+  'Unibet', // Commonly available
+  '1xBet', // Wide coverage
+  'Betfair', // Exchange, reflects true market
+]
 
 // Delay between sequential API requests (in ms) to respect rate limits
 const REQUEST_DELAY_MS = 500
@@ -88,6 +100,7 @@ export interface FetchDataResult {
   teamStats: boolean
   standings: boolean
   lineups: boolean
+  marketOdds: boolean
   error?: string
 }
 
@@ -1034,6 +1047,237 @@ export class MatchEnrichmentService {
     }
   }
 
+  /**
+   * Fetch and store market odds from multiple bookmakers
+   * Endpoint: GET /odds?fixture={fixtureId}&bet=1 (Match Winner only)
+   * Also calculates and stores market consensus
+   */
+  private async fetchAndStoreMarketOdds(matchId: number, fixtureId: number): Promise<boolean> {
+    // Check if market odds fetching is enabled
+    const enableMarketOdds = process.env.API_FOOTBALL_ENABLE_MARKET_ODDS !== 'false'
+    if (!enableMarketOdds) {
+      console.log(`[MatchEnrichment] Market odds fetching disabled via environment variable`)
+      return false
+    }
+
+    if (!this.client.isConfigured() || this.client.isCircuitOpen()) {
+      return false
+    }
+
+    try {
+      const response = await this.client.get<ApiFootballOddsResponse[]>(
+        '/odds',
+        { fixture: fixtureId, bet: 1 }, // bet=1 is "Match Winner" (1X2)
+        { cacheTtlSeconds: MARKET_ODDS_CACHE_TTL }
+      )
+
+      if (!response.response || response.response.length === 0) {
+        console.warn(`[MatchEnrichment] No odds available for fixture ${fixtureId}`)
+        return false
+      }
+
+      const oddsData = response.response[0]!
+      if (!oddsData.bookmakers || oddsData.bookmakers.length === 0) {
+        console.warn(`[MatchEnrichment] No bookmakers found for fixture ${fixtureId}`)
+        return false
+      }
+
+      // Filter to target bookmakers
+      const targetBookmakers = oddsData.bookmakers.filter(bm =>
+        TARGET_BOOKMAKERS.some(target => bm.name.toLowerCase().includes(target.toLowerCase()))
+      )
+
+      if (targetBookmakers.length === 0) {
+        console.warn(`[MatchEnrichment] None of target bookmakers found for fixture ${fixtureId}`)
+        // Fall back to any available bookmakers (up to 5)
+        targetBookmakers.push(...oddsData.bookmakers.slice(0, 5))
+      }
+
+      const now = new Date()
+      const storedBookmakers: string[] = []
+      const allImpliedProbabilities: { home: number; draw: number; away: number }[] = []
+
+      // Store each bookmaker's odds
+      for (const bookmaker of targetBookmakers) {
+        const matchWinnerBet = bookmaker.bets.find(
+          bet => bet.id === 1 || bet.name === 'Match Winner'
+        )
+        if (!matchWinnerBet) continue
+
+        const homeValue = matchWinnerBet.values.find(v => v.value === 'Home')
+        const drawValue = matchWinnerBet.values.find(v => v.value === 'Draw')
+        const awayValue = matchWinnerBet.values.find(v => v.value === 'Away')
+
+        if (!homeValue || !drawValue || !awayValue) continue
+
+        const homeOdds = parseFloat(homeValue.odd)
+        const drawOdds = parseFloat(drawValue.odd)
+        const awayOdds = parseFloat(awayValue.odd)
+
+        if (isNaN(homeOdds) || isNaN(drawOdds) || isNaN(awayOdds)) continue
+
+        // Calculate implied probabilities (before margin removal)
+        const impliedHome = (1 / homeOdds) * 100
+        const impliedDraw = (1 / drawOdds) * 100
+        const impliedAway = (1 / awayOdds) * 100
+
+        allImpliedProbabilities.push({ home: impliedHome, draw: impliedDraw, away: impliedAway })
+
+        // Store bookmaker odds in match_odds table
+        const bookmakerSource = bookmaker.name.toLowerCase().replace(/\s+/g, '_')
+        await prisma.match_odds.upsert({
+          where: {
+            match_id_source_type_collected_at: {
+              match_id: matchId,
+              source: bookmakerSource,
+              type: 'market',
+              collected_at: now,
+            },
+          },
+          create: {
+            match_id: matchId,
+            source: bookmakerSource,
+            type: 'market',
+            home_odds: homeOdds,
+            draw_odds: drawOdds,
+            away_odds: awayOdds,
+            home_probability: impliedHome,
+            draw_probability: impliedDraw,
+            away_probability: impliedAway,
+            collected_at: now,
+          },
+          update: {
+            home_odds: homeOdds,
+            draw_odds: drawOdds,
+            away_odds: awayOdds,
+            home_probability: impliedHome,
+            draw_probability: impliedDraw,
+            away_probability: impliedAway,
+          },
+        })
+
+        storedBookmakers.push(bookmaker.name)
+      }
+
+      // Calculate and store market consensus
+      if (allImpliedProbabilities.length > 0) {
+        const consensusResult = this.calculateMarketConsensus(allImpliedProbabilities)
+
+        // Store market consensus as a special source
+        await prisma.match_odds.upsert({
+          where: {
+            match_id_source_type_collected_at: {
+              match_id: matchId,
+              source: 'market_consensus',
+              type: 'market',
+              collected_at: now,
+            },
+          },
+          create: {
+            match_id: matchId,
+            source: 'market_consensus',
+            type: 'market',
+            home_odds: consensusResult.fairOdds.home,
+            draw_odds: consensusResult.fairOdds.draw,
+            away_odds: consensusResult.fairOdds.away,
+            home_probability: consensusResult.fairProbabilities.home,
+            draw_probability: consensusResult.fairProbabilities.draw,
+            away_probability: consensusResult.fairProbabilities.away,
+            collected_at: now,
+          },
+          update: {
+            home_odds: consensusResult.fairOdds.home,
+            draw_odds: consensusResult.fairOdds.draw,
+            away_odds: consensusResult.fairOdds.away,
+            home_probability: consensusResult.fairProbabilities.home,
+            draw_probability: consensusResult.fairProbabilities.draw,
+            away_probability: consensusResult.fairProbabilities.away,
+          },
+        })
+
+        // Also store as scraped data for additional metrics
+        await this.storeMatchData(matchId, 'market_odds', {
+          fixtureId,
+          bookmakers: storedBookmakers,
+          consensus: consensusResult,
+          bookmakerCount: allImpliedProbabilities.length,
+          fetchedAt: now.toISOString(),
+        })
+      }
+
+      console.log(
+        `[MatchEnrichment] Stored market odds from ${storedBookmakers.length} bookmakers for match ${matchId}: ${storedBookmakers.join(', ')}`
+      )
+
+      return storedBookmakers.length > 0
+    } catch (error) {
+      console.warn(`[MatchEnrichment] Error fetching market odds:`, error)
+      return false
+    }
+  }
+
+  /**
+   * Calculate market consensus from multiple bookmaker probabilities.
+   * Uses equal-margin method to remove bookmaker margin and get fair probabilities.
+   */
+  private calculateMarketConsensus(probabilities: { home: number; draw: number; away: number }[]): {
+    fairProbabilities: { home: number; draw: number; away: number }
+    fairOdds: { home: number; draw: number; away: number }
+    averageMargin: number
+    standardDeviation: { home: number; draw: number; away: number }
+  } {
+    const n = probabilities.length
+
+    // Calculate average implied probabilities
+    const avgHome = probabilities.reduce((sum, p) => sum + p.home, 0) / n
+    const avgDraw = probabilities.reduce((sum, p) => sum + p.draw, 0) / n
+    const avgAway = probabilities.reduce((sum, p) => sum + p.away, 0) / n
+
+    // Calculate total (includes margin) - typically >100%
+    const totalImplied = avgHome + avgDraw + avgAway
+    const averageMargin = totalImplied - 100
+
+    // Remove margin using equal-margin method (divide by total and multiply by 100)
+    const fairHome = (avgHome / totalImplied) * 100
+    const fairDraw = (avgDraw / totalImplied) * 100
+    const fairAway = (avgAway / totalImplied) * 100
+
+    // Calculate fair odds from fair probabilities
+    const fairOddsHome = fairHome > 0 ? 100 / fairHome : 0
+    const fairOddsDraw = fairDraw > 0 ? 100 / fairDraw : 0
+    const fairOddsAway = fairAway > 0 ? 100 / fairAway : 0
+
+    // Calculate standard deviation (measure of market disagreement)
+    const stdHome = Math.sqrt(
+      probabilities.reduce((sum, p) => sum + Math.pow(p.home - avgHome, 2), 0) / n
+    )
+    const stdDraw = Math.sqrt(
+      probabilities.reduce((sum, p) => sum + Math.pow(p.draw - avgDraw, 2), 0) / n
+    )
+    const stdAway = Math.sqrt(
+      probabilities.reduce((sum, p) => sum + Math.pow(p.away - avgAway, 2), 0) / n
+    )
+
+    return {
+      fairProbabilities: {
+        home: Math.round(fairHome * 100) / 100,
+        draw: Math.round(fairDraw * 100) / 100,
+        away: Math.round(fairAway * 100) / 100,
+      },
+      fairOdds: {
+        home: Math.round(fairOddsHome * 100) / 100,
+        draw: Math.round(fairOddsDraw * 100) / 100,
+        away: Math.round(fairOddsAway * 100) / 100,
+      },
+      averageMargin: Math.round(averageMargin * 100) / 100,
+      standardDeviation: {
+        home: Math.round(stdHome * 100) / 100,
+        draw: Math.round(stdDraw * 100) / 100,
+        away: Math.round(stdAway * 100) / 100,
+      },
+    }
+  }
+
   // ==========================================================================
   // Helper Methods
   // ==========================================================================
@@ -1206,6 +1450,7 @@ export class MatchEnrichmentService {
       teamStats: false,
       standings: false,
       lineups: false,
+      marketOdds: false,
     }
 
     try {
@@ -1275,6 +1520,7 @@ export class MatchEnrichmentService {
         teamStatsResult,
         standingsResult,
         lineupsResult,
+        marketOddsResult,
       ] = await Promise.all([
         // Statistics (requires fixture ID)
         fixtureId
@@ -1329,6 +1575,13 @@ export class MatchEnrichmentService {
               return false
             })
           : Promise.resolve(false),
+        // Market odds (requires fixture ID)
+        fixtureId
+          ? this.fetchAndStoreMarketOdds(matchId, fixtureId).catch(err => {
+              console.warn(`[MatchEnrichment] Market odds fetch failed:`, err)
+              return false
+            })
+          : Promise.resolve(false),
       ])
 
       result.statistics = statsResult
@@ -1338,9 +1591,10 @@ export class MatchEnrichmentService {
       result.teamStats = teamStatsResult
       result.standings = standingsResult
       result.lineups = lineupsResult
+      result.marketOdds = marketOddsResult
 
       console.log(
-        `[MatchEnrichment] fetchAllDataForMatch(${matchId}): stats=${result.statistics}, h2h=${result.headToHead}, injuries=${result.injuries}, predictions=${result.predictions}, teamStats=${result.teamStats}, standings=${result.standings}, lineups=${result.lineups}`
+        `[MatchEnrichment] fetchAllDataForMatch(${matchId}): stats=${result.statistics}, h2h=${result.headToHead}, injuries=${result.injuries}, predictions=${result.predictions}, teamStats=${result.teamStats}, standings=${result.standings}, lineups=${result.lineups}, marketOdds=${result.marketOdds}`
       )
 
       return result
@@ -1549,6 +1803,7 @@ export class MatchEnrichmentService {
       teamStats: false,
       standings: false,
       lineups: false,
+      marketOdds: false,
     }
 
     try {
@@ -1678,17 +1933,27 @@ export class MatchEnrichmentService {
         await delay(REQUEST_DELAY_MS)
       }
 
-      // 7. Lineups (lowest priority - usually not available until close to kickoff)
+      // 7. Lineups (usually not available until close to kickoff)
       if (fixtureId) {
         try {
           result.lineups = await this.fetchAndStoreLineups(matchId, fixtureId)
         } catch (err) {
           console.warn(`[MatchEnrichment] Lineups fetch failed:`, err)
         }
+        await delay(REQUEST_DELAY_MS)
+      }
+
+      // 8. Market odds (requires fixture ID)
+      if (fixtureId) {
+        try {
+          result.marketOdds = await this.fetchAndStoreMarketOdds(matchId, fixtureId)
+        } catch (err) {
+          console.warn(`[MatchEnrichment] Market odds fetch failed:`, err)
+        }
       }
 
       console.log(
-        `[MatchEnrichment] fetchAllDataForMatchSequential(${matchId}): h2h=${result.headToHead}, stats=${result.statistics}, teamStats=${result.teamStats}, standings=${result.standings}, injuries=${result.injuries}, predictions=${result.predictions}, lineups=${result.lineups}`
+        `[MatchEnrichment] fetchAllDataForMatchSequential(${matchId}): h2h=${result.headToHead}, stats=${result.statistics}, teamStats=${result.teamStats}, standings=${result.standings}, injuries=${result.injuries}, predictions=${result.predictions}, lineups=${result.lineups}, marketOdds=${result.marketOdds}`
       )
 
       return result

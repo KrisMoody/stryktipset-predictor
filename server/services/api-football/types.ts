@@ -427,6 +427,50 @@ export interface ApiFootballH2HResponse {
 }
 
 // ============================================================================
+// API-Football Odds Types (from /odds endpoint)
+// ============================================================================
+
+export interface ApiFootballOddsValue {
+  value: string // "Home", "Draw", "Away"
+  odd: string // Decimal odds as string, e.g., "2.10"
+}
+
+export interface ApiFootballOddsBet {
+  id: number
+  name: string // e.g., "Match Winner"
+  values: ApiFootballOddsValue[]
+}
+
+export interface ApiFootballOddsBookmaker {
+  id: number
+  name: string // e.g., "Bet365", "Pinnacle"
+  bets: ApiFootballOddsBet[]
+}
+
+export interface ApiFootballOddsFixture {
+  id: number
+  timezone: string
+  date: string
+  timestamp: number
+}
+
+export interface ApiFootballOddsLeague {
+  id: number
+  name: string
+  country: string
+  logo: string
+  flag: string | null
+  season: number
+}
+
+export interface ApiFootballOddsResponse {
+  league: ApiFootballOddsLeague
+  fixture: ApiFootballOddsFixture
+  update: string // ISO datetime of last odds update
+  bookmakers: ApiFootballOddsBookmaker[]
+}
+
+// ============================================================================
 // Internal Types
 // ============================================================================
 

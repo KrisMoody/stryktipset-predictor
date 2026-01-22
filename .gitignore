@@ -44,3 +44,4 @@ services/ai-scraper/__pycache__/
 services/ai-scraper/*.pyc
 services/ai-scraper/config.env
 
+.claude/settings.local.json

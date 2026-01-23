@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
-import type { Page } from 'playwright'
+import type { Page, Locator } from 'playwright'
 import { BaseScraper } from './base-scraper'
 
 /**
@@ -159,7 +158,7 @@ export class OddsetScraper extends BaseScraper {
   /**
    * Extract outcomes from a market section
    */
-  private async extractOutcomes(section: any): Promise<BetOutcome[]> {
+  private async extractOutcomes(section: Locator): Promise<BetOutcome[]> {
     const outcomes: BetOutcome[] = []
 
     try {
@@ -177,7 +176,7 @@ export class OddsetScraper extends BaseScraper {
           // Format is "Label\nOdds" (e.g., "1\n4,20" or "Över 2.5\n1,79")
           const parts = buttonText.trim().split('\n')
 
-          if (parts.length >= 2) {
+          if (parts.length >= 2 && parts[0] && parts[1]) {
             const label = parts[0].trim()
             const oddsText = parts[1].trim()
 

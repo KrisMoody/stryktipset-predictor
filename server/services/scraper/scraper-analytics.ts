@@ -1,7 +1,5 @@
 import type { ScraperAnalytics, ScrapingMethod, UrlPattern } from '~/types'
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Analytics aggregation utilities */
-
 /**
  * Analytics tracker for scraping operations
  * Tracks success rates, methods, domains, and performance metrics
@@ -54,9 +52,9 @@ export class ScraperAnalyticsTracker {
       }
     }
 
-    const rates: any = {}
+    const rates: Record<ScrapingMethod, number> = {} as Record<ScrapingMethod, number>
     for (const [method, stats] of Object.entries(methods)) {
-      rates[method] = stats.total > 0 ? (stats.success / stats.total) * 100 : 0
+      rates[method as ScrapingMethod] = stats.total > 0 ? (stats.success / stats.total) * 100 : 0
     }
 
     return rates
@@ -81,9 +79,9 @@ export class ScraperAnalyticsTracker {
       }
     }
 
-    const rates: any = {}
+    const rates: Record<UrlPattern, number> = {} as Record<UrlPattern, number>
     for (const [pattern, stats] of Object.entries(patterns)) {
-      rates[pattern] = stats.total > 0 ? (stats.success / stats.total) * 100 : 0
+      rates[pattern as UrlPattern] = stats.total > 0 ? (stats.success / stats.total) * 100 : 0
     }
 
     return rates
@@ -133,7 +131,7 @@ export class ScraperAnalyticsTracker {
       }
     }
 
-    const averages: any = {}
+    const averages: Record<string, number> = {}
     for (const [method, stats] of Object.entries(methods)) {
       averages[method] = stats.total > 0 ? Math.round(stats.duration / stats.total) : 0
     }

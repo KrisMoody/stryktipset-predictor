@@ -1,7 +1,27 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
 import type { Page } from 'playwright'
 import { BaseScraper } from './base-scraper'
 import type { HeadToHeadData } from '~/types'
+
+/**
+ * Historical match data for H2H analysis
+ */
+interface HistoricalMatch {
+  date: string
+  homeTeam: string
+  awayTeam: string
+  score: string
+  competition?: string
+}
+
+/**
+ * Summary of H2H statistics
+ */
+interface H2HSummary {
+  homeWins: number
+  draws: number
+  awayWins: number
+  totalMatches: number
+}
 
 /**
  * Scraper for Head-to-Head data (historical matchups between teams)
@@ -101,7 +121,7 @@ export class HeadToHeadScraper extends BaseScraper {
    * Extract H2H summary from the widget header
    * Format: "Head 2 Head4 - 1 - 0" means 4 home wins, 1 draw, 0 away wins
    */
-  private async extractH2HSummary(page: Page): Promise<any | null> {
+  private async extractH2HSummary(page: Page): Promise<H2HSummary | null> {
     try {
       // Look for the H2H header which shows summary like "Head 2 Head4 - 1 - 0"
       const headerText = await page
@@ -187,9 +207,9 @@ export class HeadToHeadScraper extends BaseScraper {
   /**
    * Extract historical matches from Enetpulse H2H widget
    */
-  private async extractMatches(page: Page): Promise<any[]> {
+  private async extractMatches(page: Page): Promise<HistoricalMatch[]> {
     try {
-      const matches: any[] = []
+      const matches: HistoricalMatch[] = []
 
       // Find match event wrappers in the H2H widget
       const eventWrappers = await page
@@ -269,7 +289,7 @@ export class HeadToHeadScraper extends BaseScraper {
    * Calculate summary statistics from extracted matches
    * Fallback when we can't extract from the header
    */
-  private calculateSummary(matches: any[]): any {
+  private calculateSummary(matches: HistoricalMatch[]): H2HSummary {
     let homeWins = 0
     let draws = 0
     let awayWins = 0
@@ -277,7 +297,7 @@ export class HeadToHeadScraper extends BaseScraper {
     for (const match of matches) {
       if (match.score) {
         const scoreParts = match.score.split('-')
-        if (scoreParts.length === 2) {
+        if (scoreParts.length === 2 && scoreParts[0] && scoreParts[1]) {
           const home = parseInt(scoreParts[0])
           const away = parseInt(scoreParts[1])
 

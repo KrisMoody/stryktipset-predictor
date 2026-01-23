@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Raw SQL queries return dynamic types */
 import { prisma } from '~/server/utils/prisma'
 import type { MGExtension, CouponRow } from '~/types'
 
@@ -395,7 +394,7 @@ export class SystemPerformanceAnalyzer {
       createdAt: Date
     }>
   > {
-    const where: any = { analyzed_at: { not: null } }
+    const where: { analyzed_at: { not: null }; system_id?: string } = { analyzed_at: { not: null } }
     if (systemId) where.system_id = systemId
 
     const performances = await prisma.system_performance.findMany({

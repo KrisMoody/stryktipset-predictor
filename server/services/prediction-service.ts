@@ -5,6 +5,7 @@ import { embeddingsService } from './embeddings-service'
 import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
 import { captureAIError } from '~/server/utils/bugsnag-helpers'
 import type { PredictionData, PredictionModel } from '~/types'
+import { getScrapedData, type MatchWithRelations } from '~/types/scraped-data'
 import { calculateAICost } from '~/server/constants/ai-pricing'
 import { getMatchCalculations, type MatchCalculations } from './statistical-calculations'
 import { getMatchEnrichmentService } from './api-football/match-enrichment'
@@ -186,8 +187,10 @@ export class PredictionService {
    * Prepare context for Claude
    */
   private prepareMatchContext(
-    match: any,
+    match: MatchWithRelations,
+
     similarMatches: any[],
+
     teamMatchups: any[],
     userContext?: string,
     calculations?: MatchCalculations | null
@@ -406,7 +409,7 @@ export class PredictionService {
 
     // Odds information - get Svenska Spel odds (type='current')
     const svenskaSpelOdds = match.match_odds?.find(
-      (o: any) =>
+      o =>
         o.type === 'current' &&
         (o.source === 'stryktipset' || o.source === 'europatipset' || o.source === 'topptipset')
     )
@@ -437,15 +440,15 @@ export class PredictionService {
     }
 
     // Market Odds Comparison (from multiple bookmakers)
-    const marketOddsData = match.match_scraped_data?.find((d: any) => d.data_type === 'market_odds')
-    if (marketOddsData?.data?.consensus) {
+    const marketOdds = getScrapedData(match.match_scraped_data, 'market_odds')
+    if (marketOdds?.consensus) {
       parts.push('MARKET ODDS COMPARISON')
       parts.push('======================')
       parts.push('(Source: API-Football - Multiple bookmakers)')
       parts.push('')
 
-      const consensus = marketOddsData.data.consensus
-      const bookmakers = marketOddsData.data.bookmakers || []
+      const consensus = marketOdds.consensus
+      const bookmakers = marketOdds.bookmakers || []
 
       // Market consensus probabilities
       if (consensus.fairProbabilities) {
@@ -516,11 +519,11 @@ export class PredictionService {
 
         // Get market odds from loaded match_odds (type='market', not 'market_consensus')
         const marketOddsRecords = match.match_odds.filter(
-          (o: any) => o.type === 'market' && o.source !== 'market_consensus'
+          o => o.type === 'market' && o.source !== 'market_consensus'
         )
 
         // Group by source, take most recent
-        const bookmakerOdds = new Map<string, any>()
+        const bookmakerOdds = new Map<string, (typeof marketOddsRecords)[number]>()
         for (const record of marketOddsRecords) {
           if (!bookmakerOdds.has(record.source)) {
             bookmakerOdds.set(record.source, record)
@@ -531,7 +534,7 @@ export class PredictionService {
           const isSharp = source.toLowerCase().includes('pinnacle')
           const sharpLabel = isSharp ? ' (sharp)' : ''
           parts.push(
-            `  ${source}: ${parseFloat(odds.home_odds).toFixed(2)} / ${parseFloat(odds.draw_odds).toFixed(2)} / ${parseFloat(odds.away_odds).toFixed(2)}${sharpLabel}`
+            `  ${source}: ${parseFloat(String(odds.home_odds)).toFixed(2)} / ${parseFloat(String(odds.draw_odds)).toFixed(2)} / ${parseFloat(String(odds.away_odds)).toFixed(2)}${sharpLabel}`
           )
         }
         parts.push('')
@@ -558,11 +561,10 @@ export class PredictionService {
     }
 
     // xStats
-    const xStatsData = match.match_scraped_data?.find((d: any) => d.data_type === 'xStats')
-    if (xStatsData?.data) {
+    const xStats = getScrapedData(match.match_scraped_data, 'xStats')
+    if (xStats) {
       parts.push('EXPECTED STATISTICS (xStats)')
       parts.push('============================')
-      const xStats = xStatsData.data
 
       if (xStats.homeTeam?.entireSeason) {
         parts.push(`${match.homeTeam.name} (Home):`)
@@ -593,17 +595,17 @@ export class PredictionService {
       }
 
       // Last 5 games xStats for recent form context
-      if (xStats.homeTeam?.last5Games || xStats.awayTeam?.last5Games) {
+      if (xStats.homeTeam?.lastFiveGames || xStats.awayTeam?.lastFiveGames) {
         parts.push('')
         parts.push('Recent Form (Last 5 Games):')
-        if (xStats.homeTeam?.last5Games) {
+        if (xStats.homeTeam?.lastFiveGames) {
           parts.push(
-            `  ${match.homeTeam.name}: xG ${xStats.homeTeam.last5Games.xg || 'N/A'}, xGA ${xStats.homeTeam.last5Games.xga || 'N/A'}`
+            `  ${match.homeTeam.name}: xG ${xStats.homeTeam.lastFiveGames.xg || 'N/A'}, xGA ${xStats.homeTeam.lastFiveGames.xga || 'N/A'}`
           )
         }
-        if (xStats.awayTeam?.last5Games) {
+        if (xStats.awayTeam?.lastFiveGames) {
           parts.push(
-            `  ${match.awayTeam.name}: xG ${xStats.awayTeam.last5Games.xg || 'N/A'}, xGA ${xStats.awayTeam.last5Games.xga || 'N/A'}`
+            `  ${match.awayTeam.name}: xG ${xStats.awayTeam.lastFiveGames.xg || 'N/A'}, xGA ${xStats.awayTeam.lastFiveGames.xga || 'N/A'}`
           )
         }
       }
@@ -611,11 +613,10 @@ export class PredictionService {
     }
 
     // Lineup/Injury information
-    const lineupData = match.match_scraped_data?.find((d: any) => d.data_type === 'lineup')
-    if (lineupData?.data) {
+    const lineup = getScrapedData(match.match_scraped_data, 'lineup')
+    if (lineup) {
       parts.push('TEAM LINEUPS & AVAILABILITY')
       parts.push('===========================')
-      const lineup = lineupData.data
 
       if (lineup.homeTeam) {
         parts.push(`${match.homeTeam.name}:`)
@@ -623,7 +624,7 @@ export class PredictionService {
           parts.push(`  Formation: ${lineup.homeTeam.formation}`)
         }
         parts.push(`  Lineup Status: ${lineup.homeTeam.isConfirmed ? 'Confirmed' : 'Probable'}`)
-        if (lineup.homeTeam.unavailable?.length > 0) {
+        if (lineup.homeTeam.unavailable && lineup.homeTeam.unavailable.length > 0) {
           parts.push(`  Unavailable Players:`)
           for (const player of lineup.homeTeam.unavailable) {
             parts.push(`    - ${player.name} (${player.reason || 'unknown reason'})`)
@@ -637,7 +638,7 @@ export class PredictionService {
           parts.push(`  Formation: ${lineup.awayTeam.formation}`)
         }
         parts.push(`  Lineup Status: ${lineup.awayTeam.isConfirmed ? 'Confirmed' : 'Probable'}`)
-        if (lineup.awayTeam.unavailable?.length > 0) {
+        if (lineup.awayTeam.unavailable && lineup.awayTeam.unavailable.length > 0) {
           parts.push(`  Unavailable Players:`)
           for (const player of lineup.awayTeam.unavailable) {
             parts.push(`    - ${player.name} (${player.reason || 'unknown reason'})`)
@@ -648,19 +649,18 @@ export class PredictionService {
     }
 
     // Injuries from API-Football (separate from lineup data)
-    const injuriesData = match.match_scraped_data?.find((d: any) => d.data_type === 'injuries')
-    if (injuriesData?.data?.injuries?.length > 0) {
+    const injuriesData = getScrapedData(match.match_scraped_data, 'injuries')
+    if (injuriesData?.injuries?.length) {
       parts.push('PLAYER INJURIES & ABSENCES')
       parts.push('==========================')
       parts.push('(Source: API-Football)')
       parts.push('')
 
-      const injuries = injuriesData.data.injuries
-      const homeInjuries = injuries.filter(
-        (inj: any) => inj.teamId === injuriesData.data.homeTeamId
+      const homeInjuries = injuriesData.injuries.filter(
+        inj => inj.teamId === injuriesData.homeTeamId
       )
-      const awayInjuries = injuries.filter(
-        (inj: any) => inj.teamId === injuriesData.data.awayTeamId
+      const awayInjuries = injuriesData.injuries.filter(
+        inj => inj.teamId === injuriesData.awayTeamId
       )
 
       if (homeInjuries.length > 0) {
@@ -689,67 +689,72 @@ export class PredictionService {
     }
 
     // API-Football Predictions (External Model Comparison)
-    const apiPredictionsData = match.match_scraped_data?.find(
-      (d: any) => d.data_type === 'api_predictions'
-    )
-    if (apiPredictionsData?.data) {
+    const apiPredictions = getScrapedData(match.match_scraped_data, 'api_predictions')
+    if (apiPredictions) {
       parts.push('EXTERNAL MODEL COMPARISON')
       parts.push('=========================')
       parts.push('(Source: API-Football AI predictions)')
       parts.push('')
 
-      const pred = apiPredictionsData.data
-      if (pred.predictions) {
+      if (apiPredictions.predictions) {
         parts.push('Win Probabilities:')
-        parts.push(`  Home Win: ${pred.predictions.percent?.home || 'N/A'}`)
-        parts.push(`  Draw: ${pred.predictions.percent?.draw || 'N/A'}`)
-        parts.push(`  Away Win: ${pred.predictions.percent?.away || 'N/A'}`)
+        parts.push(`  Home Win: ${apiPredictions.predictions.percent?.home || 'N/A'}`)
+        parts.push(`  Draw: ${apiPredictions.predictions.percent?.draw || 'N/A'}`)
+        parts.push(`  Away Win: ${apiPredictions.predictions.percent?.away || 'N/A'}`)
         parts.push('')
 
-        if (pred.predictions.winner) {
+        if (apiPredictions.predictions.winner) {
           parts.push(
-            `Predicted Winner: ${pred.predictions.winner.name} (${pred.predictions.winner.comment || ''})`
+            `Predicted Winner: ${apiPredictions.predictions.winner.name} (${apiPredictions.predictions.winner.comment || ''})`
           )
         }
-        if (pred.predictions.advice) {
-          parts.push(`Betting Advice: ${pred.predictions.advice}`)
+        if (apiPredictions.predictions.advice) {
+          parts.push(`Betting Advice: ${apiPredictions.predictions.advice}`)
         }
-        if (pred.predictions.goals) {
+        if (apiPredictions.predictions.goals) {
           parts.push(
-            `Expected Goals: Home ${pred.predictions.goals.home}, Away ${pred.predictions.goals.away}`
+            `Expected Goals: Home ${apiPredictions.predictions.goals.home}, Away ${apiPredictions.predictions.goals.away}`
           )
         }
         parts.push('')
       }
 
-      if (pred.comparison) {
+      if (apiPredictions.comparison) {
         parts.push('Team Comparison Metrics:')
-        if (pred.comparison.form) {
-          parts.push(`  Form: Home ${pred.comparison.form.home}, Away ${pred.comparison.form.away}`)
-        }
-        if (pred.comparison.attack) {
+        if (apiPredictions.comparison.form) {
           parts.push(
-            `  Attack: Home ${pred.comparison.attack.home}, Away ${pred.comparison.attack.away}`
+            `  Form: Home ${apiPredictions.comparison.form.home}, Away ${apiPredictions.comparison.form.away}`
           )
         }
-        if (pred.comparison.defense) {
+        if (apiPredictions.comparison.att) {
           parts.push(
-            `  Defense: Home ${pred.comparison.defense.home}, Away ${pred.comparison.defense.away}`
+            `  Attack: Home ${apiPredictions.comparison.att.home}, Away ${apiPredictions.comparison.att.away}`
           )
         }
-        if (pred.comparison.total) {
+        if (apiPredictions.comparison.def) {
           parts.push(
-            `  Overall: Home ${pred.comparison.total.home}, Away ${pred.comparison.total.away}`
+            `  Defense: Home ${apiPredictions.comparison.def.home}, Away ${apiPredictions.comparison.def.away}`
+          )
+        }
+        if (apiPredictions.comparison.total) {
+          parts.push(
+            `  Overall: Home ${apiPredictions.comparison.total.home}, Away ${apiPredictions.comparison.total.away}`
           )
         }
         parts.push('')
       }
 
       // Flag discrepancies between API-Football predictions and our model
-      if (calculations && pred.predictions?.percent) {
-        const apiHomePercent = parseFloat(pred.predictions.percent.home?.replace('%', '') || '0')
-        const apiDrawPercent = parseFloat(pred.predictions.percent.draw?.replace('%', '') || '0')
-        const apiAwayPercent = parseFloat(pred.predictions.percent.away?.replace('%', '') || '0')
+      if (calculations && apiPredictions.predictions?.percent) {
+        const apiHomePercent = parseFloat(
+          apiPredictions.predictions.percent.home?.replace('%', '') || '0'
+        )
+        const apiDrawPercent = parseFloat(
+          apiPredictions.predictions.percent.draw?.replace('%', '') || '0'
+        )
+        const apiAwayPercent = parseFloat(
+          apiPredictions.predictions.percent.away?.replace('%', '') || '0'
+        )
 
         const homeDiscrepancy = Math.abs(calculations.modelProbHome * 100 - apiHomePercent)
         const drawDiscrepancy = Math.abs(calculations.modelProbDraw * 100 - apiDrawPercent)
@@ -780,20 +785,16 @@ export class PredictionService {
     }
 
     // Team Season Statistics (from API-Football)
-    const teamSeasonStatsData = match.match_scraped_data?.find(
-      (d: any) => d.data_type === 'team_season_stats'
-    )
-    if (teamSeasonStatsData?.data) {
+    const teamSeasonStats = getScrapedData(match.match_scraped_data, 'team_season_stats')
+    if (teamSeasonStats) {
       parts.push('TEAM SEASON STATISTICS')
       parts.push('======================')
       parts.push('(Source: API-Football)')
       parts.push('')
 
-      const stats = teamSeasonStatsData.data
-
-      if (stats.homeTeam) {
-        const home = stats.homeTeam
-        parts.push(`${home.name} (Season ${stats.season}):`)
+      if (teamSeasonStats.homeTeam) {
+        const home = teamSeasonStats.homeTeam
+        parts.push(`${home.name} (Season ${teamSeasonStats.season}):`)
         if (home.form) {
           parts.push(`  Form: ${home.form}`)
         }
@@ -833,9 +834,9 @@ export class PredictionService {
         parts.push('')
       }
 
-      if (stats.awayTeam) {
-        const away = stats.awayTeam
-        parts.push(`${away.name} (Season ${stats.season}):`)
+      if (teamSeasonStats.awayTeam) {
+        const away = teamSeasonStats.awayTeam
+        parts.push(`${away.name} (Season ${teamSeasonStats.season}):`)
         if (away.form) {
           parts.push(`  Form: ${away.form}`)
         }
@@ -877,20 +878,19 @@ export class PredictionService {
     }
 
     // League Standings (from API-Football)
-    const standingsData = match.match_scraped_data?.find((d: any) => d.data_type === 'standings')
-    if (standingsData?.data?.standings) {
-      const standings = standingsData.data.standings
-      const homeTeamStanding = standings.find(
-        (s: any) => s.teamId === match.api_football_home_team_id
+    const standingsData = getScrapedData(match.match_scraped_data, 'standings')
+    if (standingsData?.standings) {
+      const homeTeamStanding = standingsData.standings.find(
+        s => s.teamId === match.api_football_home_team_id
       )
-      const awayTeamStanding = standings.find(
-        (s: any) => s.teamId === match.api_football_away_team_id
+      const awayTeamStanding = standingsData.standings.find(
+        s => s.teamId === match.api_football_away_team_id
       )
 
       if (homeTeamStanding || awayTeamStanding) {
         parts.push('LEAGUE STANDINGS')
         parts.push('================')
-        parts.push(`League: ${standingsData.data.leagueName} (${standingsData.data.season})`)
+        parts.push(`League: ${standingsData.leagueName} (${standingsData.season})`)
         parts.push('')
 
         if (homeTeamStanding) {
@@ -949,14 +949,14 @@ export class PredictionService {
     }
 
     // Confirmed Lineups (from API-Football)
-    const apiLineupsData = match.match_scraped_data?.find((d: any) => d.data_type === 'api_lineups')
-    if (apiLineupsData?.data?.lineups?.length > 0) {
+    const apiLineups = getScrapedData(match.match_scraped_data, 'api_lineups')
+    if (apiLineups?.lineups?.length) {
       parts.push('CONFIRMED LINEUPS')
       parts.push('=================')
       parts.push('(Source: API-Football - Confirmed team sheets)')
       parts.push('')
 
-      for (const lineup of apiLineupsData.data.lineups) {
+      for (const lineup of apiLineups.lineups) {
         parts.push(`${lineup.teamName}:`)
         if (lineup.formation) {
           parts.push(`  Formation: ${lineup.formation}`)
@@ -967,7 +967,7 @@ export class PredictionService {
         if (lineup.startXI?.length > 0) {
           parts.push(`  Starting XI:`)
           // Group by position
-          const byPosition: Record<string, any[]> = {}
+          const byPosition: Record<string, typeof lineup.startXI> = {}
           for (const player of lineup.startXI) {
             const pos = player.position || 'Unknown'
             if (!byPosition[pos]) byPosition[pos] = []
@@ -977,7 +977,7 @@ export class PredictionService {
           const posOrder = ['G', 'D', 'M', 'F']
           for (const pos of posOrder) {
             if (byPosition[pos]) {
-              const players = byPosition[pos].map((p: any) => `${p.name} (#${p.number})`).join(', ')
+              const players = byPosition[pos].map(p => `${p.name} (#${p.number})`).join(', ')
               parts.push(`    ${pos === 'G' ? 'GK' : pos}: ${players}`)
             }
           }
@@ -986,16 +986,20 @@ export class PredictionService {
       }
 
       // Cross-reference with injuries to highlight confirmed absences
-      if (injuriesData?.data?.injuries?.length > 0) {
+      if (injuriesData?.injuries?.length) {
         const confirmAbsences: string[] = []
 
-        for (const lineup of apiLineupsData.data.lineups) {
+        for (const lineup of apiLineups.lineups) {
           const allPlayers = [...(lineup.startXI || []), ...(lineup.substitutes || [])]
-          const presentPlayerIds = new Set(allPlayers.map((p: any) => p.id))
+          const presentPlayerIds = new Set(allPlayers.map(p => p.id))
 
           // Check which injured players are NOT in the lineup
-          for (const injury of injuriesData.data.injuries) {
-            if (injury.teamId === lineup.teamId && !presentPlayerIds.has(injury.playerId)) {
+          for (const injury of injuriesData.injuries) {
+            if (
+              injury.teamId === lineup.teamId &&
+              injury.playerId &&
+              !presentPlayerIds.has(injury.playerId)
+            ) {
               confirmAbsences.push(`${injury.playerName} (${lineup.teamName}) - ${injury.type}`)
             }
           }
@@ -1012,40 +1016,45 @@ export class PredictionService {
     }
 
     // Team statistics
-    const statsData = match.match_scraped_data?.find((d: any) => d.data_type === 'statistics')
-    if (statsData?.data) {
+    const statistics = getScrapedData(match.match_scraped_data, 'statistics')
+    if (statistics) {
       parts.push('TEAM STATISTICS')
       parts.push('===============')
-      const stats = statsData.data
 
-      if (stats.homeTeam) {
+      if (statistics.homeTeam) {
         parts.push(`${match.homeTeam.name}:`)
-        parts.push(`  Position: ${stats.homeTeam.position || 'N/A'}`)
-        parts.push(`  Points: ${stats.homeTeam.points || 'N/A'}`)
-        parts.push(`  Form: ${stats.homeTeam.form?.join('') || 'N/A'}`)
-        parts.push(`  Played: ${stats.homeTeam.played || 'N/A'}`)
+        parts.push(`  Position: ${statistics.homeTeam.position || 'N/A'}`)
+        parts.push(`  Points: ${statistics.homeTeam.points || 'N/A'}`)
+        parts.push(`  Form: ${statistics.homeTeam.form?.join('') || 'N/A'}`)
+        parts.push(`  Played: ${statistics.homeTeam.played || 'N/A'}`)
         parts.push(
-          `  W-D-L: ${stats.homeTeam.won || 0}-${stats.homeTeam.drawn || 0}-${stats.homeTeam.lost || 0}`
+          `  W-D-L: ${statistics.homeTeam.won || 0}-${statistics.homeTeam.drawn || 0}-${statistics.homeTeam.lost || 0}`
         )
-        if (stats.homeTeam.goalsFor !== undefined || stats.homeTeam.goalsAgainst !== undefined) {
+        if (
+          statistics.homeTeam.goalsFor !== undefined ||
+          statistics.homeTeam.goalsAgainst !== undefined
+        ) {
           parts.push(
-            `  Goals: ${stats.homeTeam.goalsFor ?? 'N/A'} scored, ${stats.homeTeam.goalsAgainst ?? 'N/A'} conceded`
+            `  Goals: ${statistics.homeTeam.goalsFor ?? 'N/A'} scored, ${statistics.homeTeam.goalsAgainst ?? 'N/A'} conceded`
           )
         }
       }
 
-      if (stats.awayTeam) {
+      if (statistics.awayTeam) {
         parts.push(`${match.awayTeam.name}:`)
-        parts.push(`  Position: ${stats.awayTeam.position || 'N/A'}`)
-        parts.push(`  Points: ${stats.awayTeam.points || 'N/A'}`)
-        parts.push(`  Form: ${stats.awayTeam.form?.join('') || 'N/A'}`)
-        parts.push(`  Played: ${stats.awayTeam.played || 'N/A'}`)
+        parts.push(`  Position: ${statistics.awayTeam.position || 'N/A'}`)
+        parts.push(`  Points: ${statistics.awayTeam.points || 'N/A'}`)
+        parts.push(`  Form: ${statistics.awayTeam.form?.join('') || 'N/A'}`)
+        parts.push(`  Played: ${statistics.awayTeam.played || 'N/A'}`)
         parts.push(
-          `  W-D-L: ${stats.awayTeam.won || 0}-${stats.awayTeam.drawn || 0}-${stats.awayTeam.lost || 0}`
+          `  W-D-L: ${statistics.awayTeam.won || 0}-${statistics.awayTeam.drawn || 0}-${statistics.awayTeam.lost || 0}`
         )
-        if (stats.awayTeam.goalsFor !== undefined || stats.awayTeam.goalsAgainst !== undefined) {
+        if (
+          statistics.awayTeam.goalsFor !== undefined ||
+          statistics.awayTeam.goalsAgainst !== undefined
+        ) {
           parts.push(
-            `  Goals: ${stats.awayTeam.goalsFor ?? 'N/A'} scored, ${stats.awayTeam.goalsAgainst ?? 'N/A'} conceded`
+            `  Goals: ${statistics.awayTeam.goalsFor ?? 'N/A'} scored, ${statistics.awayTeam.goalsAgainst ?? 'N/A'} conceded`
           )
         }
       }

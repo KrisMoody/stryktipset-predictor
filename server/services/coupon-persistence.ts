@@ -1,4 +1,5 @@
 import { prisma } from '~/server/utils/prisma'
+import type { generated_coupons as PrismaCoupon } from '@prisma/client'
 import type {
   CouponStatus,
   PersistedCoupon,
@@ -153,8 +154,7 @@ export class CouponPersistenceService {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma record has dynamic JSON fields
-  private mapToPersistedCoupon(record: any): PersistedCoupon {
+  private mapToPersistedCoupon(record: PrismaCoupon): PersistedCoupon {
     return {
       id: record.id,
       drawNumber: record.draw_number,
@@ -164,9 +164,9 @@ export class CouponPersistenceService {
       status: record.status as CouponStatus,
       version: record.version,
       utgangstecken: record.utgangstecken as Record<number, string> | null,
-      mgExtensions: record.mg_extensions as MGExtension[] | null,
-      selections: record.selections as CouponSelection[],
-      rows: record.rows as CouponRow[],
+      mgExtensions: record.mg_extensions as unknown as MGExtension[] | null,
+      selections: record.selections as unknown as CouponSelection[],
+      rows: record.rows as unknown as CouponRow[],
       totalCost: record.total_cost,
       stake: record.stake ?? 1,
       expectedValue: Number(record.expected_value),

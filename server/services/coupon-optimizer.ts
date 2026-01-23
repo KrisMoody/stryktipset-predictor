@@ -1,4 +1,5 @@
 import { prisma } from '~/server/utils/prisma'
+import type { predictions, match_odds } from '@prisma/client'
 import type { OptimalCoupon, CouponSelection, ExpectedValue, GameType } from '~/types'
 import { getGameConfig } from '~/server/constants/game-configs'
 
@@ -149,8 +150,10 @@ export class CouponOptimizer {
   /**
    * Calculate expected values for all outcomes
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Complex API response types
-  private calculateExpectedValues(prediction: any, odds: any): ExpectedValue[] {
+  private calculateExpectedValues(
+    prediction: predictions,
+    odds: match_odds | null | undefined
+  ): ExpectedValue[] {
     const results: ExpectedValue[] = []
 
     if (!odds) {

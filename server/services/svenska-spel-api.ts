@@ -6,6 +6,7 @@ import type {
   AvailableDrawsData,
   GameType,
   GameConfig,
+  JackpotData,
 } from '~/types'
 import { captureOperationError } from '~/server/utils/bugsnag-helpers'
 import { getGameConfig, GAME_CONFIGS } from '~/server/constants/game-configs'
@@ -165,7 +166,7 @@ export class SvenskaSpelApiClient {
   async fetchDrawWithMultifetch(
     drawNumber: number,
     includeJackpot: boolean = true
-  ): Promise<{ draw: DrawData; jackpot?: any }> {
+  ): Promise<{ draw: DrawData; jackpot?: JackpotData }> {
     try {
       console.log(
         `[Svenska Spel API] Fetching ${this.gameConfig.displayName} draw ${drawNumber} via multifetch (jackpot: ${includeJackpot})...`
@@ -224,7 +225,7 @@ export class SvenskaSpelApiClient {
         throw new Error('Multifetch response missing draw data')
       }
 
-      const result: { draw: DrawData; jackpot?: any } = { draw: drawResponse.draw }
+      const result: { draw: DrawData; jackpot?: JackpotData } = { draw: drawResponse.draw }
 
       // Extract jackpot data if requested and available
       if (includeJackpot && response.responses.length > 1) {
@@ -405,12 +406,14 @@ export class SvenskaSpelApiClient {
 
       // API returns resultDates, but we need to map it to draws for consistency
       const draws =
-        response.resultDates?.map((result: any) => ({
-          date: result.date,
-          drawNumber: result.drawNumber,
-          product: result.product,
-          drawState: result.drawState,
-        })) || []
+        response.resultDates?.map(
+          (result: { date: string; drawNumber: number; product: string; drawState: string }) => ({
+            date: result.date,
+            drawNumber: result.drawNumber,
+            product: result.product,
+            drawState: result.drawState,
+          })
+        ) || []
 
       const drawCount = draws.length
       console.log(

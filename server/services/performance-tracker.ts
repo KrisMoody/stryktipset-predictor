@@ -1,6 +1,43 @@
 import { prisma } from '~/server/utils/prisma'
+import type { predictions, matches } from '@prisma/client'
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Complex Prisma JSON data */
+/**
+ * Prediction with match relation for performance tracking
+ */
+type PredictionWithMatch = predictions & { match: matches }
+
+/**
+ * Performance breakdown by category (confidence level or outcome)
+ */
+interface PerformanceBreakdown {
+  [key: string]: {
+    total: number
+    correct: number
+    accuracy: number
+  }
+}
+
+/**
+ * Overall performance statistics
+ */
+interface OverallStats {
+  totalPredictions: number
+  correctPredictions: number
+  accuracy: number
+  averageProbabilityScore: number
+  byConfidence: PerformanceBreakdown
+  byOutcome: PerformanceBreakdown
+}
+
+/**
+ * League performance statistics
+ */
+interface LeaguePerformance {
+  league: string
+  totalPredictions: number
+  correctPredictions: number
+  accuracy: number
+}
 
 /**
  * Service for tracking and analyzing prediction performance
@@ -56,7 +93,7 @@ export class PerformanceTracker {
   /**
    * Create performance record for a prediction
    */
-  private async createPerformanceRecord(prediction: any): Promise<void> {
+  private async createPerformanceRecord(prediction: PredictionWithMatch): Promise<void> {
     const actualOutcome = prediction.match.outcome
     const predictedOutcome = prediction.predicted_outcome
 
@@ -66,18 +103,18 @@ export class PerformanceTracker {
     // Get probability assigned to actual outcome
     let probabilityScore = 0
     if (actualOutcome === '1') {
-      probabilityScore = prediction.probability_home
+      probabilityScore = Number(prediction.probability_home)
     } else if (actualOutcome === 'X') {
-      probabilityScore = prediction.probability_draw
+      probabilityScore = Number(prediction.probability_draw)
     } else if (actualOutcome === '2') {
-      probabilityScore = prediction.probability_away
+      probabilityScore = Number(prediction.probability_away)
     }
 
     // Create performance record
     await prisma.prediction_performance.create({
       data: {
         prediction_id: prediction.id,
-        actual_outcome: actualOutcome,
+        actual_outcome: actualOutcome ?? 'unknown',
         correctly_predicted: correctlyPredicted,
         probability_score: probabilityScore,
         analysis_notes: `Predicted: ${predictedOutcome}, Actual: ${actualOutcome}`,
@@ -88,7 +125,7 @@ export class PerformanceTracker {
   /**
    * Get overall performance statistics
    */
-  async getOverallStats(): Promise<any> {
+  async getOverallStats(): Promise<OverallStats | null> {
     try {
       const totalPredictions = await prisma.prediction_performance.count()
 
@@ -121,7 +158,7 @@ export class PerformanceTracker {
         totalPredictions,
         correctPredictions,
         accuracy: (correctPredictions / totalPredictions) * 100,
-        averageProbabilityScore: avgProbScore._avg.probability_score || 0,
+        averageProbabilityScore: Number(avgProbScore._avg.probability_score || 0),
         byConfidence,
         byOutcome,
       }
@@ -134,10 +171,10 @@ export class PerformanceTracker {
   /**
    * Get performance broken down by confidence level
    */
-  private async getPerformanceByConfidence(): Promise<any> {
+  private async getPerformanceByConfidence(): Promise<PerformanceBreakdown> {
     try {
       const confidenceLevels = ['high', 'medium', 'low']
-      const results: any = {}
+      const results: PerformanceBreakdown = {}
 
       for (const confidence of confidenceLevels) {
         const predictions = await prisma.prediction_performance.findMany({
@@ -168,10 +205,10 @@ export class PerformanceTracker {
   /**
    * Get performance broken down by predicted outcome
    */
-  private async getPerformanceByOutcome(): Promise<any> {
+  private async getPerformanceByOutcome(): Promise<PerformanceBreakdown> {
     try {
       const outcomes = ['1', 'X', '2']
-      const results: any = {}
+      const results: PerformanceBreakdown = {}
 
       for (const outcome of outcomes) {
         const predictions = await prisma.prediction_performance.findMany({
@@ -202,7 +239,7 @@ export class PerformanceTracker {
   /**
    * Get performance for a specific league
    */
-  async getLeaguePerformance(league: string): Promise<any> {
+  async getLeaguePerformance(league: string): Promise<LeaguePerformance | null> {
     try {
       const predictions = await prisma.prediction_performance.findMany({
         where: {
@@ -220,6 +257,7 @@ export class PerformanceTracker {
         return {
           league,
           totalPredictions: 0,
+          correctPredictions: 0,
           accuracy: 0,
         }
       }

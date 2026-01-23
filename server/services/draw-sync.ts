@@ -8,12 +8,30 @@ import {
 } from './statistical-calculations'
 import { drawLifecycle } from './draw-lifecycle'
 import { drawCacheService } from './draw-cache-service'
-import type { DrawData, DrawEventData, ProviderIdData, GameType } from '~/types'
+import type {
+  DrawData,
+  DrawEventData,
+  ProviderIdData,
+  GameType,
+  ParticipantData,
+  CountryData,
+  LeagueData,
+  ExpertTipsData,
+  BetMetricsData,
+  SvenskaFolketData,
+} from '~/types'
 import { DEFAULT_GAME_TYPE } from '~/types/game-types'
 import Anthropic from '@anthropic-ai/sdk'
 import type { Prisma } from '@prisma/client'
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Complex API data transformations */
+/**
+ * Odds data from Svenska Spel API (1X2 format)
+ */
+interface OddsData1X2 {
+  one?: string
+  x?: string
+  two?: string
+}
 
 /**
  * Service for syncing draw and match data from Svenska Spel API to database
@@ -101,7 +119,7 @@ export class DrawSyncService {
               close_time: new Date(drawData.regCloseTime),
               status: drawData.drawState,
               product_id: drawData.productId,
-              raw_data: drawData as any,
+              raw_data: drawData as unknown as Prisma.InputJsonValue,
             },
           })
           drawsProcessed++
@@ -239,7 +257,7 @@ export class DrawSyncService {
   /**
    * Upsert a team and return actual DB ID
    */
-  private async upsertTeam(participant: any): Promise<number> {
+  private async upsertTeam(participant: ParticipantData): Promise<number> {
     if (!participant?.id || !participant?.name) {
       throw new Error('Missing team ID or name')
     }
@@ -286,7 +304,7 @@ export class DrawSyncService {
    */
   private async upsertCountryTx(
     tx: Prisma.TransactionClient,
-    countryData: any
+    countryData: string | CountryData
   ): Promise<number | null> {
     let countryId: number | null = null
     let countryName: string | null = null
@@ -398,7 +416,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
    * Upsert a league with AI-powered country inference and return actual DB ID
    */
   private async upsertLeague(
-    leagueData: any,
+    leagueData: LeagueData,
     homeTeam?: string,
     awayTeam?: string
   ): Promise<number> {
@@ -481,7 +499,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
           net_sale: drawData.currentNetSale
             ? parseFloat(drawData.currentNetSale.replace(',', ''))
             : null,
-          raw_data: drawData as any,
+          raw_data: drawData as unknown as Prisma.InputJsonValue,
           updated_at: new Date(),
         },
         create: {
@@ -496,7 +514,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
             ? parseFloat(drawData.currentNetSale.replace(',', ''))
             : null,
           product_id: drawData.productId,
-          raw_data: drawData as any,
+          raw_data: drawData as unknown as Prisma.InputJsonValue,
         },
       })
 
@@ -645,7 +663,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
           matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'BetRadar')?.id ?? null,
         kambi_id:
           matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'Kambi')?.id ?? null,
-        raw_data: matchData as any,
+        raw_data: matchData as unknown as Prisma.InputJsonValue,
         updated_at: new Date(),
       },
       create: {
@@ -666,7 +684,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
           matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'BetRadar')?.id ?? null,
         kambi_id:
           matchData.providerIds?.find((p: ProviderIdData) => p.provider === 'Kambi')?.id ?? null,
-        raw_data: matchData as any,
+        raw_data: matchData as unknown as Prisma.InputJsonValue,
       },
     })
 
@@ -706,7 +724,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
   /**
    * Store expert tips (Tio Tidningars Tips) as scraped data
    */
-  private async storeExpertTips(matchId: number, tips: any): Promise<void> {
+  private async storeExpertTips(matchId: number, tips: ExpertTipsData): Promise<void> {
     try {
       await prisma.match_scraped_data.upsert({
         where: {
@@ -716,13 +734,13 @@ If you cannot determine the country with confidence, respond: {"country": null}`
           },
         },
         update: {
-          data: tips as any,
+          data: tips as unknown as Prisma.InputJsonValue,
           scraped_at: new Date(),
         },
         create: {
           match_id: matchId,
           data_type: 'expertTips',
-          data: tips as any,
+          data: tips as unknown as Prisma.InputJsonValue,
         },
       })
     } catch (error) {
@@ -733,7 +751,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
   /**
    * Store bet metrics (comprehensive betting distribution data)
    */
-  private async storeBetMetrics(matchId: number, metrics: any): Promise<void> {
+  private async storeBetMetrics(matchId: number, metrics: BetMetricsData): Promise<void> {
     try {
       await prisma.match_scraped_data.upsert({
         where: {
@@ -743,13 +761,13 @@ If you cannot determine the country with confidence, respond: {"country": null}`
           },
         },
         update: {
-          data: metrics as any,
+          data: metrics as unknown as Prisma.InputJsonValue,
           scraped_at: new Date(),
         },
         create: {
           match_id: matchId,
           data_type: 'betMetrics',
-          data: metrics as any,
+          data: metrics as unknown as Prisma.InputJsonValue,
         },
       })
     } catch (error) {
@@ -760,7 +778,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
   /**
    * Store complete Svenska Folket data with timestamps and references
    */
-  private async storeSvenskaFolketData(matchId: number, data: any): Promise<void> {
+  private async storeSvenskaFolketData(matchId: number, data: SvenskaFolketData): Promise<void> {
     try {
       await prisma.match_scraped_data.upsert({
         where: {
@@ -770,13 +788,13 @@ If you cannot determine the country with confidence, respond: {"country": null}`
           },
         },
         update: {
-          data: data as any,
+          data: data as unknown as Prisma.InputJsonValue,
           scraped_at: new Date(),
         },
         create: {
           match_id: matchId,
           data_type: 'svenskaFolket',
-          data: data as any,
+          data: data as unknown as Prisma.InputJsonValue,
         },
       })
     } catch (error) {
@@ -853,7 +871,7 @@ If you cannot determine the country with confidence, respond: {"country": null}`
       value ? parseFloat(value.replace(',', '.')) : NaN
 
     const processAndStoreOdds = async (
-      oddsData: any | null | undefined,
+      oddsData: OddsData1X2 | null | undefined,
       type: 'current' | 'start' | 'favourite',
       collectedAt: Date
     ) => {

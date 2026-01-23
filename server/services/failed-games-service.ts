@@ -1,6 +1,7 @@
 import { prisma } from '~/server/utils/prisma'
 import { getGameConfig } from '~/server/constants/game-configs'
 import type { GameType } from '~/types/game-types'
+import type { failed_games as PrismaFailedGame } from '@prisma/client'
 import type {
   FailedGame,
   FailedGameStatus,
@@ -316,8 +317,7 @@ class FailedGamesService {
   /**
    * Map database record to FailedGame type
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private mapToFailedGame(record: any): FailedGame {
+  private mapToFailedGame(record: PrismaFailedGame): FailedGame {
     return {
       id: record.id,
       drawId: record.draw_id,

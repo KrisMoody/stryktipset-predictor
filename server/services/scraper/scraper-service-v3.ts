@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright page types and dynamic scraped data */
+import type { Page } from 'playwright'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '~/server/utils/prisma'
 import { browserManager } from './browser-manager'
 import { XStatsScraper } from './tabs/xstats-scraper'
@@ -104,7 +105,7 @@ export class ScraperServiceV3 {
    * Check if AI scraper returned empty/null data (all fields null)
    * This triggers DOM fallback even when AI reports success
    */
-  private _isEmptyData(data: any): boolean {
+  private _isEmptyData(data: unknown): boolean {
     if (!data) return true
     if (typeof data !== 'object') return false
 
@@ -235,7 +236,7 @@ export class ScraperServiceV3 {
     urlPattern: UrlPattern
   ): Promise<ScrapeResult> {
     const startTime = Date.now()
-    let data: any = null
+    let data: unknown = null
     let method: ScrapingMethod = 'ai'
     let error: string | undefined
 
@@ -422,13 +423,13 @@ export class ScraperServiceV3 {
             },
           },
           update: {
-            data: mergedData as any,
+            data: mergedData as unknown as Prisma.InputJsonValue,
             scraped_at: new Date(),
           },
           create: {
             match_id: options.matchId,
             data_type: dataType,
-            data: mergedData as any,
+            data: mergedData as unknown as Prisma.InputJsonValue,
           },
         })
 
@@ -527,11 +528,11 @@ export class ScraperServiceV3 {
    * Scrape using DOM (tab-clicking method)
    */
   private async scrapeWithDOM(
-    page: any,
+    page: Page,
     dataType: string,
     options: ScrapeOptions,
     urlContext: UrlBuildContext
-  ): Promise<any> {
+  ): Promise<unknown> {
     try {
       console.log(`[Scraper Service V3] Using DOM method for ${dataType}`)
 

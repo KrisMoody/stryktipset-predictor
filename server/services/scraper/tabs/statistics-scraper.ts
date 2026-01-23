@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
 import type { Page } from 'playwright'
 import { BaseScraper } from './base-scraper'
 import type { StatisticsData } from '~/types'
@@ -23,6 +22,22 @@ export interface LeagueTableEntry {
   points: number
   isHomeTeam?: boolean
   isAwayTeam?: boolean
+}
+
+/**
+ * Extracted team statistics from league table and form
+ */
+interface TeamStats {
+  position?: number
+  points?: number
+  played?: number
+  won?: number
+  drawn?: number
+  lost?: number
+  goalsFor?: number
+  goalsAgainst?: number
+  goalDifference?: number
+  form?: string[]
 }
 
 /**
@@ -131,9 +146,9 @@ export class StatisticsScraper extends BaseScraper {
     page: Page,
     side: 'home' | 'away',
     leagueTable: LeagueTableEntry[]
-  ): Promise<any> {
+  ): Promise<TeamStats> {
     try {
-      const data: any = {}
+      const data: TeamStats = {}
 
       // Try to find team name from page to match against league table
       // Discovered selectors: .home-participant, .away-participant (Enetpulse widget)

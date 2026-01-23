@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
-import type { Page } from 'playwright'
+import type { Page, Locator } from 'playwright'
 import { BaseScraper } from './base-scraper'
 import type { NewsData, NewsArticle } from '~/types'
 
@@ -148,7 +147,7 @@ export class NewsScraper extends BaseScraper {
    * Extract the recommended bet from analysis-bet-buttons
    * Looks for .btn-bet-selected to find which outcome(s) the expert recommends
    */
-  private async extractRecommendation(element: any): Promise<ExpertAnalysis['recommendation']> {
+  private async extractRecommendation(element: Locator): Promise<ExpertAnalysis['recommendation']> {
     try {
       const betButtons = await element.locator('.analysis-bet-buttons .btn-bet').all()
       const selectedOutcomes: string[] = []

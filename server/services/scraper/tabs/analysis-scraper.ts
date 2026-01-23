@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic scraped data structures */
-import type { Page } from 'playwright'
+import type { Page, Locator } from 'playwright'
 import { BaseScraper } from './base-scraper'
 
 /**
@@ -227,7 +226,7 @@ export class AnalysisScraper extends BaseScraper {
   /**
    * Extract the selected prediction (1, X, 2, or combo) from a match item
    */
-  private async extractPrediction(item: any): Promise<MatchPrediction['prediction']> {
+  private async extractPrediction(item: Locator): Promise<MatchPrediction['prediction']> {
     try {
       // Find all selected outcomes
       const selectedOutcomes = await item

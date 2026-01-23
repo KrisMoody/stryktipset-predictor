@@ -2,8 +2,55 @@ import { prisma } from '~/server/utils/prisma'
 import { OpenAI } from 'openai'
 import { recordAIUsage } from '~/server/utils/ai-usage-recorder'
 import { calculateAICost } from '~/server/constants/ai-pricing'
+import { getScrapedData, type MatchWithRelations } from '~/types/scraped-data'
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- OpenAI API and Prisma JSON fields */
+/**
+ * Result from existence check query
+ */
+interface ExistsResult {
+  '?column?': number
+}
+
+/**
+ * Result from embedding lookup query
+ */
+interface EmbeddingResult {
+  embedding: string
+}
+
+/**
+ * Similar match result from vector similarity search
+ */
+interface SimilarMatchResult {
+  id: number
+  home_team: string
+  away_team: string
+  league: string
+  start_time: Date
+  result_home: number | null
+  result_away: number | null
+  outcome: string | null
+  draw_date: Date
+  draw_number: number
+  similarity: number
+  recency_score: number
+  weighted_score: number
+}
+
+/**
+ * Team matchup from Prisma query (different shape from raw SQL)
+ */
+interface TeamMatchupResult {
+  id: number
+  homeTeam: { name: string }
+  awayTeam: { name: string }
+  league: { name: string }
+  start_time: Date
+  result_home: number | null
+  result_away: number | null
+  outcome: string | null
+  draws: { draw_date: Date; draw_number: number }
+}
 
 /**
  * Service for generating and managing vector embeddings for similarity search
@@ -178,7 +225,7 @@ export class EmbeddingsService {
     for (const matchId of matchIds) {
       // Check if embedding already exists
       if (skipExisting) {
-        const existing = await prisma.$queryRaw<any[]>`
+        const existing = await prisma.$queryRaw<ExistsResult[]>`
           SELECT 1 FROM match_embeddings
           WHERE match_id = ${matchId} AND model = 'text-embedding-3-small'
           LIMIT 1
@@ -247,7 +294,7 @@ export class EmbeddingsService {
       recencyWeight?: number // 0-1, how much to weight recent matches (default 0.3)
       maxAgeDays?: number // Maximum age of matches to consider (default 365)
     } = {}
-  ): Promise<any[]> {
+  ): Promise<SimilarMatchResult[]> {
     const { recencyWeight = 0.3, maxAgeDays = 365 } = options
 
     try {
@@ -256,7 +303,7 @@ export class EmbeddingsService {
       )
 
       // Get the embedding for the target match
-      const targetEmbedding = await prisma.$queryRaw<any[]>`
+      const targetEmbedding = await prisma.$queryRaw<EmbeddingResult[]>`
         SELECT embedding
         FROM match_embeddings
         WHERE match_id = ${matchId}
@@ -270,6 +317,13 @@ export class EmbeddingsService {
         return []
       }
 
+      // Extract embedding (safe after length check above)
+      const firstResult = targetEmbedding[0]
+      if (!firstResult) {
+        return []
+      }
+      const embeddingVector = firstResult.embedding
+
       // Calculate weight factors for SQL
       const similarityWeight = 1 - recencyWeight
       const maxAgeSeconds = maxAgeDays * 86400
@@ -277,7 +331,7 @@ export class EmbeddingsService {
       // Find similar matches with recency-weighted scoring
       // Formula: weighted_score = similarity * similarityWeight + recency_score * recencyWeight
       // Where recency_score = 1 - (age_seconds / maxAgeSeconds), clamped to [0, 1]
-      const similarMatches = await prisma.$queryRaw<any[]>`
+      const similarMatches = await prisma.$queryRaw<SimilarMatchResult[]>`
         SELECT
           m.id,
           ht.name as home_team,
@@ -289,10 +343,10 @@ export class EmbeddingsService {
           m.outcome,
           d.draw_date,
           d.draw_number,
-          1 - (me.embedding <=> ${targetEmbedding[0].embedding}::vector) as similarity,
+          1 - (me.embedding <=> ${embeddingVector}::vector) as similarity,
           GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - d.draw_date)) / ${maxAgeSeconds}) as recency_score,
           (
-            (1 - (me.embedding <=> ${targetEmbedding[0].embedding}::vector)) * ${similarityWeight}
+            (1 - (me.embedding <=> ${embeddingVector}::vector)) * ${similarityWeight}
             + GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - d.draw_date)) / ${maxAgeSeconds}) * ${recencyWeight}
           ) as weighted_score
         FROM match_embeddings me
@@ -324,7 +378,7 @@ export class EmbeddingsService {
     homeTeamId: number,
     awayTeamId: number,
     limit: number = 5
-  ): Promise<any[]> {
+  ): Promise<TeamMatchupResult[]> {
     try {
       console.log(`[Embeddings] Finding similar matchups for team ${homeTeamId} vs ${awayTeamId}`)
 
@@ -368,7 +422,7 @@ export class EmbeddingsService {
    * Create text representation of match for embedding
    * Includes comprehensive data for better similarity matching
    */
-  private createMatchText(match: any): string {
+  private createMatchText(match: MatchWithRelations): string {
     const parts: string[] = []
 
     // Basic match info
@@ -377,8 +431,9 @@ export class EmbeddingsService {
     parts.push(`Country: ${match.league.country?.name || 'Unknown'}`)
 
     // Odds data
-    if (match.match_odds && match.match_odds.length > 0) {
-      const odds = match.match_odds[0]
+    const firstOdds = match.match_odds?.[0]
+    if (firstOdds) {
+      const odds = firstOdds
       parts.push(`Odds: 1=${odds.home_odds} X=${odds.draw_odds} 2=${odds.away_odds}`)
       parts.push(
         `Market probabilities: Home=${odds.home_probability}% Draw=${odds.draw_probability}% Away=${odds.away_probability}%`
@@ -392,10 +447,8 @@ export class EmbeddingsService {
     }
 
     // Enhanced xStats data with last 5 games and home/away specific
-    const xStatsData = match.match_scraped_data?.find((d: any) => d.data_type === 'xStats')
-    if (xStatsData?.data) {
-      const xStats = xStatsData.data
-
+    const xStats = getScrapedData(match.match_scraped_data, 'xStats')
+    if (xStats) {
       // Season stats
       if (xStats.homeTeam?.entireSeason) {
         parts.push(
@@ -409,14 +462,14 @@ export class EmbeddingsService {
       }
 
       // Last 5 games (more predictive for recent form)
-      if (xStats.homeTeam?.last5Games) {
+      if (xStats.homeTeam?.lastFiveGames) {
         parts.push(
-          `Home Last5: xG=${xStats.homeTeam.last5Games.xg || 'N/A'}, xGA=${xStats.homeTeam.last5Games.xga || 'N/A'}`
+          `Home Last5: xG=${xStats.homeTeam.lastFiveGames.xg || 'N/A'}, xGA=${xStats.homeTeam.lastFiveGames.xga || 'N/A'}`
         )
       }
-      if (xStats.awayTeam?.last5Games) {
+      if (xStats.awayTeam?.lastFiveGames) {
         parts.push(
-          `Away Last5: xG=${xStats.awayTeam.last5Games.xg || 'N/A'}, xGA=${xStats.awayTeam.last5Games.xga || 'N/A'}`
+          `Away Last5: xG=${xStats.awayTeam.lastFiveGames.xg || 'N/A'}, xGA=${xStats.awayTeam.lastFiveGames.xga || 'N/A'}`
         )
       }
 
@@ -442,10 +495,8 @@ export class EmbeddingsService {
     }
 
     // Lineup & Injuries data
-    const lineupData = match.match_scraped_data?.find((d: any) => d.data_type === 'lineup')
-    if (lineupData?.data) {
-      const lineup = lineupData.data
-
+    const lineup = getScrapedData(match.match_scraped_data, 'lineup')
+    if (lineup) {
       if (lineup.homeTeam) {
         const unavailableCount = lineup.homeTeam.unavailable?.length || 0
         const formation = lineup.homeTeam.formation || 'Unknown'
@@ -453,10 +504,10 @@ export class EmbeddingsService {
         parts.push(`Home formation: ${formation} (${confirmed}), ${unavailableCount} unavailable`)
 
         // List key unavailable players
-        if (lineup.homeTeam.unavailable?.length > 0) {
+        if (lineup.homeTeam.unavailable?.length) {
           const injuries = lineup.homeTeam.unavailable
             .slice(0, 3)
-            .map((p: any) => `${p.name}(${p.reason || 'out'})`)
+            .map(p => `${p.name}(${p.reason || 'out'})`)
             .join(', ')
           parts.push(`Home missing: ${injuries}`)
         }
@@ -468,10 +519,10 @@ export class EmbeddingsService {
         const confirmed = lineup.awayTeam.isConfirmed ? 'Confirmed' : 'Probable'
         parts.push(`Away formation: ${formation} (${confirmed}), ${unavailableCount} unavailable`)
 
-        if (lineup.awayTeam.unavailable?.length > 0) {
+        if (lineup.awayTeam.unavailable?.length) {
           const injuries = lineup.awayTeam.unavailable
             .slice(0, 3)
-            .map((p: any) => `${p.name}(${p.reason || 'out'})`)
+            .map(p => `${p.name}(${p.reason || 'out'})`)
             .join(', ')
           parts.push(`Away missing: ${injuries}`)
         }
@@ -479,29 +530,30 @@ export class EmbeddingsService {
     }
 
     // Head-to-Head summary
-    const h2hData = match.match_scraped_data?.find((d: any) => d.data_type === 'headToHead')
-    if (h2hData?.data?.summary) {
-      const h2h = h2hData.data.summary
+    const headToHead = getScrapedData(match.match_scraped_data, 'headToHead')
+    if (headToHead?.summary) {
+      const h2h = headToHead.summary
       parts.push(
         `H2H: ${h2h.homeWins || 0}W-${h2h.draws || 0}D-${h2h.awayWins || 0}L (${h2h.totalMatches || 0} matches)`
       )
     }
 
     // News/Expert consensus
-    const newsData = match.match_scraped_data?.find((d: any) => d.data_type === 'news')
-    if (newsData?.data) {
-      const news = newsData.data
-
-      // Expert recommendations if available
-      if (news.expertAnalysis?.length > 0) {
-        const recommendations = news.expertAnalysis
-          .map((e: any) => e.recommendation)
-          .filter(Boolean)
+    const news = getScrapedData(match.match_scraped_data, 'news')
+    if (news) {
+      // Expert recommendations if available - news.expertAnalysis is not in current type
+      // so we access it safely with optional chaining
+      const expertAnalysis = (news as { expertAnalysis?: Array<{ recommendation?: string }> })
+        .expertAnalysis
+      if (expertAnalysis?.length) {
+        const recommendations = expertAnalysis
+          .map(e => e.recommendation)
+          .filter((r): r is string => Boolean(r))
         if (recommendations.length > 0) {
           let count1 = 0,
             countX = 0,
             count2 = 0
-          recommendations.forEach((r: string) => {
+          recommendations.forEach(r => {
             if (r.includes('1')) count1++
             if (r.includes('X')) countX++
             if (r.includes('2')) count2++
@@ -511,26 +563,25 @@ export class EmbeddingsService {
       }
 
       // News headlines for semantic context
-      if (news.articles?.length > 0) {
+      if (news.articles?.length) {
         const headlines = news.articles
           .slice(0, 2)
-          .map((a: any) => a.title)
+          .map(a => a.title)
           .join('; ')
         parts.push(`News: ${headlines}`)
       }
     }
 
     // Statistics data
-    const statsData = match.match_scraped_data?.find((d: any) => d.data_type === 'statistics')
-    if (statsData?.data) {
-      const stats = statsData.data
-      if (stats.homeTeam) {
-        parts.push(`Home position: ${stats.homeTeam.position || 'N/A'}`)
-        parts.push(`Home form: ${stats.homeTeam.form?.join('') || 'N/A'}`)
+    const statistics = getScrapedData(match.match_scraped_data, 'statistics')
+    if (statistics) {
+      if (statistics.homeTeam) {
+        parts.push(`Home position: ${statistics.homeTeam.position || 'N/A'}`)
+        parts.push(`Home form: ${statistics.homeTeam.form?.join('') || 'N/A'}`)
       }
-      if (stats.awayTeam) {
-        parts.push(`Away position: ${stats.awayTeam.position || 'N/A'}`)
-        parts.push(`Away form: ${stats.awayTeam.form?.join('') || 'N/A'}`)
+      if (statistics.awayTeam) {
+        parts.push(`Away position: ${statistics.awayTeam.position || 'N/A'}`)
+        parts.push(`Away form: ${statistics.awayTeam.form?.join('') || 'N/A'}`)
       }
     }
 

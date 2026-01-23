@@ -68,7 +68,7 @@
               @click="isMobile && $emit('close')"
             >
               <span
-                class="w-5 h-5 flex items-center justify-center text-xs font-medium bg-gray-200 dark:bg-gray-700 rounded"
+                class="w-12 h-5 flex items-center justify-center text-xs font-medium bg-gray-200 dark:bg-gray-700 rounded"
               >
                 #{{ draw.draw_number }}
               </span>

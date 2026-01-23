@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright page types and dynamic scraped data */
+import type { Page } from 'playwright'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '~/server/utils/prisma'
 import { browserManager } from './browser-manager'
 import { scraperQueue } from './scraper-queue'
@@ -11,6 +12,25 @@ import { urlManager, type UrlBuildContext } from './utils/url-manager'
 import { scraperAnalytics } from './scraper-analytics'
 import { scraperConfig, getExponentialBackoff, isRateLimitError } from './scraper-config'
 import type { ScrapeOptions, ScrapeResult, ScrapingMethod, UrlPattern } from '~/types'
+
+/**
+ * Health metrics for scraper service
+ */
+interface HealthMetrics {
+  last24Hours?: {
+    success: number
+    failed: number
+    rateLimited: number
+    total: number
+    successRate: number
+  }
+  analytics?: ReturnType<typeof scraperAnalytics.getSummary>
+  queue?: ReturnType<typeof scraperQueue.getStatus>
+  browser?: {
+    initialized: boolean
+  }
+  error?: string
+}
 
 /**
  * Optimized scraper service using accessibility tree and direct URL navigation
@@ -229,7 +249,7 @@ export class ScraperServiceV2 {
    * Scrape a single data type with optimized method
    */
   private async scrapeDataType(
-    page: any,
+    page: Page,
     dataType: string,
     options: ScrapeOptions,
     urlContext: UrlBuildContext,
@@ -250,7 +270,7 @@ export class ScraperServiceV2 {
       })
 
       // Use tab-click DOM scraping method
-      let data: any = null
+      let data: unknown = null
       const method: ScrapingMethod = 'tab_clicking'
       const domain = urlManager.getCurrentDomain()
 
@@ -280,13 +300,13 @@ export class ScraperServiceV2 {
             },
           },
           update: {
-            data: data as any,
+            data: data as unknown as Prisma.InputJsonValue,
             scraped_at: new Date(),
           },
           create: {
             match_id: options.matchId,
             data_type: dataType,
-            data: data as any,
+            data: data as unknown as Prisma.InputJsonValue,
           },
         })
 
@@ -361,10 +381,10 @@ export class ScraperServiceV2 {
    * Scrape using tab clicking (fallback method)
    */
   private async scrapeWithTabClick(
-    page: any,
+    page: Page,
     dataType: string,
     options: ScrapeOptions
-  ): Promise<any> {
+  ): Promise<unknown> {
     try {
       console.log(`[Scraper Service V2] Using tab click method for ${dataType}`)
 
@@ -428,7 +448,7 @@ export class ScraperServiceV2 {
   /**
    * Handle cookie consent
    */
-  private async handleCookieConsent(page: any): Promise<void> {
+  private async handleCookieConsent(page: Page): Promise<void> {
     try {
       const cookieButtonSelector =
         'button:has-text("Acceptera"), button:has-text("Accept"), [id*="cookie"][class*="accept"]'
@@ -462,7 +482,7 @@ export class ScraperServiceV2 {
   /**
    * Get health metrics
    */
-  async getHealthMetrics(): Promise<any> {
+  async getHealthMetrics(): Promise<HealthMetrics> {
     try {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
 

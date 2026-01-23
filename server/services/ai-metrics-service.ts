@@ -12,7 +12,16 @@ import type {
 } from '~/types'
 import { AI_PRICING } from '~/server/constants/ai-pricing'
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Raw SQL queries return dynamic types */
+/**
+ * Raw SQL aggregate result for trend data
+ */
+interface RawTrendData {
+  date: Date
+  cost: number | bigint | null
+  tokens: number | bigint | null
+  requests: number | bigint | null
+  success_rate: number | null
+}
 
 /**
  * Service for analyzing AI usage and costs
@@ -191,7 +200,7 @@ export class AIMetricsService {
 
     // Get daily trends
     const dailyData = hasDateFilter
-      ? await prisma.$queryRaw<any[]>`
+      ? await prisma.$queryRaw<RawTrendData[]>`
           SELECT 
             DATE(timestamp) as date,
             SUM(cost_usd)::numeric as cost,
@@ -199,12 +208,12 @@ export class AIMetricsService {
             COUNT(*) as requests,
             (COUNT(*) FILTER (WHERE success = true)::numeric / COUNT(*)::numeric * 100) as success_rate
           FROM ai_usage
-          WHERE timestamp >= ${whereClause.timestamp.gte} AND timestamp <= ${whereClause.timestamp.lte}
+          WHERE timestamp >= ${whereClause.timestamp!.gte} AND timestamp <= ${whereClause.timestamp!.lte}
           GROUP BY DATE(timestamp)
           ORDER BY date ASC
         `
-      : await prisma.$queryRaw<any[]>`
-          SELECT 
+      : await prisma.$queryRaw<RawTrendData[]>`
+          SELECT
             DATE(timestamp) as date,
             SUM(cost_usd)::numeric as cost,
             SUM(input_tokens + output_tokens) as tokens,
@@ -217,20 +226,20 @@ export class AIMetricsService {
 
     // Get weekly trends (group by week)
     const weeklyData = hasDateFilter
-      ? await prisma.$queryRaw<any[]>`
-          SELECT 
+      ? await prisma.$queryRaw<RawTrendData[]>`
+          SELECT
             DATE_TRUNC('week', timestamp)::date as date,
             SUM(cost_usd)::numeric as cost,
             SUM(input_tokens + output_tokens) as tokens,
             COUNT(*) as requests,
             (COUNT(*) FILTER (WHERE success = true)::numeric / COUNT(*)::numeric * 100) as success_rate
           FROM ai_usage
-          WHERE timestamp >= ${whereClause.timestamp.gte} AND timestamp <= ${whereClause.timestamp.lte}
+          WHERE timestamp >= ${whereClause.timestamp!.gte} AND timestamp <= ${whereClause.timestamp!.lte}
           GROUP BY DATE_TRUNC('week', timestamp)
           ORDER BY date ASC
         `
-      : await prisma.$queryRaw<any[]>`
-          SELECT 
+      : await prisma.$queryRaw<RawTrendData[]>`
+          SELECT
             DATE_TRUNC('week', timestamp)::date as date,
             SUM(cost_usd)::numeric as cost,
             SUM(input_tokens + output_tokens) as tokens,
@@ -243,20 +252,20 @@ export class AIMetricsService {
 
     // Get monthly trends
     const monthlyData = hasDateFilter
-      ? await prisma.$queryRaw<any[]>`
-          SELECT 
+      ? await prisma.$queryRaw<RawTrendData[]>`
+          SELECT
             DATE_TRUNC('month', timestamp)::date as date,
             SUM(cost_usd)::numeric as cost,
             SUM(input_tokens + output_tokens) as tokens,
             COUNT(*) as requests,
             (COUNT(*) FILTER (WHERE success = true)::numeric / COUNT(*)::numeric * 100) as success_rate
           FROM ai_usage
-          WHERE timestamp >= ${whereClause.timestamp.gte} AND timestamp <= ${whereClause.timestamp.lte}
+          WHERE timestamp >= ${whereClause.timestamp!.gte} AND timestamp <= ${whereClause.timestamp!.lte}
           GROUP BY DATE_TRUNC('month', timestamp)
           ORDER BY date ASC
         `
-      : await prisma.$queryRaw<any[]>`
-          SELECT 
+      : await prisma.$queryRaw<RawTrendData[]>`
+          SELECT
             DATE_TRUNC('month', timestamp)::date as date,
             SUM(cost_usd)::numeric as cost,
             SUM(input_tokens + output_tokens) as tokens,
@@ -523,8 +532,12 @@ export class AIMetricsService {
 
   /**
    * Build date where clause for queries
+   * Returns Prisma.ai_usageWhereInput for ORM queries, but also used
+   * with raw SQL where the timestamp values are extracted directly.
    */
-  private buildDateWhereClause(dateRange?: DateRangeFilter): any {
+  private buildDateWhereClause(dateRange?: DateRangeFilter): {
+    timestamp?: { gte: Date; lte: Date }
+  } {
     if (!dateRange) {
       return {}
     }
@@ -559,9 +572,10 @@ export class AIMetricsService {
   /**
    * Format trend data point
    */
-  private formatTrendDataPoint(data: any): CostTrendDataPoint {
+  private formatTrendDataPoint(data: RawTrendData): CostTrendDataPoint {
+    const dateStr = data.date.toISOString().split('T')[0] ?? ''
     return {
-      date: data.date.toISOString().split('T')[0],
+      date: dateStr,
       cost: Number(data.cost || 0),
       tokens: Number(data.tokens || 0),
       requests: Number(data.requests || 0),

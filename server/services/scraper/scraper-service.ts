@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Playwright page types and dynamic scraped data */
+import type { Page } from 'playwright'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '~/server/utils/prisma'
 import { browserManager } from './browser-manager'
 import { scraperQueue } from './scraper-queue'
@@ -8,6 +9,24 @@ import { HeadToHeadScraper } from './tabs/head-to-head-scraper'
 import { NewsScraper } from './tabs/news-scraper'
 import { humanDelay, performNaturalBehavior } from './utils/human-behavior'
 import type { ScrapeOptions, ScrapeResult } from '~/types'
+
+/**
+ * Health metrics for scraper service
+ */
+interface HealthMetrics {
+  last24Hours?: {
+    success: number
+    failed: number
+    rateLimited: number
+    total: number
+    successRate: number
+  }
+  queue?: ReturnType<typeof scraperQueue.getStatus>
+  browser?: {
+    initialized: boolean
+  }
+  error?: string
+}
 
 /**
  * Main scraper service that coordinates all scraping operations
@@ -44,11 +63,11 @@ export class ScraperService {
    * Scrape a single data type with retry logic
    */
   private async scrapeDataTypeWithRetry(
-    page: any,
+    page: Page,
     dataType: string,
     options: ScrapeOptions,
     maxRetries: number = 3
-  ): Promise<{ data: any | null; duration: number; retryCount: number }> {
+  ): Promise<{ data: unknown | null; duration: number; retryCount: number }> {
     let retryCount = 0
     let lastError: Error | null = null
 
@@ -197,13 +216,13 @@ export class ScraperService {
               },
             },
             update: {
-              data: data as any,
+              data: data as unknown as Prisma.InputJsonValue,
               scraped_at: new Date(),
             },
             create: {
               match_id: options.matchId,
               data_type: dataType,
-              data: data as any,
+              data: data as unknown as Prisma.InputJsonValue,
             },
           })
 
@@ -306,7 +325,7 @@ export class ScraperService {
   /**
    * Handle cookie consent dialog
    */
-  private async handleCookieConsent(page: any): Promise<void> {
+  private async handleCookieConsent(page: Page): Promise<void> {
     try {
       // Wait for cookie dialog
       const cookieButtonSelector =
@@ -334,7 +353,7 @@ export class ScraperService {
   /**
    * Get scraper health metrics
    */
-  async getHealthMetrics(): Promise<any> {
+  async getHealthMetrics(): Promise<HealthMetrics> {
     try {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
 

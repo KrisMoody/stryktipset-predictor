@@ -44,13 +44,81 @@ interface RawScrapeResult {
   error: string | null
 }
 
+/**
+ * Error categories for distinguishing transient vs service-level failures
+ */
+export type ErrorCategory = 'transient' | 'service-level' | 'unknown'
+
 export class AIScraperClient {
   private baseUrl: string
   private timeout: number
+  private healthCacheExpiry: number = 0
+  private healthCacheValue: boolean = false
+  private readonly HEALTH_CACHE_TTL = 30000 // 30 seconds
 
   constructor(baseUrl = 'http://localhost:8000') {
     this.baseUrl = baseUrl
     this.timeout = 60000 // 60 seconds - must be longer than Python crawler timeout (45s) + retry delay
+  }
+
+  /**
+   * Categorize an error to distinguish transient failures from service-level issues
+   * Browser lifecycle errors indicate the remote service needs a restart
+   */
+  categorizeError(error: string | null): ErrorCategory {
+    if (!error) return 'unknown'
+
+    // Browser lifecycle errors - service needs restart
+    if (
+      error.includes('Browser.new_context') ||
+      error.includes('browser has been closed') ||
+      error.includes('Target page, context or browser has been closed') ||
+      error.includes('Target closed') ||
+      error.includes('Browser closed')
+    ) {
+      return 'service-level'
+    }
+
+    // Transient errors - can retry
+    if (
+      error.includes('timeout') ||
+      error.includes('Timeout') ||
+      error.includes('ECONNREFUSED') ||
+      error.includes('ENOTFOUND') ||
+      error.includes('network')
+    ) {
+      return 'transient'
+    }
+
+    return 'unknown'
+  }
+
+  /**
+   * Check if AI Scraper service is healthy (with brief caching to avoid repeated checks)
+   */
+  async isHealthy(): Promise<boolean> {
+    const now = Date.now()
+
+    // Return cached value if still valid
+    if (now < this.healthCacheExpiry) {
+      return this.healthCacheValue
+    }
+
+    // Perform actual health check
+    const healthy = await this.healthCheck()
+
+    // Cache the result
+    this.healthCacheValue = healthy
+    this.healthCacheExpiry = now + this.HEALTH_CACHE_TTL
+
+    return healthy
+  }
+
+  /**
+   * Invalidate health cache (call after service-level errors)
+   */
+  invalidateHealthCache(): void {
+    this.healthCacheExpiry = 0
   }
 
   /**

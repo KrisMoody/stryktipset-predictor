@@ -24,6 +24,6 @@
 
 ## 4. Testing & Validation
 
-- [ ] 4.1 Verify rest days cap works for edge cases (new teams, season breaks)
-- [ ] 4.2 Verify UI displays correctly when data is missing (graceful fallback)
-- [ ] 4.3 Manual testing on draws with varied data quality
+- [x] 4.1 Verify rest days cap works for edge cases (new teams, season breaks)
+- [x] 4.2 Verify UI displays correctly when data is missing (graceful fallback)
+- [x] 4.3 Manual testing on draws with varied data quality

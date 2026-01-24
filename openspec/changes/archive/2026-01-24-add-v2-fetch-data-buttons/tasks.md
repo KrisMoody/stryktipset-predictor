@@ -71,7 +71,7 @@
 
 ### Phase 4: Validation
 
-- [ ] 10. **Manual testing**
+- [x] 10. **Manual testing**
     - Test per-match fetch button on draw detail page
     - Test fetch all button on draw detail page
     - Test fetch data button on dashboard draw cards

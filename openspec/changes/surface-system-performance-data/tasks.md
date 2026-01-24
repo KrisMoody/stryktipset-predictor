@@ -26,6 +26,6 @@
 
 ## 5. Testing & Validation
 
-- [ ] 5.1 Verify guarantee display matches betting-systems.json data
-- [ ] 5.2 Verify score distribution calculations are correct
-- [ ] 5.3 Manual testing with completed draws
+- [x] 5.1 Verify guarantee display matches betting-systems.json data
+- [x] 5.2 Verify score distribution calculations are correct
+- [x] 5.3 Manual testing with completed draws

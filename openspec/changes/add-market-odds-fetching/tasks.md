@@ -57,14 +57,16 @@
 
 ## 5. Testing & Validation
 
-- [ ] 5.1 Add unit tests for market odds fetching
+- [x] 5.1 Add unit tests for market odds fetching
   - Test bookmaker filtering
   - Test consensus calculation
   - Test margin removal
+  - Tests added in `tests/unit/services/market-odds.test.ts`
 
-- [ ] 5.2 Add unit tests for value signal detection
+- [x] 5.2 Add unit tests for value signal detection
   - Test 5% threshold detection
   - Test overvalued/undervalued categorization
+  - Tests added in `tests/unit/services/value-signal-detection.test.ts`
 
 - [x] 5.3 Manual validation
   - Sync a draw and verify market odds appear

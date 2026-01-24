@@ -3,7 +3,8 @@
 - [x] 1.1 Add `MAX_REST_DAYS` constant (90 days) to `types.ts`
 - [x] 1.2 Update `calculateRestDays()` in `index.ts` to return `null` if days > MAX_REST_DAYS
 - [x] 1.3 Update prediction service to handle null rest days gracefully (already does)
-- [ ] 1.4 Backfill existing `match_calculations` with corrected rest days values
+- [x] 1.4 Backfill existing `match_calculations` with corrected rest days values
+  - Run: `npx tsx scripts/backfill-calculations.ts --all --force`
 
 ## 2. Surface Svenska Folket & Tio Tidningars Tips
 
@@ -24,6 +25,6 @@
 
 ## 4. Testing & Validation
 
-- [ ] 4.1 Verify rest days cap works for edge cases (new teams, season breaks)
-- [ ] 4.2 Verify UI displays correctly when data is missing (graceful fallback)
-- [ ] 4.3 Manual testing on draws with varied data quality
+- [x] 4.1 Verify rest days cap works for edge cases (new teams, season breaks)
+- [x] 4.2 Verify UI displays correctly when data is missing (graceful fallback)
+- [x] 4.3 Manual testing on draws with varied data quality

@@ -2,7 +2,7 @@
 
 - [x] 1.1 Update `fetchAndStoreInjuries` in `match-enrichment.ts` to accept match start_time
 - [x] 1.2 Add season parameter to team-based injury queries (extract year from match start_time)
-- [ ] 1.3 Test injuries fetching for upcoming matches manually
+- [x] 1.3 Test injuries fetching for upcoming matches manually
 
 ## 2. Improve Rate Limiter Logging
 
@@ -25,6 +25,6 @@
 ## 5. Validation
 
 - [x] 5.1 Run type checks (`yarn typecheck`)
-- [ ] 5.2 Test injuries fetching for upcoming matches manually
-- [ ] 5.3 Verify health check prevents wasted sequential failures
-- [ ] 5.4 Verify improved logging shows quota state on long waits
+- [x] 5.2 Test injuries fetching for upcoming matches manually
+- [x] 5.3 Verify health check prevents wasted sequential failures
+- [x] 5.4 Verify improved logging shows quota state on long waits

@@ -154,10 +154,7 @@ function isActive(to: string): boolean {
 }
 
 function isDrawActive(drawNumber: number): boolean {
-  return (
-    route.path === `/draw/${drawNumber}` ||
-    route.path.startsWith(`/draw/${drawNumber}/`)
-  )
+  return route.path === `/draw/${drawNumber}` || route.path.startsWith(`/draw/${drawNumber}/`)
 }
 
 async function handleLogout() {

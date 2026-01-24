@@ -29,9 +29,7 @@ export function useNavigation() {
 
   const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
     const path = route.path
-    const items: BreadcrumbItem[] = [
-      { label: 'Dashboard', to: '/', icon: 'i-heroicons-home' },
-    ]
+    const items: BreadcrumbItem[] = [{ label: 'Dashboard', to: '/', icon: 'i-heroicons-home' }]
 
     // Don't show breadcrumbs on root
     if (path === '/') {

@@ -47,7 +47,7 @@
 
     <!-- Center: Search / Command Palette Trigger -->
     <button
-      class="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
+      class="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700"
       @click="$emit('openCommandPalette')"
     >
       <UIcon name="i-heroicons-magnifying-glass" class="w-4 h-4" />

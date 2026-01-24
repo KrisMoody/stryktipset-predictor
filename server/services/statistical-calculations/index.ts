@@ -20,7 +20,7 @@ import { calculateOutcomeProbabilities } from './dixon-coles'
 import { calculateFormMetrics, determineOutcome, type RecentMatch } from './form-calculator'
 import { calculateFairProbabilities, calculateExpectedValues } from './value-calculator'
 import type { MatchCalculations, DataQuality, TeamRatings, ModelConfig, MatchOdds } from './types'
-import { DEFAULT_CONFIG } from './types'
+import { DEFAULT_CONFIG, MAX_REST_DAYS } from './types'
 
 // Re-export sub-modules
 export * from './types'
@@ -281,6 +281,8 @@ async function getRecentMatchesForTeam(
 
 /**
  * Calculate rest days since last match
+ * Returns null if no recent match found or if days exceed MAX_REST_DAYS (90 days)
+ * Values above the cap indicate the team is new or hasn't been in recent pools
  */
 async function calculateRestDays(teamId: number, matchDate: Date): Promise<number | null> {
   const lastMatch = await prisma.matches.findFirst({
@@ -295,7 +297,10 @@ async function calculateRestDays(teamId: number, matchDate: Date): Promise<numbe
   if (!lastMatch) return null
 
   const diffMs = matchDate.getTime() - lastMatch.start_time.getTime()
-  return Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  // Cap at MAX_REST_DAYS - values above indicate no meaningful recent data
+  return days > MAX_REST_DAYS ? null : days
 }
 
 /**

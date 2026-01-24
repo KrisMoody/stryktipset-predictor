@@ -109,6 +109,72 @@
         </div>
       </div>
 
+      <!-- Team Elo Ratings -->
+      <div v-if="homeTeamRatings || awayTeamRatings">
+        <h4
+          class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2"
+        >
+          <UIcon name="i-heroicons-trophy" class="w-4 h-4" aria-hidden="true" />
+          Team Ratings (Elo)
+        </h4>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Home Team -->
+          <div v-if="homeTeamRatings" class="space-y-2">
+            <div
+              class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate"
+              :title="homeTeamName"
+            >
+              {{ homeTeamName }}
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                {{ homeTeamRatings.elo.toFixed(0) }}
+              </span>
+              <UBadge
+                :color="getConfidenceColor(homeTeamRatings.confidence)"
+                variant="soft"
+                size="xs"
+              >
+                {{ homeTeamRatings.confidence }}
+              </UBadge>
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+              <span>Att: {{ homeTeamRatings.attack.toFixed(2) }}</span>
+              <span class="mx-1">•</span>
+              <span>Def: {{ homeTeamRatings.defense.toFixed(2) }}</span>
+            </div>
+          </div>
+
+          <!-- Away Team -->
+          <div v-if="awayTeamRatings" class="space-y-2">
+            <div
+              class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate"
+              :title="awayTeamName"
+            >
+              {{ awayTeamName }}
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                {{ awayTeamRatings.elo.toFixed(0) }}
+              </span>
+              <UBadge
+                :color="getConfidenceColor(awayTeamRatings.confidence)"
+                variant="soft"
+                size="xs"
+              >
+                {{ awayTeamRatings.confidence }}
+              </UBadge>
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+              <span>Att: {{ awayTeamRatings.attack.toFixed(2) }}</span>
+              <span class="mx-1">•</span>
+              <span>Def: {{ awayTeamRatings.defense.toFixed(2) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Expected Value -->
       <div>
         <h4
@@ -178,6 +244,21 @@
             <span class="text-sm font-medium w-10 text-right">
               {{ calculations.form.home.ema.toFixed(2) }}
             </span>
+            <span
+              v-if="calculations.form.home.xgTrend !== null"
+              class="text-xs flex items-center gap-0.5"
+              :class="getXgTrendClass(calculations.form.home.xgTrend)"
+            >
+              <UIcon
+                :name="
+                  calculations.form.home.xgTrend >= 0
+                    ? 'i-heroicons-arrow-trending-up'
+                    : 'i-heroicons-arrow-trending-down'
+                "
+                class="w-3 h-3"
+              />
+              {{ formatXgTrend(calculations.form.home.xgTrend) }}
+            </span>
             <UBadge
               v-if="calculations.form.home.regressionFlag"
               :color="
@@ -211,6 +292,21 @@
             </div>
             <span class="text-sm font-medium w-10 text-right">
               {{ calculations.form.away.ema.toFixed(2) }}
+            </span>
+            <span
+              v-if="calculations.form.away.xgTrend !== null"
+              class="text-xs flex items-center gap-0.5"
+              :class="getXgTrendClass(calculations.form.away.xgTrend)"
+            >
+              <UIcon
+                :name="
+                  calculations.form.away.xgTrend >= 0
+                    ? 'i-heroicons-arrow-trending-up'
+                    : 'i-heroicons-arrow-trending-down'
+                "
+                class="w-3 h-3"
+              />
+              {{ formatXgTrend(calculations.form.away.xgTrend) }}
             </span>
             <UBadge
               v-if="calculations.form.away.regressionFlag"
@@ -333,6 +429,15 @@ interface MarketProbabilities {
   away: number
 }
 
+interface TeamRatings {
+  elo: number
+  attack: number
+  defense: number
+  matchesPlayed: number
+  confidence: 'low' | 'medium' | 'high'
+  lastMatchDate: string | null
+}
+
 const props = defineProps<{
   matchId: number
   homeTeamName: string
@@ -343,6 +448,8 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const calculations = ref<MatchCalculations | null>(null)
 const marketProbabilities = ref<MarketProbabilities | null>(null)
+const homeTeamRatings = ref<TeamRatings | null>(null)
+const awayTeamRatings = ref<TeamRatings | null>(null)
 
 // Fetch calculations when component mounts
 onMounted(async () => {
@@ -358,12 +465,16 @@ async function fetchCalculations() {
       success: boolean
       data: MatchCalculations | null
       marketProbabilities: MarketProbabilities | null
+      homeTeamRatings: TeamRatings | null
+      awayTeamRatings: TeamRatings | null
       message?: string
     }>(`/api/matches/${props.matchId}/calculations`)
 
     if (response.success) {
       calculations.value = response.data
       marketProbabilities.value = response.marketProbabilities
+      homeTeamRatings.value = response.homeTeamRatings
+      awayTeamRatings.value = response.awayTeamRatings
     } else {
       error.value = response.message || 'Failed to load calculations'
     }
@@ -434,5 +545,27 @@ function getFormBarClass(ema: number): string {
   if (ema >= 0.5) return 'bg-yellow-500'
   if (ema >= 0.3) return 'bg-orange-500'
   return 'bg-red-500'
+}
+
+function getConfidenceColor(confidence: 'low' | 'medium' | 'high'): 'warning' | 'info' | 'success' {
+  switch (confidence) {
+    case 'high':
+      return 'success'
+    case 'medium':
+      return 'info'
+    default:
+      return 'warning'
+  }
+}
+
+function getXgTrendClass(trend: number): string {
+  if (trend > 0.1) return 'text-green-600 dark:text-green-400'
+  if (trend < -0.1) return 'text-red-600 dark:text-red-400'
+  return 'text-gray-500 dark:text-gray-400'
+}
+
+function formatXgTrend(trend: number): string {
+  const sign = trend >= 0 ? '+' : ''
+  return `${sign}${trend.toFixed(2)} xG`
 }
 </script>

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Test file with mock data */
 import { describe, it, expect, vi } from 'vitest'
 
 // Mock the console methods to avoid noisy output
@@ -86,7 +85,7 @@ describe('Value Signal Detection', () => {
 
       const signals = detectValueSignals(ssProbs, marketProbs)
 
-      expect(signals).toHaveLength(2) // home +10%, draw -5%
+      expect(signals).toHaveLength(1) // home +10% (draw -5% is exactly 5%, not > 5%)
       expect(signals.find(s => s.outcome === 'home')).toBeDefined()
       expect(signals.find(s => s.outcome === 'home')?.difference).toBeCloseTo(10, 1)
     })

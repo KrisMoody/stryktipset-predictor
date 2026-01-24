@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Test file with mock data */
+/* eslint-disable import/first -- Mocks must be set up before imports */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock console methods to avoid noisy output

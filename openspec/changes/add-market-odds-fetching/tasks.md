@@ -66,7 +66,7 @@
   - Test 5% threshold detection
   - Test overvalued/undervalued categorization
 
-- [ ] 5.3 Manual validation
+- [x] 5.3 Manual validation
   - Sync a draw and verify market odds appear
   - Verify prediction context includes market comparison
   - Verify value signals are flagged correctly

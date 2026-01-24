@@ -80,7 +80,7 @@
   - Sync a draw → verify enrichment → verify data fetch triggered
   - Verify data stored in `match_scraped_data`
 
-- [ ] 5.4 Monitor API usage for 1 week after deployment
+- [x] 5.4 Monitor API usage for 1 week after deployment
   - Track daily request counts
   - Verify quota is not exceeded
   - Adjust rate limiting if needed

@@ -60,12 +60,14 @@
     <!-- Body: Two Column Layout -->
     <div class="match-card-v2__body">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Left: Odds -->
-        <div>
+        <!-- Left: Odds & Sentiment -->
+        <div class="space-y-3">
           <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
             Market Odds
           </div>
           <OddsTicker :odds="currentOdds" />
+          <MatchExpertConsensus :tips="expertTips" />
+          <MatchPublicBetting :betting="publicBetting" />
         </div>
 
         <!-- Right: Prediction -->
@@ -112,6 +114,12 @@ interface MatchOdds {
   home_odds: string | number
   draw_odds: string | number
   away_odds: string | number
+  svenska_folket_home?: string | null
+  svenska_folket_draw?: string | null
+  svenska_folket_away?: string | null
+  tio_tidningars_tips_home?: string | null
+  tio_tidningars_tips_draw?: string | null
+  tio_tidningars_tips_away?: string | null
 }
 
 interface ScrapedData {
@@ -190,6 +198,38 @@ const currentOdds = computed((): OddsData | null => {
     home_odds: odds.home_odds,
     draw_odds: odds.draw_odds,
     away_odds: odds.away_odds,
+  }
+})
+
+// Expert tips (Tio Tidningars Tips)
+const expertTips = computed(() => {
+  if (!props.match.match_odds || props.match.match_odds.length === 0) return null
+  const current = props.match.match_odds.find(o => o.type === 'current')
+  const odds = current || props.match.match_odds[0]
+  if (
+    !odds?.tio_tidningars_tips_home &&
+    !odds?.tio_tidningars_tips_draw &&
+    !odds?.tio_tidningars_tips_away
+  )
+    return null
+  return {
+    home: odds.tio_tidningars_tips_home,
+    draw: odds.tio_tidningars_tips_draw,
+    away: odds.tio_tidningars_tips_away,
+  }
+})
+
+// Public betting (Svenska Folket)
+const publicBetting = computed(() => {
+  if (!props.match.match_odds || props.match.match_odds.length === 0) return null
+  const current = props.match.match_odds.find(o => o.type === 'current')
+  const odds = current || props.match.match_odds[0]
+  if (!odds?.svenska_folket_home && !odds?.svenska_folket_draw && !odds?.svenska_folket_away)
+    return null
+  return {
+    home: odds.svenska_folket_home,
+    draw: odds.svenska_folket_draw,
+    away: odds.svenska_folket_away,
   }
 })
 

@@ -29,7 +29,7 @@
         role="tabpanel"
         :aria-labelledby="'tab-analysis'"
       >
-        <V2AIAnalysis :prediction="mappedPredictionForAnalysis" />
+        <AIAnalysis :prediction="mappedPredictionForAnalysis" />
       </div>
 
       <div
@@ -38,7 +38,7 @@
         role="tabpanel"
         :aria-labelledby="'tab-statistics'"
       >
-        <V2Statistics
+        <MatchStatistics
           :scraped-data="mappedScrapedData"
           :home-team-name="match.homeTeam.name"
           :away-team-name="match.awayTeam.name"
@@ -46,7 +46,7 @@
       </div>
 
       <div v-show="activeTab === 'h2h'" id="panel-h2h" role="tabpanel" :aria-labelledby="'tab-h2h'">
-        <V2HeadToHead
+        <HeadToHead
           :scraped-data="mappedScrapedData"
           :home-team-name="match.homeTeam.name"
           :away-team-name="match.awayTeam.name"
@@ -59,7 +59,7 @@
         role="tabpanel"
         :aria-labelledby="'tab-odds'"
       >
-        <V2OddsComparison
+        <OddsComparison
           :match-odds="mappedMatchOdds"
           :prediction="mappedPredictionForOdds"
           :scraped-data="mappedScrapedData"

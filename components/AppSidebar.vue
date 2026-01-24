@@ -5,7 +5,7 @@
   >
     <!-- Logo -->
     <div class="flex items-center h-16 px-4 border-b border-gray-200 dark:border-gray-800">
-      <NuxtLink to="/v2" class="flex items-center gap-3" aria-label="Stryktipset AI - Home">
+      <NuxtLink to="/" class="flex items-center gap-3" aria-label="Stryktipset AI - Home">
         <UIcon name="i-heroicons-chart-bar-square" class="w-8 h-8 text-primary-500 flex-shrink-0" />
         <span
           v-if="!collapsed || isMobile"
@@ -58,7 +58,7 @@
         <ul class="space-y-1">
           <li v-for="draw in recentDraws" :key="draw.id">
             <NuxtLink
-              :to="`/v2/draw/${draw.draw_number}`"
+              :to="`/draw/${draw.draw_number}`"
               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
               :class="[
                 isDrawActive(draw.draw_number)
@@ -90,16 +90,6 @@
 
     <!-- User Section -->
     <div class="border-t border-gray-200 dark:border-gray-800 p-4">
-      <!-- Switch to Classic UI -->
-      <button
-        v-if="!collapsed || isMobile"
-        class="w-full flex items-center gap-2 px-3 py-2 mb-3 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-        @click="switchToClassicUI"
-      >
-        <UIcon name="i-heroicons-arrow-uturn-left" class="w-4 h-4" />
-        <span>Switch to Classic UI</span>
-      </button>
-
       <div v-if="user" class="flex items-center gap-3">
         <UAvatar :src="user.user_metadata?.avatar_url" :alt="user.email || 'User'" size="sm" />
         <div v-if="!collapsed || isMobile" class="flex-1 min-w-0">
@@ -132,12 +122,6 @@ const route = useRoute()
 const user = useSupabaseUser()
 const supabase = useSupabaseClient()
 const { mainNavItems } = useNavigation()
-const { setPreference } = useUIVersion()
-
-function switchToClassicUI() {
-  setPreference('v1')
-  navigateTo('/')
-}
 
 // Mock recent draws - in real implementation, fetch from API
 const recentDraws = ref<{ id: number; draw_number: number; gameType: string; status: string }[]>([])
@@ -163,16 +147,14 @@ onMounted(async () => {
 })
 
 function isActive(to: string): boolean {
-  if (to === '/' || to === '/v2') {
-    return route.path === '/' || route.path === '/v2'
+  if (to === '/') {
+    return route.path === '/'
   }
   return route.path.startsWith(to)
 }
 
 function isDrawActive(drawNumber: number): boolean {
   return (
-    route.path === `/v2/draw/${drawNumber}` ||
-    route.path.startsWith(`/v2/draw/${drawNumber}/`) ||
     route.path === `/draw/${drawNumber}` ||
     route.path.startsWith(`/draw/${drawNumber}/`)
   )

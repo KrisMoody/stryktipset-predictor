@@ -170,6 +170,20 @@ export class ScraperServiceV3 {
         throw new Error('Circuit breaker open: too many recent rate limits')
       }
 
+      // Pre-scrape health check for AI scraper (if enabled)
+      // This avoids wasting time on sequential failures when the service is down
+      let aiScraperHealthy = false
+      if (this.enableAiScraper) {
+        aiScraperHealthy = await this.aiScraperClient.isHealthy()
+        if (!aiScraperHealthy) {
+          console.warn(
+            '[Scraper Service V3] AI scraper unhealthy, will skip AI scraping for all data types'
+          )
+        } else {
+          console.log('[Scraper Service V3] AI scraper health check passed')
+        }
+      }
+
       // Scrape each data type
       for (const dataType of options.dataTypes) {
         // Check circuit breaker before each data type
@@ -178,7 +192,13 @@ export class ScraperServiceV3 {
           break
         }
 
-        const dataResult = await this.scrapeDataType(dataType, options, urlContext, urlPattern)
+        const dataResult = await this.scrapeDataType(
+          dataType,
+          options,
+          urlContext,
+          urlPattern,
+          aiScraperHealthy
+        )
         results.push(dataResult)
 
         // Handle rate limits
@@ -228,12 +248,14 @@ export class ScraperServiceV3 {
 
   /**
    * Scrape a single data type with AI-first, DOM-fallback strategy
+   * @param aiScraperHealthy - Pre-check result, skip AI if false
    */
   private async scrapeDataType(
     dataType: string,
     options: ScrapeOptions,
     urlContext: UrlBuildContext,
-    urlPattern: UrlPattern
+    urlPattern: UrlPattern,
+    aiScraperHealthy = true
   ): Promise<ScrapeResult> {
     const startTime = Date.now()
     let data: unknown = null
@@ -251,91 +273,110 @@ export class ScraperServiceV3 {
         },
       })
 
-      // Try AI scraping first (if enabled)
+      // Try AI scraping first (if enabled and healthy)
       // HeadToHead now supported via Crawl4AI with tab clicking JS
-      const useAI = this.enableAiScraper
+      const useAI = this.enableAiScraper && aiScraperHealthy
 
       if (useAI) {
         console.log(`[Scraper Service V3] Trying AI scraping for ${dataType}`)
 
         try {
-          // Check if AI service is healthy
-          const isHealthy = await this.aiScraperClient.healthCheck()
-          if (!isHealthy) {
-            console.warn(
-              '[Scraper Service V3] AI scraper service is not healthy, falling back to DOM'
-            )
-          } else {
-            // Build URL
-            const url = urlManager.buildUrl(dataType, urlContext)
+          // Build URL
+          const url = urlManager.buildUrl(dataType, urlContext)
 
-            // Call AI scraper with gameType
-            const aiResult = await this.aiScraperClient.scrape(url, dataType, options.gameType)
+          // Call AI scraper with gameType
+          const aiResult = await this.aiScraperClient.scrape(url, dataType, options.gameType)
 
-            if (aiResult.success && aiResult.data && !this._isEmptyData(aiResult.data)) {
-              data = aiResult.data
-              method = 'ai'
+          if (aiResult.success && aiResult.data && !this._isEmptyData(aiResult.data)) {
+            data = aiResult.data
+            method = 'ai'
 
-              // Record token usage and cost
-              if (aiResult.tokens) {
-                const inputCost = (aiResult.tokens.input / 1_000_000) * 1
-                const outputCost = (aiResult.tokens.output / 1_000_000) * 5
-                const totalCost = inputCost + outputCost
+            // Record token usage and cost
+            if (aiResult.tokens) {
+              const inputCost = (aiResult.tokens.input / 1_000_000) * 1
+              const outputCost = (aiResult.tokens.output / 1_000_000) * 5
+              const totalCost = inputCost + outputCost
 
-                await recordAIUsage({
-                  userId: options.userId,
-                  model: 'claude-haiku-4-5',
-                  inputTokens: aiResult.tokens.input,
-                  outputTokens: aiResult.tokens.output,
-                  cost: totalCost,
-                  dataType,
-                  success: true,
-                }).catch(error => {
-                  console.error('[Scraper Service V3] Failed to record AI usage:', error)
-                })
+              await recordAIUsage({
+                userId: options.userId,
+                model: 'claude-haiku-4-5',
+                inputTokens: aiResult.tokens.input,
+                outputTokens: aiResult.tokens.output,
+                cost: totalCost,
+                dataType,
+                success: true,
+              }).catch(error => {
+                console.error('[Scraper Service V3] Failed to record AI usage:', error)
+              })
 
-                console.log(
-                  `[Scraper Service V3] AI usage: ${aiResult.tokens.input} in, ${aiResult.tokens.output} out, $${totalCost.toFixed(6)}`
-                )
-              }
-
-              console.log(`[Scraper Service V3] ✅ AI scraping succeeded for ${dataType}`)
-            } else {
-              // AI failed or returned empty data - will fall back to DOM
-              const reason = !aiResult.success
-                ? `error: ${aiResult.error}`
-                : aiResult.data && this._isEmptyData(aiResult.data)
-                  ? 'returned empty/null data'
-                  : 'no data returned'
               console.log(
-                `[Scraper Service V3] AI scraping failed for ${dataType} (${reason}), will try DOM fallback`
+                `[Scraper Service V3] AI usage: ${aiResult.tokens.input} in, ${aiResult.tokens.output} out, $${totalCost.toFixed(6)}`
               )
-              error = aiResult.error || 'AI extraction failed or returned empty data'
+            }
 
-              // Record failed usage
-              if (aiResult.tokens) {
-                const inputCost = (aiResult.tokens.input / 1_000_000) * 1
-                const outputCost = (aiResult.tokens.output / 1_000_000) * 5
-                const totalCost = inputCost + outputCost
+            console.log(`[Scraper Service V3] ✅ AI scraping succeeded for ${dataType}`)
+          } else {
+            // AI failed or returned empty data - will fall back to DOM
+            const reason = !aiResult.success
+              ? `error: ${aiResult.error}`
+              : aiResult.data && this._isEmptyData(aiResult.data)
+                ? 'returned empty/null data'
+                : 'no data returned'
 
-                await recordAIUsage({
-                  userId: options.userId,
-                  model: 'claude-haiku-4-5',
-                  inputTokens: aiResult.tokens.input,
-                  outputTokens: aiResult.tokens.output,
-                  cost: totalCost,
-                  dataType,
-                  success: false,
-                }).catch(error => {
-                  console.error('[Scraper Service V3] Failed to record AI usage:', error)
-                })
-              }
+            // Categorize the error
+            const errorCategory = this.aiScraperClient.categorizeError(aiResult.error)
+            console.log(
+              `[Scraper Service V3] AI scraping failed for ${dataType} (${reason}), category: ${errorCategory}, will try DOM fallback`
+            )
+            error = aiResult.error || 'AI extraction failed or returned empty data'
+
+            // For service-level errors, invalidate health cache so future scrapes can detect recovery
+            if (errorCategory === 'service-level') {
+              console.warn(
+                `[Scraper Service V3] Service-level error detected for ${dataType}, invalidating health cache`
+              )
+              this.aiScraperClient.invalidateHealthCache()
+            }
+
+            // Record failed usage
+            if (aiResult.tokens) {
+              const inputCost = (aiResult.tokens.input / 1_000_000) * 1
+              const outputCost = (aiResult.tokens.output / 1_000_000) * 5
+              const totalCost = inputCost + outputCost
+
+              await recordAIUsage({
+                userId: options.userId,
+                model: 'claude-haiku-4-5',
+                inputTokens: aiResult.tokens.input,
+                outputTokens: aiResult.tokens.output,
+                cost: totalCost,
+                dataType,
+                success: false,
+              }).catch(error => {
+                console.error('[Scraper Service V3] Failed to record AI usage:', error)
+              })
             }
           }
         } catch (aiError) {
-          console.log(`[Scraper Service V3] AI scraping exception for ${dataType}:`, aiError)
-          error = aiError instanceof Error ? aiError.message : 'AI scraping exception'
+          const errorMsg = aiError instanceof Error ? aiError.message : 'AI scraping exception'
+          const errorCategory = this.aiScraperClient.categorizeError(errorMsg)
+          console.log(
+            `[Scraper Service V3] AI scraping exception for ${dataType}: ${errorMsg}, category: ${errorCategory}`
+          )
+          error = errorMsg
+
+          // For service-level errors, invalidate health cache
+          if (errorCategory === 'service-level') {
+            console.warn(
+              `[Scraper Service V3] Service-level exception detected, invalidating health cache`
+            )
+            this.aiScraperClient.invalidateHealthCache()
+          }
         }
+      } else if (this.enableAiScraper && !aiScraperHealthy) {
+        // AI is enabled but unhealthy - log and skip to DOM
+        console.log(`[Scraper Service V3] Skipping AI scraping for ${dataType} (service unhealthy)`)
+        error = 'AI scraper service unhealthy'
       }
 
       // Fallback to DOM scraping if AI failed or is disabled

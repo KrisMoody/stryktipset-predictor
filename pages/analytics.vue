@@ -1,7 +1,5 @@
 <template>
   <UContainer class="py-8">
-    <AppBreadcrumb />
-
     <!-- Loading state -->
     <div v-if="profileLoading" class="flex justify-center py-16">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
@@ -280,6 +278,8 @@
 
 <script setup lang="ts">
 import { useUserProfile } from '~/composables/useUserProfile'
+
+definePageMeta({})
 
 // Admin access check
 const { isAdmin, fetchProfile, loading: profileLoading } = useUserProfile()

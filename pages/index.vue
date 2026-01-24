@@ -1,100 +1,52 @@
 <template>
-  <UContainer class="py-8">
+  <div class="p-6">
+    <!-- Quick Stats -->
+    <QuickStats :stats="quickStats" class="mb-6" />
+
     <!-- Header -->
-    <div class="mb-8">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 class="text-4xl font-bold mb-2">{{ gameDisplayName }} AI Predictor</h1>
-          <p class="text-gray-600 dark:text-gray-400">
-            AI-powered predictions for Swedish {{ gameDisplayName }}
-          </p>
-        </div>
-        <GameSelector v-model="selectedGameType" @change="handleGameTypeChange" />
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+          {{ gameDisplayName }} Dashboard
+        </h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          AI-powered predictions for Swedish {{ gameDisplayName }}
+        </p>
       </div>
+      <UButton
+        icon="i-heroicons-arrow-path"
+        :loading="syncing"
+        :disabled="!isActionAllowed"
+        @click="syncDraws"
+      >
+        Sync
+      </UButton>
     </div>
 
-    <!-- Schedule Window Status Banner -->
+    <!-- Schedule Status Banner -->
     <UAlert
-      v-if="scheduleStatus"
-      :color="scheduleStatus.isActive ? 'success' : 'warning'"
-      :icon="scheduleStatus.isActive ? 'i-heroicons-check-circle' : 'i-heroicons-clock'"
+      v-if="scheduleStatus && !scheduleStatus.isActive"
+      color="warning"
+      icon="i-heroicons-clock"
       class="mb-6"
     >
-      <template #title>
-        {{ scheduleStatus.isActive ? 'Active Betting Window' : 'Outside Betting Window' }}
-      </template>
+      <template #title>Outside Betting Window</template>
       <template #description>
-        <p class="text-sm">
-          {{ scheduleStatus.reason }}
-        </p>
-        <p
-          v-if="scheduleStatus.isActive && scheduleStatus.minutesUntilClose"
-          class="text-xs mt-1 opacity-80"
-        >
-          Spelstopp in {{ formatDuration(scheduleStatus.minutesUntilClose) }}
-        </p>
-        <p
-          v-if="!scheduleStatus.isActive && scheduleStatus.minutesUntilOpen"
-          class="text-xs mt-1 opacity-80"
-        >
-          Window opens in {{ formatDuration(scheduleStatus.minutesUntilOpen) }}
-        </p>
+        <p class="text-sm">{{ scheduleStatus.reason }}</p>
+        <div class="flex items-center gap-3 mt-2">
+          <USwitch id="admin-override" v-model="adminOverride" size="sm" />
+          <label for="admin-override" class="text-sm cursor-pointer"> Admin override </label>
+        </div>
       </template>
     </UAlert>
 
-    <!-- Admin Override Toggle (only shown outside window) -->
-    <div
-      v-if="scheduleStatus && !scheduleStatus.isActive"
-      class="flex items-center gap-3 mb-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-    >
-      <USwitch
-        id="admin-override-index"
-        v-model="adminOverride"
-        aria-describedby="admin-override-index-desc"
-      />
-      <label
-        id="admin-override-index-desc"
-        for="admin-override-index"
-        class="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
-      >
-        Admin Override (enable actions outside betting window)
-      </label>
-    </div>
-
-    <!-- Actions -->
-    <div class="mb-6">
-      <UTooltip
-        :text="
-          !isActionAllowed
-            ? 'Disabled outside betting window. Enable admin override to proceed.'
-            : 'Sync draws from Svenska Spel'
-        "
-      >
-        <UButton
-          icon="i-heroicons-arrow-path"
-          :loading="syncing"
-          :disabled="!isActionAllowed"
-          @click="syncDraws"
-        >
-          Sync Draws
-        </UButton>
-      </UTooltip>
-    </div>
-
     <!-- Loading State -->
-    <div
-      v-if="pending"
-      class="flex justify-center py-12"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
+    <div v-if="pending" class="flex justify-center py-12">
       <div class="text-center">
         <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"
-          aria-hidden="true"
+          class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500 mx-auto mb-3"
         />
-        <p class="text-gray-600 dark:text-gray-400">Laddar omgångar...</p>
+        <p class="text-gray-500 dark:text-gray-400">Loading draws...</p>
       </div>
     </div>
 
@@ -106,127 +58,35 @@
       title="Error Loading Draws"
       :description="error.message"
       class="mb-6"
-      role="alert"
     />
 
-    <!-- Draws List -->
-    <div v-else-if="draws && draws.length > 0" class="space-y-6">
-      <UCard v-for="draw in draws" :key="draw.id">
-        <template #header>
-          <div class="flex justify-between items-start">
-            <div>
-              <h2 class="text-2xl font-semibold">Draw #{{ draw.draw_number }}</h2>
-              <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {{ formatDate(draw.draw_date) }} • Closes: {{ formatDateTime(draw.close_time) }}
-              </p>
-            </div>
-            <UBadge :color="getStatusColor(draw.status)" variant="subtle" size="lg">
-              {{ draw.status }}
-            </UBadge>
-          </div>
-        </template>
-
-        <!-- Match Stats -->
-        <div class="mb-4">
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p class="text-gray-600 dark:text-gray-400">Matches</p>
-              <p class="text-lg font-semibold">
-                {{ draw.matches?.length || 0 }}
-              </p>
-            </div>
-            <div>
-              <p class="text-gray-600 dark:text-gray-400">With Predictions</p>
-              <p class="text-lg font-semibold">
-                {{ countMatchesWithPredictions(draw) }}
-              </p>
-            </div>
-            <div>
-              <p class="text-gray-600 dark:text-gray-400">Net Sale</p>
-              <p class="text-lg font-semibold">
-                {{ formatCurrency(draw.net_sale) }}
-              </p>
-            </div>
-            <div>
-              <p class="text-gray-600 dark:text-gray-400">Ready</p>
-              <UIcon
-                :name="isDrawReady(draw) ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'"
-                :class="isDrawReady(draw) ? 'text-green-500' : 'text-gray-400'"
-                class="w-6 h-6"
-              />
-            </div>
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="flex gap-2">
-            <UButton
-              :to="{ path: `/draw/${draw.draw_number}`, query: { gameType: selectedGameType } }"
-              color="primary"
-            >
-              View Matches
-            </UButton>
-            <UTooltip
-              :text="
-                !isActionAllowed
-                  ? 'Disabled outside betting window'
-                  : 'Generate AI predictions for all matches'
-              "
-            >
-              <UButton
-                color="success"
-                :disabled="!draw.matches || draw.matches.length === 0 || !isActionAllowed"
-                :loading="generatingPredictions[draw.draw_number]"
-                @click="generatePredictions(draw.draw_number)"
-              >
-                Generate Predictions
-              </UButton>
-            </UTooltip>
-            <UTooltip
-              :text="
-                !isActionAllowed
-                  ? 'Disabled outside betting window'
-                  : !isDrawReady(draw)
-                    ? 'All matches need predictions first'
-                    : 'Generate optimal coupon'
-              "
-            >
-              <UButton
-                :to="{
-                  path: `/draw/${draw.draw_number}/optimize`,
-                  query: { gameType: selectedGameType },
-                }"
-                color="primary"
-                :disabled="!isDrawReady(draw) || !isActionAllowed"
-              >
-                Optimize Coupon
-              </UButton>
-            </UTooltip>
-          </div>
-        </template>
-      </UCard>
+    <!-- Draws Grid -->
+    <div v-else-if="draws && draws.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <DrawCard
+        v-for="draw in draws"
+        :key="draw.id"
+        :draw="draw"
+        :generating="generatingPredictions[draw.draw_number]"
+        :can-generate="isActionAllowed"
+        :fetching-data="fetchingData[draw.draw_number]"
+        :can-fetch="isActionAllowed"
+        @generate="generatePredictions(draw.draw_number)"
+        @fetch-data="fetchDrawData(draw.draw_number)"
+      />
     </div>
 
     <!-- Empty State -->
-    <UCard v-else>
-      <div class="text-center py-12">
-        <UIcon name="i-heroicons-inbox" class="w-16 h-16 mx-auto text-gray-400 mb-4" />
-        <h2 class="text-lg font-semibold mb-2">No Active Draws</h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">
-          There are no active {{ gameDisplayName }} draws at the moment.
-        </p>
-        <UTooltip
-          :text="
-            !isActionAllowed ? 'Disabled outside betting window' : 'Sync draws from Svenska Spel'
-          "
-        >
-          <UButton :loading="syncing" :disabled="!isActionAllowed" @click="syncDraws">
-            Sync Draws
-          </UButton>
-        </UTooltip>
-      </div>
-    </UCard>
-  </UContainer>
+    <div v-else class="text-center py-12">
+      <UIcon name="i-heroicons-inbox" class="w-12 h-12 mx-auto text-gray-400 mb-4" />
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Active Draws</h2>
+      <p class="text-gray-500 dark:text-gray-400 mb-4">
+        There are no active {{ gameDisplayName }} draws at the moment.
+      </p>
+      <UButton :loading="syncing" :disabled="!isActionAllowed" @click="syncDraws">
+        Sync Draws
+      </UButton>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -234,51 +94,48 @@ import type { ScheduleWindowStatus } from '~/types'
 import type { GameType } from '~/types/game-types'
 import { getGameConfig } from '~/server/constants/game-configs'
 
-// Toast notifications
+definePageMeta({})
+
+const route = useRoute()
 const toast = useToast()
 
-// Game type state
-const selectedGameType = ref<GameType>('stryktipset')
-const gameDisplayName = computed(() => getGameConfig(selectedGameType.value).displayName)
+// Game type from URL query (controlled by header dropdown)
+const gameType = computed(() => (route.query.gameType as GameType) || 'stryktipset')
+const gameDisplayName = computed(() => getGameConfig(gameType.value).displayName)
 
 useHead({
-  title: computed(() => `${gameDisplayName.value} AI Predictor - Dashboard`),
+  title: computed(() => `${gameDisplayName.value} Dashboard - V2`),
 })
 
 // Schedule window states
 const scheduleStatus = ref<ScheduleWindowStatus | null>(null)
 const adminOverride = ref(false)
 
-// Computed property for action buttons
 const isActionAllowed = computed(() => {
-  if (!scheduleStatus.value) return false // Deny by default when status unknown
+  if (!scheduleStatus.value) return false
   return scheduleStatus.value.isActive || adminOverride.value
 })
 
 const syncing = ref(false)
 const generatingPredictions = ref<Record<number, boolean>>({})
+const fetchingData = ref<Record<number, boolean>>({})
 
-// Load schedule status for the selected game type
+// Load schedule status
 async function loadScheduleStatus() {
   try {
     const result = await $fetch<{ success: boolean; status?: ScheduleWindowStatus }>(
       '/api/schedule/status',
-      { query: { gameType: selectedGameType.value } }
+      { query: { gameType: gameType.value } }
     )
     if (result.success && result.status) {
       scheduleStatus.value = result.status
     }
-  } catch (error) {
-    console.error('Error loading schedule status:', error)
+  } catch (err) {
+    console.error('Error loading schedule status:', err)
   }
 }
 
-// Watch for game type changes and reload schedule status
-watch(selectedGameType, () => {
-  loadScheduleStatus()
-})
-
-// Load schedule status on mount and refresh every minute
+watch(gameType, () => loadScheduleStatus())
 onMounted(async () => {
   await loadScheduleStatus()
   setInterval(loadScheduleStatus, 60000)
@@ -296,10 +153,11 @@ interface DrawData {
   close_time: string
   status: string
   net_sale?: string | number
+  game_type: string
   matches?: MatchData[]
 }
 
-// Fetch current draws based on selected game type
+// Fetch current draws
 const {
   data: response,
   pending,
@@ -309,30 +167,55 @@ const {
   success: boolean
   gameType?: GameType
   draws?: DrawData[]
-  error?: string
 }>('/api/draws/current', {
-  query: { gameType: selectedGameType },
-  watch: [selectedGameType],
+  query: { gameType: gameType },
+  watch: [gameType],
 })
 
 const draws = computed(() => response.value?.draws || [])
 
-// Handle game type change
-async function handleGameTypeChange(gameType: GameType) {
-  selectedGameType.value = gameType
-  // useFetch will auto-refresh due to watch
-}
+// Quick stats computation
+const quickStats = computed(() => {
+  const activeDraws = draws.value.length
+  let pendingPredictions = 0
+  let nextClose: Date | null = null
 
-// Sync draws for the selected game type
-const syncDraws = async () => {
+  for (const draw of draws.value) {
+    if (draw.matches) {
+      pendingPredictions += draw.matches.filter(
+        m => !m.predictions || m.predictions.length === 0
+      ).length
+    }
+    const closeTime = new Date(draw.close_time)
+    if (!nextClose || closeTime < nextClose) {
+      nextClose = closeTime
+    }
+  }
+
+  return {
+    activeDraws,
+    pendingPredictions,
+    valueOpportunities: 0, // TODO: Calculate from match calculations
+    nextCloseTime: nextClose
+      ? nextClose.toLocaleString('sv-SE', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : null,
+  }
+})
+
+async function syncDraws() {
   syncing.value = true
   try {
     await $fetch('/api/admin/sync', {
       method: 'POST',
-      query: { gameType: selectedGameType.value },
+      query: { gameType: gameType.value },
     })
     await refresh()
-    await loadScheduleStatus() // Refresh schedule status after sync
+    await loadScheduleStatus()
     toast.add({
       title: 'Sync Complete',
       description: `${gameDisplayName.value} draws synced successfully`,
@@ -350,8 +233,7 @@ const syncDraws = async () => {
   }
 }
 
-// Generate predictions for all matches in a draw (non-blocking, parallel)
-const generatePredictions = (drawNumber: number) => {
+function generatePredictions(drawNumber: number) {
   const draw = draws.value.find(d => d.draw_number === drawNumber)
   if (!draw || !draw.matches) return
 
@@ -364,18 +246,16 @@ const generatePredictions = (drawNumber: number) => {
     color: 'info',
   })
 
-  // Fire off all predictions in parallel
   const predictions = draw.matches.map(match =>
     $fetch(`/api/matches/${match.id}/predict`, {
       method: 'POST',
-      body: { gameType: selectedGameType.value },
+      body: { gameType: gameType.value },
     }).catch(err => {
       console.error(`Error predicting match ${match.id}:`, err)
       return null
     })
   )
 
-  // Handle results in background (non-blocking)
   Promise.all(predictions).then(async results => {
     const successCount = results.filter(r => r !== null).length
     const failCount = results.length - successCount
@@ -399,62 +279,49 @@ const generatePredictions = (drawNumber: number) => {
   })
 }
 
-// Helper functions
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('sv-SE', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+async function fetchDrawData(drawNumber: number) {
+  const draw = draws.value.find(d => d.draw_number === drawNumber)
+  if (!draw || !draw.matches) return
+
+  fetchingData.value[drawNumber] = true
+  const matches = draw.matches
+  let successCount = 0
+  let failCount = 0
+
+  toast.add({
+    title: 'Fetching Data',
+    description: `Processing ${matches.length} matches for draw ${drawNumber}...`,
+    color: 'info',
   })
-}
 
-const formatDateTime = (datetime: string) => {
-  return new Date(datetime).toLocaleString('sv-SE', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-const formatCurrency = (amount: string | number | undefined) => {
-  if (!amount) return 'N/A'
-  return `${parseFloat(String(amount)).toLocaleString('sv-SE')} SEK`
-}
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'Open':
-      return 'success'
-    case 'Closed':
-      return 'warning'
-    case 'Completed':
-      return 'neutral'
-    default:
-      return 'neutral'
+  for (const match of matches) {
+    try {
+      await $fetch(`/api/matches/${match.id}/scrape`, {
+        method: 'POST',
+        body: { dataTypes: ['xStats', 'statistics', 'headToHead', 'news', 'lineup'] },
+      })
+      successCount++
+    } catch (err) {
+      console.error(`Error fetching data for match ${match.id}:`, err)
+      failCount++
+    }
   }
-}
 
-const countMatchesWithPredictions = (draw: DrawData) => {
-  if (!draw.matches) return 0
-  return draw.matches.filter(m => m.predictions && m.predictions.length > 0).length
-}
+  await refresh()
+  fetchingData.value[drawNumber] = false
 
-const isDrawReady = (draw: DrawData) => {
-  const expectedMatchCount = getGameConfig(selectedGameType.value).matchCount
-  if (!draw.matches || draw.matches.length !== expectedMatchCount) return false
-  return draw.matches.every(m => m.predictions && m.predictions.length > 0)
-}
-
-const formatDuration = (minutes: number): string => {
-  if (minutes < 60) return `${minutes} minutes`
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-  if (hours < 24) {
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+  if (failCount === 0) {
+    toast.add({
+      title: 'Data Fetch Complete',
+      description: `Successfully fetched data for ${successCount} matches`,
+      color: 'success',
+    })
+  } else {
+    toast.add({
+      title: 'Data Fetch Partially Complete',
+      description: `${successCount} succeeded, ${failCount} failed`,
+      color: 'warning',
+    })
   }
-  const days = Math.floor(hours / 24)
-  const remainingHours = hours % 24
-  return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`
 }
 </script>

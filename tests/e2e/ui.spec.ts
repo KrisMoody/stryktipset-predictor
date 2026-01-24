@@ -1,15 +1,14 @@
 import { test, expect } from '@playwright/test'
 
 /**
- * V2 UI Tests - Visual Regression and Smoke Tests
+ * UI Tests - Visual Regression and Smoke Tests
  *
- * These tests verify the redesigned V2 interface works correctly.
- * Note: V2 routes are available at /v2/* regardless of feature flag.
+ * These tests verify the interface works correctly.
  */
 
-test.describe('V2 UI - Dashboard', () => {
-  test('v2 dashboard loads successfully', async ({ page }) => {
-    await page.goto('/v2')
+test.describe('UI - Dashboard', () => {
+  test('dashboard loads successfully', async ({ page }) => {
+    await page.goto('/')
 
     // Wait for page to hydrate
     await expect(page.locator('body')).toBeVisible()
@@ -27,7 +26,7 @@ test.describe('V2 UI - Dashboard', () => {
   })
 
   test('quick stats are displayed', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Quick stats component should be present
     const quickStats = page.locator('[class*="quick-stats"], .grid').first()
@@ -35,7 +34,7 @@ test.describe('V2 UI - Dashboard', () => {
   })
 
   test('sidebar navigation is collapsible', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Find sidebar
     const sidebar = page.locator('aside')
@@ -52,9 +51,9 @@ test.describe('V2 UI - Dashboard', () => {
   })
 })
 
-test.describe('V2 UI - Navigation', () => {
+test.describe('UI - Navigation', () => {
   test('command palette opens with keyboard shortcut', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Press Cmd+K (Mac) or Ctrl+K (Windows/Linux)
     await page.keyboard.press('Meta+k')
@@ -65,22 +64,22 @@ test.describe('V2 UI - Navigation', () => {
   })
 
   test('sidebar links navigate correctly', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Find Dashboard link in sidebar
     const dashboardLink = page.locator('aside').getByRole('link', { name: /dashboard/i })
     if (await dashboardLink.isVisible()) {
       await dashboardLink.click()
-      await expect(page).toHaveURL(/\/v2/)
+      await expect(page).toHaveURL(/^\/$/)
     }
   })
 })
 
-test.describe('V2 UI - Mobile Responsiveness', () => {
+test.describe('UI - Mobile Responsiveness', () => {
   test.use({ viewport: { width: 375, height: 667 } })
 
-  test('v2 dashboard is usable on mobile', async ({ page }) => {
-    await page.goto('/v2')
+  test('dashboard is usable on mobile', async ({ page }) => {
+    await page.goto('/')
 
     // Page should load
     await expect(page.locator('body')).toBeVisible()
@@ -95,7 +94,7 @@ test.describe('V2 UI - Mobile Responsiveness', () => {
   })
 
   test('mobile menu button opens navigation', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Find menu button in header
     const menuButton = page.locator('header button').first()
@@ -109,11 +108,11 @@ test.describe('V2 UI - Mobile Responsiveness', () => {
   })
 })
 
-test.describe('V2 UI - Dark Mode', () => {
+test.describe('UI - Dark Mode', () => {
   test('dark mode styles are applied correctly', async ({ page }) => {
     // Set dark mode preference
     await page.emulateMedia({ colorScheme: 'dark' })
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Body should have dark class or dark background
     const body = page.locator('body')
@@ -126,41 +125,41 @@ test.describe('V2 UI - Dark Mode', () => {
   })
 })
 
-test.describe('V2 UI - Visual Regression', () => {
+test.describe('UI - Visual Regression', () => {
   test('dashboard visual snapshot', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     // Take a screenshot for visual regression
-    await expect(page).toHaveScreenshot('v2-dashboard.png', {
+    await expect(page).toHaveScreenshot('dashboard.png', {
       maxDiffPixelRatio: 0.1,
     })
   })
 
   test('dashboard mobile visual snapshot', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
-    await page.goto('/v2')
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    await expect(page).toHaveScreenshot('v2-dashboard-mobile.png', {
+    await expect(page).toHaveScreenshot('dashboard-mobile.png', {
       maxDiffPixelRatio: 0.1,
     })
   })
 
   test('dashboard dark mode visual snapshot', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
-    await page.goto('/v2')
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    await expect(page).toHaveScreenshot('v2-dashboard-dark.png', {
+    await expect(page).toHaveScreenshot('dashboard-dark.png', {
       maxDiffPixelRatio: 0.1,
     })
   })
 })
 
-test.describe('V2 UI - Accessibility', () => {
+test.describe('UI - Accessibility', () => {
   test('sidebar has correct ARIA attributes', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Sidebar should have navigation role
     const sidebar = page.locator('aside')
@@ -169,7 +168,7 @@ test.describe('V2 UI - Accessibility', () => {
   })
 
   test('command palette search has accessible label', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Search input should have proper labeling
     const searchInput = page.locator('input[type="search"], input[placeholder*="Search"]')
@@ -181,7 +180,7 @@ test.describe('V2 UI - Accessibility', () => {
   })
 
   test('focus is visible on interactive elements', async ({ page }) => {
-    await page.goto('/v2')
+    await page.goto('/')
 
     // Tab to first interactive element
     await page.keyboard.press('Tab')

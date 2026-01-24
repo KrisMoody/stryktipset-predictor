@@ -25,9 +25,7 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
-  css: ['~/assets/css/main.css', '~/assets/css/v2.css'],
-  // TODO: Re-enable v2.css after fixing Tailwind CSS 4 @apply compatibility
-  // css: ['~/assets/css/main.css', '~/assets/css/v2.css'],
+  css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
     // Private keys (server-side only)
@@ -113,9 +111,6 @@ export default defineNuxtConfig({
       bugsnagAppVersion:
         process.env.VERCEL_GIT_COMMIT_SHA || process.env.npm_package_version || '1.0.0',
       supabaseUrl: process.env.SUPABASE_URL || '',
-
-      // UI v2 feature flag - enables redesigned UI components
-      enableUIV2: process.env.ENABLE_UI_V2 === 'true',
     },
   },
   compatibilityDate: '2024-11-01',

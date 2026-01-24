@@ -7,8 +7,8 @@
 
 ## 2. CI/CD Integration (Optional)
 
-- [x] 2.1 Ensure CI pipeline runs all critical checks before merge (CI already runs checks)
-- [x] 2.2 Add badge indicators for test/lint status in README (deferred - not blocking)
+- [x] 2.1 Ensure CI pipeline runs all critical checks before merge
+- [x] 2.2 Add badge indicators for test/lint status in README
 
 ## 3. Monitoring (Future)
 

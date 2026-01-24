@@ -66,11 +66,22 @@
 
 ## 5. Testing & Validation
 
-- [x] 5.1 Add unit tests for `fetchDataAfterEnrichment()` (deferred - feature deployed and validated)
+- [x] 5.1 Add unit tests for `fetchDataAfterEnrichment()`
+  - Test quota check logic
+  - Test skip for finished matches
+  - Test skip for fresh data
+  - Added tests in `tests/unit/services/match-enrichment.test.ts`
 
-- [x] 5.2 Add unit tests for `ensureMatchData()` in prediction flow (deferred - feature deployed and validated)
+- [x] 5.2 Add unit tests for `ensureMatchData()` in prediction flow
+  - Test missing data triggers fetch
+  - Test stale data triggers refresh
+  - Test graceful degradation when fetch fails
+  - Added tests in `tests/unit/services/match-enrichment.test.ts`
 
-- [x] 5.3 Add integration test for automatic fetch flow (deferred - feature deployed and validated)
+- [x] 5.3 Add integration test for automatic fetch flow
+  - Sync a draw → verify enrichment → verify data fetch triggered
+  - Verify data stored in `match_scraped_data`
+  - Added integration tests in `tests/unit/services/match-enrichment.test.ts`
 
 - [x] 5.4 Monitor API usage for 1 week after deployment
   - Track daily request counts
@@ -79,6 +90,14 @@
 
 ## 6. Documentation
 
-- [x] 6.1 Update API-Football integration docs (deferred - behavior documented in CLAUDE.md)
+- [x] 6.1 Update API-Football integration docs
+  - Document automatic fetch behavior (both triggers)
+  - Document cache TTLs
+  - Document quota management
+  - Created `docs/AUTOMATIC-STATISTICS-FETCHING.md`
 
-- [x] 6.2 Add troubleshooting section (deferred - not blocking)
+- [x] 6.2 Add troubleshooting section
+  - "Why doesn't my match have statistics?"
+  - "How to manually refresh data"
+  - "API quota exceeded" guidance
+  - Added troubleshooting section in `docs/AUTOMATIC-STATISTICS-FETCHING.md`

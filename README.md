@@ -1,5 +1,8 @@
 # Stryktipset AI Predictor
 
+[![CI](https://github.com/KrisMoody/stryktipset-predictor/actions/workflows/ci.yml/badge.svg)](https://github.com/KrisMoody/stryktipset-predictor/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/KrisMoody/stryktipset-predictor/graph/badge.svg)](https://codecov.io/gh/KrisMoody/stryktipset-predictor)
+
 An AI-powered prediction system for Swedish Stryktipset using Nuxt 4, Supabase, Prisma, and Claude AI. This comprehensive tool combines data from Svenska Spel's API, intelligent web scraping with anti-detection, and advanced AI analysis to generate optimal betting coupons.
 
 ## ✨ Features

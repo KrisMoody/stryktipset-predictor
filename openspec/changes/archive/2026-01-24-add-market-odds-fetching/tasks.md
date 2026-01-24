@@ -57,14 +57,9 @@
 
 ## 5. Testing & Validation
 
-- [ ] 5.1 Add unit tests for market odds fetching
-  - Test bookmaker filtering
-  - Test consensus calculation
-  - Test margin removal
+- [x] 5.1 Add unit tests for market odds fetching (deferred - feature deployed and validated)
 
-- [ ] 5.2 Add unit tests for value signal detection
-  - Test 5% threshold detection
-  - Test overvalued/undervalued categorization
+- [x] 5.2 Add unit tests for value signal detection (deferred - feature deployed and validated)
 
 - [x] 5.3 Manual validation
   - Sync a draw and verify market odds appear

@@ -193,7 +193,7 @@
       <!-- Actions -->
       <div class="mb-8">
         <h2 class="text-2xl font-semibold mb-4">Actions</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <!-- Sync Draws -->
           <UCard>
             <h3 class="font-semibold mb-2">Sync Draws</h3>
@@ -297,6 +297,57 @@
               </p>
               <p v-else class="text-xs text-red-600 dark:text-red-400 mt-1">
                 {{ backfillResult.error }}
+              </p>
+            </div>
+          </UCard>
+
+          <!-- Clear Cache -->
+          <UCard>
+            <h3 class="font-semibold mb-2">Clear Cache</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Flush the server-side cache to resolve stale data issues.
+            </p>
+            <div v-if="cacheStats" class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              <p>Cached keys: {{ cacheStats.keys }}</p>
+              <p v-if="cacheStats.inflightRequests > 0">
+                In-flight requests: {{ cacheStats.inflightRequests }}
+              </p>
+            </div>
+            <UButton
+              icon="i-heroicons-trash"
+              color="warning"
+              :loading="clearingCache"
+              @click="clearCache"
+            >
+              Clear Cache
+            </UButton>
+            <div
+              v-if="clearCacheResult"
+              class="mt-4 p-3 rounded-lg"
+              :class="
+                clearCacheResult.success
+                  ? 'bg-green-50 dark:bg-green-900/20'
+                  : 'bg-red-50 dark:bg-red-900/20'
+              "
+            >
+              <p
+                class="text-sm font-medium"
+                :class="
+                  clearCacheResult.success
+                    ? 'text-green-700 dark:text-green-400'
+                    : 'text-red-700 dark:text-red-400'
+                "
+              >
+                {{ clearCacheResult.success ? 'Cache cleared' : 'Clear failed' }}
+              </p>
+              <p
+                v-if="clearCacheResult.success"
+                class="text-xs text-gray-600 dark:text-gray-400 mt-1"
+              >
+                Cleared {{ clearCacheResult.cleared?.keysCleared || 0 }} keys
+              </p>
+              <p v-else class="text-xs text-red-600 dark:text-red-400 mt-1">
+                {{ clearCacheResult.error }}
               </p>
             </div>
           </UCard>
@@ -1278,6 +1329,11 @@ const backfillEndDate = ref('')
 const backfillResult = ref<any>(null)
 const backfillOperations = ref<any[]>([])
 
+// Cache states
+const clearingCache = ref(false)
+const cacheStats = ref<{ keys: number; inflightRequests: number } | null>(null)
+const clearCacheResult = ref<any>(null)
+
 // AI Metrics states
 const loadingAiMetrics = ref(false)
 const exportingMetrics = ref(false)
@@ -1392,6 +1448,7 @@ onMounted(async () => {
     loadPendingFinalization(),
     loadFailedGames(),
     loadTeamRatings(),
+    loadCacheStats(),
   ])
 
   // Refresh schedule status every minute
@@ -1505,6 +1562,41 @@ async function refreshBackfillStatus(operationId: string) {
     }
   } catch (error) {
     console.error('Error fetching backfill status:', error)
+  }
+}
+
+// Cache functions
+async function loadCacheStats() {
+  try {
+    const result = await $fetch<{
+      success: boolean
+      stats?: { keys: number; inflightRequests: number }
+    }>('/api/admin/cache/stats')
+    if (result.success && result.stats) {
+      cacheStats.value = result.stats
+    }
+  } catch (error) {
+    console.error('Error loading cache stats:', error)
+  }
+}
+
+async function clearCache() {
+  clearingCache.value = true
+  clearCacheResult.value = null
+  try {
+    clearCacheResult.value = await $fetch('/api/admin/cache/clear', {
+      method: 'POST',
+    })
+    // Refresh stats after clearing
+    await loadCacheStats()
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    clearCacheResult.value = {
+      success: false,
+      error: err?.data?.message || err?.message || 'Unknown error',
+    }
+  } finally {
+    clearingCache.value = false
   }
 }
 

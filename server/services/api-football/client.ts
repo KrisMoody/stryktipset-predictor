@@ -132,14 +132,24 @@ class CircuitBreaker {
 // Rate Limiter
 // ============================================================================
 
+type QuotaStatusGetter = () => { used: number; limit: number; remaining: number }
+
 class RateLimiter {
   private requestTimes: number[] = []
   private readonly maxRequests: number
   private readonly windowMs: number
+  private quotaStatusGetter?: QuotaStatusGetter
 
   constructor(maxRequestsPerMinute: number) {
     this.maxRequests = maxRequestsPerMinute
     this.windowMs = 60 * 1000 // 1 minute
+  }
+
+  /**
+   * Set the quota status getter for enhanced logging
+   */
+  setQuotaStatusGetter(getter: QuotaStatusGetter): void {
+    this.quotaStatusGetter = getter
   }
 
   async waitForSlot(): Promise<void> {
@@ -153,7 +163,16 @@ class RateLimiter {
       if (oldestRequest !== undefined) {
         const waitTime = this.windowMs - (now - oldestRequest) + 100 // Add 100ms buffer
 
-        console.log(`[RateLimiter] Rate limit reached, waiting ${waitTime}ms`)
+        // Log with quota context for long waits (>10s)
+        if (waitTime > 10000 && this.quotaStatusGetter) {
+          const quota = this.quotaStatusGetter()
+          const quotaPercent = ((quota.used / quota.limit) * 100).toFixed(1)
+          console.warn(
+            `[RateLimiter] Long wait detected: ${waitTime}ms | Daily quota: ${quota.used}/${quota.limit} (${quotaPercent}%) | Remaining: ${quota.remaining}`
+          )
+        } else {
+          console.log(`[RateLimiter] Rate limit reached, waiting ${waitTime}ms`)
+        }
         await new Promise(resolve => setTimeout(resolve, waitTime))
       }
 
@@ -247,8 +266,16 @@ class DailyQuotaTracker {
   recordRequest(): void {
     this.requestCount++
 
+    const percentUsed = (this.requestCount / this.dailyLimit) * 100
+
     if (this.requestCount === this.dailyLimit) {
       console.warn(`[DailyQuota] Daily limit of ${this.dailyLimit} requests reached!`)
+    } else if (percentUsed >= 90 && percentUsed < 100) {
+      // Warn when approaching limit (90%+)
+      const remaining = this.dailyLimit - this.requestCount
+      console.warn(
+        `[DailyQuota] Approaching daily limit: ${this.requestCount}/${this.dailyLimit} (${percentUsed.toFixed(1)}%) | Remaining: ${remaining}`
+      )
     } else if (this.requestCount % 10 === 0 || this.requestCount >= this.dailyLimit - 10) {
       console.log(`[DailyQuota] ${this.requestCount}/${this.dailyLimit} requests used today`)
     }
@@ -358,6 +385,9 @@ export class ApiFootballClient {
     this.circuitBreaker = new CircuitBreaker(cbThreshold, cbTimeout)
     this.rateLimiter = new RateLimiter(maxRequests)
     this.dailyQuotaTracker = new DailyQuotaTracker(dailyLimit)
+
+    // Wire up quota status getter for enhanced rate limiter logging
+    this.rateLimiter.setQuotaStatusGetter(() => this.dailyQuotaTracker.getStatus())
   }
 
   /**

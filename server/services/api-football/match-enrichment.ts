@@ -356,11 +356,13 @@ export class MatchEnrichmentService {
         // Fetch injuries
         if (dataTypes.includes('injuries')) {
           try {
+            const injuriesSeason = new Date(match.start_time).getFullYear()
             const fetched = await this.fetchAndStoreInjuries(
               matchId,
               apiHomeTeamId,
               apiAwayTeamId,
-              apiFixtureId || undefined
+              apiFixtureId || undefined,
+              injuriesSeason
             )
             result.dataFetched.injuries = fetched
           } catch (error) {
@@ -700,7 +702,8 @@ export class MatchEnrichmentService {
     matchId: number,
     homeTeamId: number,
     awayTeamId: number,
-    fixtureId?: number
+    fixtureId?: number,
+    season?: number
   ): Promise<boolean> {
     if (!this.client.isConfigured() || this.client.isCircuitOpen()) {
       return false
@@ -708,25 +711,18 @@ export class MatchEnrichmentService {
 
     try {
       // Fetch injuries for both teams
-      const params: Record<string, string | number> = {}
-      if (fixtureId) {
-        params.fixture = fixtureId
-      } else {
-        // If no fixture ID, fetch by teams (less accurate but works for upcoming matches)
-        params.team = homeTeamId
-      }
-
+      // When using team parameter (no fixture ID), season is required by API-Football
       const [homeInjuries, awayInjuries] = await Promise.all([
         this.client.get<ApiFootballInjury[]>(
           '/injuries',
-          fixtureId ? { fixture: fixtureId } : { team: homeTeamId },
+          fixtureId ? { fixture: fixtureId } : { team: homeTeamId, season: season! },
           { cacheTtlSeconds: INJURIES_CACHE_TTL }
         ),
         fixtureId
           ? Promise.resolve({ response: [] as ApiFootballInjury[] }) // Fixture-based query returns both teams
           : this.client.get<ApiFootballInjury[]>(
               '/injuries',
-              { team: awayTeamId },
+              { team: awayTeamId, season: season! },
               { cacheTtlSeconds: INJURIES_CACHE_TTL }
             ),
       ])
@@ -1534,13 +1530,17 @@ export class MatchEnrichmentService {
           console.warn(`[MatchEnrichment] H2H fetch failed:`, err)
           return false
         }),
-        // Injuries
-        this.fetchAndStoreInjuries(matchId, homeTeamId, awayTeamId, fixtureId || undefined).catch(
-          err => {
-            console.warn(`[MatchEnrichment] Injuries fetch failed:`, err)
-            return false
-          }
-        ),
+        // Injuries (season required for team-based queries)
+        this.fetchAndStoreInjuries(
+          matchId,
+          homeTeamId,
+          awayTeamId,
+          fixtureId || undefined,
+          season
+        ).catch(err => {
+          console.warn(`[MatchEnrichment] Injuries fetch failed:`, err)
+          return false
+        }),
         // Predictions (requires fixture ID)
         fixtureId
           ? this.fetchAndStorePredictions(matchId, fixtureId).catch(err => {
@@ -1910,13 +1910,14 @@ export class MatchEnrichmentService {
         await delay(REQUEST_DELAY_MS)
       }
 
-      // 5. Injuries
+      // 5. Injuries (season required for team-based queries)
       try {
         result.injuries = await this.fetchAndStoreInjuries(
           matchId,
           homeTeamId,
           awayTeamId,
-          fixtureId || undefined
+          fixtureId || undefined,
+          season
         )
       } catch (err) {
         console.warn(`[MatchEnrichment] Injuries fetch failed:`, err)

@@ -11,7 +11,7 @@
             {{ prediction.predicted_outcome }}
           </div>
         </div>
-        <V2ConfidenceMeter :confidence="prediction.confidence" />
+        <ConfidenceMeter :confidence="prediction.confidence" />
       </div>
 
       <!-- Probabilities -->
@@ -29,7 +29,7 @@
 
       <!-- Value Badge -->
       <div v-if="bestEV > 0.03" class="flex items-center gap-2">
-        <V2ValueBadge :ev="bestEV" />
+        <ValueBadge :ev="bestEV" />
         <span class="text-xs text-gray-500 dark:text-gray-400"> on {{ bestEVOutcome }} </span>
       </div>
 

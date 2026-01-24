@@ -65,19 +65,19 @@
           <div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
             Market Odds
           </div>
-          <V2OddsTicker :odds="currentOdds" />
+          <OddsTicker :odds="currentOdds" />
         </div>
 
         <!-- Right: Prediction -->
         <div>
-          <V2PredictionPanel :prediction="prediction" :odds="currentOdds" />
+          <PredictionPanel :prediction="prediction" :odds="currentOdds" />
         </div>
       </div>
     </div>
 
     <!-- Footer: Data Tabs -->
     <div class="match-card-v2__footer">
-      <V2DataTabs :match="match" :prediction="mappedPredictionForDataTabs" />
+      <DataTabs :match="match" :prediction="mappedPredictionForDataTabs" />
     </div>
   </div>
 </template>

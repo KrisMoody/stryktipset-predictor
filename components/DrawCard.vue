@@ -2,7 +2,7 @@
   <div class="match-card-v2">
     <div class="match-card-v2__header flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <V2ProgressRing :value="predictedCount" :max="totalMatches" :size="48" :stroke-width="4" />
+        <ProgressRing :value="predictedCount" :max="totalMatches" :size="48" :stroke-width="4" />
         <div>
           <h3 class="font-semibold text-gray-900 dark:text-white">Draw #{{ draw.draw_number }}</h3>
           <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -46,7 +46,7 @@
 
     <div class="match-card-v2__footer flex items-center gap-2">
       <UButton
-        :to="{ path: `/v2/draw/${draw.draw_number}`, query: { gameType: draw.game_type } }"
+        :to="{ path: `/draw/${draw.draw_number}`, query: { gameType: draw.game_type } }"
         color="primary"
         size="sm"
       >
@@ -76,7 +76,7 @@
       </UButton>
       <UButton
         v-if="isComplete"
-        :to="{ path: `/v2/draw/${draw.draw_number}/optimize`, query: { gameType: draw.game_type } }"
+        :to="{ path: `/draw/${draw.draw_number}/optimize`, query: { gameType: draw.game_type } }"
         color="primary"
         variant="soft"
         size="sm"

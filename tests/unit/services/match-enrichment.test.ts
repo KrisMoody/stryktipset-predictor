@@ -569,14 +569,12 @@ describe('Automatic Fetch Flow Integration', () => {
       })
 
       // First findUnique returns unmapped match, subsequent calls return mapped
-      mockPrisma.matches.findUnique
-        .mockResolvedValueOnce(mockMatch)
-        .mockResolvedValue({
-          ...mockMatch,
-          api_football_fixture_id: 12345,
-          api_football_home_team_id: 200,
-          api_football_away_team_id: 201,
-        })
+      mockPrisma.matches.findUnique.mockResolvedValueOnce(mockMatch).mockResolvedValue({
+        ...mockMatch,
+        api_football_fixture_id: 12345,
+        api_football_home_team_id: 200,
+        api_football_away_team_id: 201,
+      })
 
       mockPrisma.matches.update.mockResolvedValue(mockMatch)
       mockPrisma.match_scraped_data.findMany.mockResolvedValue([])

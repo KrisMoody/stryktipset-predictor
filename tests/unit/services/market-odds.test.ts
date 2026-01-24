@@ -90,9 +90,10 @@ function filterToTargetBookmakers(
 /**
  * Parse odds from API-Football response
  */
-function parseBookmakerOdds(
-  bookmaker: { name: string; bets: Array<{ id: number; name: string; values: Array<{ value: string; odd: string }> }> }
-): { home: number; draw: number; away: number } | null {
+function parseBookmakerOdds(bookmaker: {
+  name: string
+  bets: Array<{ id: number; name: string; values: Array<{ value: string; odd: string }> }>
+}): { home: number; draw: number; away: number } | null {
   const matchWinnerBet = bookmaker.bets.find(bet => bet.id === 1 || bet.name === 'Match Winner')
   if (!matchWinnerBet) return null
 
@@ -163,7 +164,9 @@ describe('Market Odds - calculateMarketConsensus', () => {
       expect(result.fairProbabilities).toBeDefined()
       // Fair probabilities should sum to 100
       const sum =
-        result.fairProbabilities.home + result.fairProbabilities.draw + result.fairProbabilities.away
+        result.fairProbabilities.home +
+        result.fairProbabilities.draw +
+        result.fairProbabilities.away
       expect(sum).toBeCloseTo(100, 0)
     })
   })
@@ -177,7 +180,9 @@ describe('Market Odds - calculateMarketConsensus', () => {
 
       // After margin removal, probabilities should sum to 100
       const sum =
-        result.fairProbabilities.home + result.fairProbabilities.draw + result.fairProbabilities.away
+        result.fairProbabilities.home +
+        result.fairProbabilities.draw +
+        result.fairProbabilities.away
       expect(sum).toBeCloseTo(100, 1)
     })
 
@@ -214,7 +219,9 @@ describe('Market Odds - calculateMarketConsensus', () => {
       expect(result.averageMargin).toBeCloseTo(15, 1)
       // Fair probabilities should still sum to 100
       const sum =
-        result.fairProbabilities.home + result.fairProbabilities.draw + result.fairProbabilities.away
+        result.fairProbabilities.home +
+        result.fairProbabilities.draw +
+        result.fairProbabilities.away
       expect(sum).toBeCloseTo(100, 1)
     })
   })
@@ -314,7 +321,13 @@ describe('Market Odds - Bookmaker Filtering', () => {
       const filtered = filterToTargetBookmakers(bookmakers)
 
       expect(filtered.length).toBe(5)
-      expect(filtered.map(b => b.name)).toEqual(['Pinnacle', 'Bet365', 'Unibet', '1xBet', 'Betfair'])
+      expect(filtered.map(b => b.name)).toEqual([
+        'Pinnacle',
+        'Bet365',
+        'Unibet',
+        '1xBet',
+        'Betfair',
+      ])
     })
 
     it('handles case-insensitive matching', () => {
@@ -579,8 +592,8 @@ describe('Market Odds - Edge Cases', () => {
     // Typical Swedish league match: home slightly favored
     const probabilities = [
       { home: 45.45, draw: 29.41, away: 31.25 }, // Pinnacle: 2.20 / 3.40 / 3.20
-      { home: 47.62, draw: 28.57, away: 30.30 }, // Bet365: 2.10 / 3.50 / 3.30
-      { home: 46.51, draw: 29.41, away: 30.30 }, // Unibet: 2.15 / 3.40 / 3.30
+      { home: 47.62, draw: 28.57, away: 30.3 }, // Bet365: 2.10 / 3.50 / 3.30
+      { home: 46.51, draw: 29.41, away: 30.3 }, // Unibet: 2.15 / 3.40 / 3.30
     ]
 
     const result = calculateMarketConsensus(probabilities)

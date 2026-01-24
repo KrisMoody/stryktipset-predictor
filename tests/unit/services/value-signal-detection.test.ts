@@ -68,7 +68,8 @@ function detectValueSignals(
  */
 function formatValueSignals(signals: ValueSignal[]): string[] {
   return signals.map(signal => {
-    const outcomeLabel = signal.outcome === 'home' ? 'Home Win' : signal.outcome === 'draw' ? 'Draw' : 'Away Win'
+    const outcomeLabel =
+      signal.outcome === 'home' ? 'Home Win' : signal.outcome === 'draw' ? 'Draw' : 'Away Win'
     return `Svenska Spel ${signal.direction} ${outcomeLabel} by ${signal.difference.toFixed(1)}%`
   })
 }
@@ -254,9 +255,7 @@ describe('Value Signal Detection', () => {
 
 describe('Value Signal Formatting', () => {
   it('formats home win overvalued signal correctly', () => {
-    const signals: ValueSignal[] = [
-      { outcome: 'home', direction: 'overvalues', difference: 7.5 },
-    ]
+    const signals: ValueSignal[] = [{ outcome: 'home', direction: 'overvalues', difference: 7.5 }]
 
     const formatted = formatValueSignals(signals)
 
@@ -264,9 +263,7 @@ describe('Value Signal Formatting', () => {
   })
 
   it('formats draw undervalued signal correctly', () => {
-    const signals: ValueSignal[] = [
-      { outcome: 'draw', direction: 'undervalues', difference: 6.2 },
-    ]
+    const signals: ValueSignal[] = [{ outcome: 'draw', direction: 'undervalues', difference: 6.2 }]
 
     const formatted = formatValueSignals(signals)
 
@@ -274,9 +271,7 @@ describe('Value Signal Formatting', () => {
   })
 
   it('formats away win signal correctly', () => {
-    const signals: ValueSignal[] = [
-      { outcome: 'away', direction: 'overvalues', difference: 8.0 },
-    ]
+    const signals: ValueSignal[] = [{ outcome: 'away', direction: 'overvalues', difference: 8.0 }]
 
     const formatted = formatValueSignals(signals)
 
@@ -299,9 +294,7 @@ describe('Value Signal Formatting', () => {
   })
 
   it('rounds difference to one decimal place', () => {
-    const signals: ValueSignal[] = [
-      { outcome: 'home', direction: 'overvalues', difference: 7.567 },
-    ]
+    const signals: ValueSignal[] = [{ outcome: 'home', direction: 'overvalues', difference: 7.567 }]
 
     const formatted = formatValueSignals(signals)
 

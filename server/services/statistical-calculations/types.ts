@@ -181,6 +181,13 @@ export interface ModelConfig {
 }
 
 /**
+ * Maximum rest days to consider valid.
+ * Values above this indicate the team is new to the system or hasn't
+ * been in recent pools - return null instead of misleading large numbers.
+ */
+export const MAX_REST_DAYS = 90
+
+/**
  * Default model configuration
  */
 export const DEFAULT_CONFIG: ModelConfig = {

@@ -435,7 +435,8 @@
             <div
               v-for="draw in currentDraws.draws"
               :key="draw.draw_number"
-              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              @click="navigateToDraw(draw.id)"
             >
               <div class="flex items-center gap-4">
                 <div>
@@ -456,7 +457,7 @@
                 color="warning"
                 variant="soft"
                 icon="i-heroicons-archive-box"
-                @click="openArchiveModal(draw)"
+                @click.stop="openArchiveModal(draw)"
               >
                 Archive
               </UButton>
@@ -545,9 +546,9 @@
       />
 
       <!-- Fetch Results Modal -->
-      <UModal v-model:open="fetchResultsModalOpen">
+      <UModal v-model:open="fetchResultsModalOpen" :ui="{ content: 'sm:max-w-3xl' }">
         <template #content>
-          <UCard class="w-[42rem]">
+          <UCard>
             <template #header>
               <div class="flex items-center gap-2">
                 <UIcon name="i-heroicons-cloud-arrow-down" class="w-5 h-5 text-primary-500" />
@@ -749,14 +750,14 @@
               Refresh
             </UButton>
             <UButton
-              v-if="pendingFinalization?.counts?.ready > 0"
+              v-if="(pendingFinalization?.counts?.ready ?? 0) > 0"
               size="sm"
               color="primary"
               icon="i-heroicons-check-circle"
               :loading="finalizingAll"
               @click="finalizeAllDraws"
             >
-              Finalize All ({{ pendingFinalization.counts.ready }})
+              Finalize All ({{ pendingFinalization?.counts?.ready ?? 0 }})
             </UButton>
           </div>
         </div>
@@ -824,7 +825,8 @@
               <div
                 v-for="draw in pendingFinalization.notReady"
                 :key="`${draw.game_type}-${draw.draw_number}`"
-                class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                @click="navigateToDraw(draw.id)"
               >
                 <div>
                   <p class="font-medium text-sm">#{{ draw.draw_number }} ({{ draw.game_type }})</p>
@@ -838,7 +840,7 @@
                     variant="soft"
                     icon="i-heroicons-cloud-arrow-down"
                     :loading="fetchingResults === draw.id"
-                    @click="openFetchResultsModal(draw)"
+                    @click.stop="openFetchResultsModal(draw)"
                   >
                     Fetch Results
                   </UButton>
@@ -856,7 +858,8 @@
       <!-- Incomplete Draws / Failed Games Section -->
       <div
         v-if="
-          failedGamesData?.counts?.pendingGames > 0 || failedGamesData?.counts?.incompleteDraws > 0
+          (failedGamesData?.counts?.pendingGames ?? 0) > 0 ||
+          (failedGamesData?.counts?.incompleteDraws ?? 0) > 0
         "
         class="mb-8"
       >
@@ -1049,6 +1052,21 @@
 
 <script setup lang="ts">
 import type { ScheduleWindowStatus } from '~/types'
+import type {
+  ScraperHealthResponse,
+  SvenskaSpelHealthResponse,
+  FailedWritesResponse,
+  SyncResponse,
+  BackfillResponse,
+  BackfillOperation,
+  ClearCacheResponse,
+  CurrentDrawsResponse,
+  CurrentDrawInfo,
+  PendingFinalizationResponse,
+  FailedGamesResponse,
+  DrawLookupResponse,
+  FetchResultsResponse,
+} from '~/types/admin-api'
 import { useUserProfile } from '~/composables/useUserProfile'
 import { useIntervalFn, useDocumentVisibility, useTimeAgo } from '@vueuse/core'
 
@@ -1081,43 +1099,49 @@ const loadingSvenskaSpelHealth = ref(false)
 const loadingFailedWrites = ref(false)
 const retryingWrites = ref(false)
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes */
-const scraperHealth = ref<any>(null)
-const svenskaSpelHealth = ref<any>(null)
-const failedWrites = ref<any>(null)
+// Health check responses - typed with flexible shapes for varying API responses
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have varying shapes depending on success/error states
+const scraperHealth = ref<ScraperHealthResponse | Record<string, any> | null>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have varying shapes depending on success/error states
+const svenskaSpelHealth = ref<SvenskaSpelHealthResponse | Record<string, any> | null>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have varying shapes depending on success/error states
+const failedWrites = ref<FailedWritesResponse | Record<string, any> | null>(null)
 
 // Action states
 const syncing = ref(false)
-const syncResult = ref<any>(null)
+const syncResult = ref<SyncResponse | null>(null)
 
 const backfilling = ref(false)
 const backfillStartDate = ref('')
 const backfillEndDate = ref('')
-const backfillResult = ref<any>(null)
-const backfillOperations = ref<any[]>([])
+const backfillResult = ref<BackfillResponse | null>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Backfill operation data has complex shape from database
+const backfillOperations = ref<BackfillOperation[] | any[]>([])
 
 // Cache states
 const clearingCache = ref(false)
 const cacheStats = ref<{ keys: number; inflightRequests: number } | null>(null)
-const clearCacheResult = ref<any>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Cache clear response varies by action
+const clearCacheResult = ref<ClearCacheResponse | Record<string, any> | null>(null)
 
 // Draw Management states
 const loadingCurrentDraws = ref(false)
-const currentDraws = ref<any>(null)
+const currentDraws = ref<CurrentDrawsResponse | null>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Draw info varies between current/pending/archive states
+const drawToArchive = ref<CurrentDrawInfo | Record<string, any> | null>(null)
 const archiveModalOpen = ref(false)
-const drawToArchive = ref<any>(null)
 const forceArchive = ref(false)
 const archiving = ref(false)
 
 // Draw Finalization states
 const loadingPendingFinalization = ref(false)
 const finalizingAll = ref(false)
-const pendingFinalization = ref<any>(null)
+const pendingFinalization = ref<PendingFinalizationResponse | null>(null)
 
 // Incomplete Draws / Failed Games states
 const loadingFailedGames = ref(false)
 const retryingGameId = ref<number | null>(null)
-const failedGamesData = ref<any>(null)
+const failedGamesData = ref<FailedGamesResponse | null>(null)
 const failedGamesLastUpdated = ref<Date | null>(null)
 const failedGamesTimeAgoDate = computed(() => failedGamesLastUpdated.value ?? new Date())
 const failedGamesTimeAgo = useTimeAgo(failedGamesTimeAgoDate)
@@ -1138,19 +1162,21 @@ const lookupDrawNumber = ref('')
 const lookupGameType = ref<'stryktipset' | 'europatipset' | 'topptipset'>('stryktipset')
 const lookupLoading = ref(false)
 const lookupError = ref('')
-const lookupResult = ref<any>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Draw lookup response has complex nested structure
+const lookupResult = ref<DrawLookupResponse | Record<string, any> | null>(null)
 const drawDetailsModalOpen = ref(false)
 const fetchingFromApi = ref(false)
 
 // API-Football Result Fetch states
 const fetchResultsModalOpen = ref(false)
-const drawToFetchResults = ref<any>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Draw info varies between contexts
+const drawToFetchResults = ref<CurrentDrawInfo | Record<string, any> | null>(null)
 const fetchingResults = ref<number | null>(null)
-const fetchedResultsPreview = ref<any>(null)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- API-Football fetch results have complex nested structure
+const fetchedResultsPreview = ref<FetchResultsResponse | Record<string, any> | null>(null)
 const fetchResultsError = ref('')
 const forceCommitResults = ref(false)
 const committingResults = ref(false)
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // Schedule status
 async function loadScheduleStatus() {
@@ -1276,7 +1302,7 @@ async function startBackfill() {
         id: result.operationId,
         status: 'running',
         processed_draws: 0,
-        total_draws: null,
+        total_draws: undefined,
       })
     }
   } catch (error: unknown) {
@@ -1350,8 +1376,13 @@ async function loadCurrentDraws() {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Admin API responses have dynamic shapes
-function openArchiveModal(draw: any) {
+function navigateToDraw(drawId: number | undefined) {
+  if (drawId) {
+    navigateTo(`/draw/${drawId}`)
+  }
+}
+
+function openArchiveModal(draw: CurrentDrawInfo) {
   drawToArchive.value = draw
   forceArchive.value = false
   archiveModalOpen.value = true
@@ -1602,14 +1633,13 @@ async function refreshDrawFromApi() {
 }
 
 // API-Football Result Fetch functions
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function openFetchResultsModal(draw: any) {
+async function openFetchResultsModal(draw: CurrentDrawInfo) {
   drawToFetchResults.value = draw
   fetchedResultsPreview.value = null
   fetchResultsError.value = ''
   forceCommitResults.value = false
   fetchResultsModalOpen.value = true
-  fetchingResults.value = draw.id
+  fetchingResults.value = draw.id ?? null
 
   try {
     const result = await $fetch<{
@@ -1768,9 +1798,10 @@ function formatTime(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString('sv-SE')
 }
 
-function formatDateShort(date: string): string {
+function formatDateShort(date: string | Date): string {
   if (!date) return 'N/A'
-  return new Date(date).toLocaleDateString('sv-SE')
+  const dateObj = date instanceof Date ? date : new Date(date)
+  return dateObj.toLocaleDateString('sv-SE')
 }
 
 function formatDuration(minutes: number): string {

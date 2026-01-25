@@ -78,9 +78,9 @@
                 <USelect
                   v-model="selectedGameType"
                   :items="gameTypeOptions"
-                  placeholder="All Games"
                   size="sm"
                   class="w-40"
+                  aria-label="Filter by game type"
                 />
                 <UButton
                   icon="i-heroicons-arrow-path"

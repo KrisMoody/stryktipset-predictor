@@ -1,5 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic API data structures require any types */
-// Type definitions for Svenska Spel API and application data structures
+/**
+ * Type definitions for Svenska Spel API and application data structures
+ *
+ * NOTE: Several interfaces use `[key: string]: any` index signatures because:
+ * 1. Svenska Spel API responses contain undocumented fields that may change
+ * 2. Web-scraped data has variable structure depending on the source
+ * 3. These types are used for pass-through data where we need to preserve unknown fields
+ *
+ * Each section with `any` types has a targeted eslint-disable comment explaining the specific reason.
+ */
 
 // Re-export game types for convenience
 // Import for use within this file
@@ -45,6 +53,8 @@ export interface League {
   updated_at: Date
   country?: Country
 }
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- Svenska Spel API responses contain undocumented fields */
 
 /**
  * Draw data from Svenska Spel API
@@ -231,6 +241,10 @@ export interface ProviderIdData {
   id: string
 }
 
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- Web-scraped data has variable structure depending on source */
+
 /**
  * Scraped data types
  */
@@ -318,6 +332,8 @@ export interface NewsArticle {
   source?: string
   [key: string]: any
 }
+
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * AI Prediction model options
@@ -514,7 +530,7 @@ export interface ScrapeResult {
   success: boolean
   matchId: number
   dataType: string
-  data?: any
+  data?: unknown
   error?: string
   duration: number
   timestamp: Date
@@ -534,6 +550,8 @@ export interface MultifetchResponse {
   responses: MultifetchResponseItem[]
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- Svenska Spel multifetch API has undocumented session/client fields */
+
 /**
  * Individual response item in multifetch
  */
@@ -551,9 +569,9 @@ export interface MultifetchResponseItem {
   requestId?: string
   sessionId?: string | null
   deviceId?: string
-  session?: any
-  sessionUser?: any
-  clientInfo?: any
+  session?: unknown
+  sessionUser?: unknown
+  clientInfo?: unknown
 }
 
 /**
@@ -608,6 +626,8 @@ export interface AvailableDrawsData {
   [key: string]: any
 }
 
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 /**
  * Realtime scraping status for a specific data type
  */
@@ -645,7 +665,7 @@ export interface ScrapedDataEvent {
   id: number
   match_id: number
   data_type: string
-  data: any
+  data: unknown
   scraped_at: string
 }
 

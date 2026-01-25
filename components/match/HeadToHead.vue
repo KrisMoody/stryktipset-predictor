@@ -154,6 +154,39 @@ interface ScrapedDataItem {
   scraped_at?: string | Date
 }
 
+// API-Football H2H format (different from web-scraped format)
+interface ApiFootballH2HMatch {
+  date: string
+  homeTeamName: string
+  awayTeamName: string
+  homeGoals: number
+  awayGoals: number
+  league?: string
+}
+
+interface ApiFootballH2HData {
+  lastMatches: ApiFootballH2HMatch[]
+  homeWins?: number
+  draws?: number
+  awayWins?: number
+  totalMatches?: number
+}
+
+// Type guards for H2H data formats
+function isApiFootballH2HData(data: unknown): data is ApiFootballH2HData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'lastMatches' in data &&
+    Array.isArray((data as ApiFootballH2HData).lastMatches) &&
+    !('matches' in data)
+  )
+}
+
+function isWebScrapedH2HData(data: unknown): data is HeadToHeadData {
+  return typeof data === 'object' && data !== null && 'matches' in data
+}
+
 const props = defineProps<{
   scrapedData: Array<ScrapedDataItem> | null | undefined
   homeTeamName: string
@@ -198,41 +231,34 @@ const h2hData = computed((): HeadToHeadData | null => {
   const h2h = props.scrapedData.find(d => d.data_type === 'headToHead')
   if (!h2h?.data) return null
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = h2h.data as any
+  const data = h2h.data
 
   // Check if data is in API-Football format (has lastMatches instead of matches)
-  if ('lastMatches' in data && !('matches' in data)) {
+  if (isApiFootballH2HData(data)) {
     // Normalize API-Football format to UI format
     return {
-      matches: data.lastMatches.map(
-        (m: {
-          date: string
-          homeTeamName: string
-          awayTeamName: string
-          homeGoals: number
-          awayGoals: number
-          league?: string
-        }) => ({
-          date: m.date,
-          homeTeam: m.homeTeamName,
-          awayTeam: m.awayTeamName,
-          score: `${m.homeGoals}-${m.awayGoals}`,
-          competition: m.league,
-        })
-      ),
+      matches: data.lastMatches.map((m: ApiFootballH2HMatch) => ({
+        date: m.date,
+        homeTeam: m.homeTeamName,
+        awayTeam: m.awayTeamName,
+        score: `${m.homeGoals}-${m.awayGoals}`,
+        competition: m.league,
+      })),
       summary: {
         homeWins: data.homeWins || 0,
         draws: data.draws || 0,
         awayWins: data.awayWins || 0,
-        totalMatches: data.totalMatches || data.lastMatches?.length || 0,
+        totalMatches: data.totalMatches || data.lastMatches.length,
       },
     }
   }
 
   // Standard web-scraped format - validate that data has required shape
-  if (!('matches' in data)) return null
-  return data as HeadToHeadData
+  if (isWebScrapedH2HData(data)) {
+    return data
+  }
+
+  return null
 })
 
 // Calculate percentages for visual bar

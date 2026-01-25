@@ -64,6 +64,119 @@
           </div>
         </UCard>
 
+        <!-- Accuracy Progression -->
+        <UCard>
+          <template #header>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 class="text-2xl font-semibold">Accuracy Progression</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Track prediction accuracy trends over time
+                </p>
+              </div>
+              <div class="flex items-center gap-3">
+                <USelect
+                  v-model="selectedGameType"
+                  :items="gameTypeOptions"
+                  placeholder="All Games"
+                  size="sm"
+                  class="w-40"
+                />
+                <UButton
+                  icon="i-heroicons-arrow-path"
+                  size="xs"
+                  color="neutral"
+                  :loading="refreshingProgression"
+                  @click="refreshProgression"
+                >
+                  Refresh
+                </UButton>
+              </div>
+            </div>
+          </template>
+
+          <div v-if="progressionPending" class="flex justify-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
+          </div>
+
+          <div v-else-if="progressionData" class="space-y-6">
+            <!-- Period Comparison -->
+            <div
+              v-if="progressionData.periodComparison"
+              class="grid grid-cols-1 md:grid-cols-3 gap-4"
+            >
+              <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Last 30 Days</p>
+                <p class="text-2xl font-bold">
+                  {{ progressionData.periodComparison.current.accuracy.toFixed(1) }}%
+                </p>
+                <p class="text-xs text-gray-500">
+                  {{ progressionData.periodComparison.current.sampleCount }} predictions
+                </p>
+              </div>
+              <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Previous 30 Days</p>
+                <p class="text-2xl font-bold">
+                  {{ progressionData.periodComparison.previous.accuracy.toFixed(1) }}%
+                </p>
+                <p class="text-xs text-gray-500">
+                  {{ progressionData.periodComparison.previous.sampleCount }} predictions
+                </p>
+              </div>
+              <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Trend</p>
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    :name="getTrendIcon(progressionData.periodComparison.trend)"
+                    :class="getTrendClass(progressionData.periodComparison.trend)"
+                    class="w-6 h-6"
+                  />
+                  <span
+                    class="text-xl font-semibold capitalize"
+                    :class="getTrendClass(progressionData.periodComparison.trend)"
+                  >
+                    {{ progressionData.periodComparison.trend }}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                  {{ getTrendDescription(progressionData.periodComparison) }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Weekly Chart -->
+            <div v-if="progressionData.weekly.length >= 2" class="h-64">
+              <canvas ref="progressionChartCanvas" />
+            </div>
+
+            <div
+              v-else
+              class="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg"
+            >
+              <UIcon name="i-heroicons-chart-bar" class="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>Insufficient data for progression chart</p>
+              <p class="text-sm mt-1">At least 2 weeks of prediction data required</p>
+            </div>
+
+            <!-- Rolling Average -->
+            <div
+              v-if="progressionData.rollingAverage !== null"
+              class="flex items-center justify-between p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg"
+            >
+              <span class="text-sm font-medium text-primary-700 dark:text-primary-300">
+                30-Day Rolling Average
+              </span>
+              <span class="text-lg font-bold text-primary-700 dark:text-primary-300">
+                {{ progressionData.rollingAverage.toFixed(1) }}%
+              </span>
+            </div>
+          </div>
+
+          <div v-else class="text-center py-8 text-gray-500">
+            <p>No progression data available yet.</p>
+          </div>
+        </UCard>
+
         <!-- By Confidence -->
         <UCard v-if="Object.keys(stats.byConfidence).length > 0">
           <template #header>
@@ -277,7 +390,11 @@
 </template>
 
 <script setup lang="ts">
+import { Chart, registerables } from 'chart.js'
+import type { Chart as ChartType } from 'chart.js'
 import { useUserProfile } from '~/composables/useUserProfile'
+
+Chart.register(...registerables)
 
 definePageMeta({})
 
@@ -343,12 +460,55 @@ interface ModelPerformanceData {
   calibration: CalibrationBucket[]
 }
 
+interface WeeklyDataPoint {
+  week: string
+  weekStart: string
+  accuracy: number
+  brierScore: number | null
+  sampleCount: number
+  correctCount: number
+}
+
+interface PeriodComparison {
+  current: {
+    accuracy: number
+    brierScore: number | null
+    sampleCount: number
+  }
+  previous: {
+    accuracy: number
+    brierScore: number | null
+    sampleCount: number
+  }
+  trend: 'improving' | 'declining' | 'stable'
+}
+
+interface ProgressionData {
+  weekly: WeeklyDataPoint[]
+  rollingAverage: number | null
+  periodComparison: PeriodComparison
+}
+
 useHead({
   title: 'Analytics - Stryktipset AI Predictor',
 })
 
 const refreshingHealth = ref(false)
 const refreshingModel = ref(false)
+const refreshingProgression = ref(false)
+
+// Game type filter
+const selectedGameType = ref<string | undefined>(undefined)
+const gameTypeOptions = [
+  { value: undefined, label: 'All Games' },
+  { value: 'stryktipset', label: 'Stryktipset' },
+  { value: 'europatipset', label: 'Europatipset' },
+  { value: 'topptipset', label: 'Topptipset' },
+]
+
+// Chart refs
+const progressionChartCanvas = ref<HTMLCanvasElement | null>(null)
+let progressionChartInstance: ChartType | null = null
 
 const { data: response, pending } = await useFetch<{
   success: boolean
@@ -387,6 +547,183 @@ const refreshModelPerformance = async () => {
   } finally {
     refreshingModel.value = false
   }
+}
+
+// Progression data
+const progressionQueryParams = computed(() => {
+  const params: Record<string, string> = {}
+  if (selectedGameType.value) {
+    params.gameType = selectedGameType.value
+  }
+  return params
+})
+
+const {
+  data: progressionResponse,
+  pending: progressionPending,
+  refresh: refreshProgressionData,
+} = await useFetch<{
+  success: boolean
+  data?: ProgressionData
+}>('/api/performance/progression', {
+  query: progressionQueryParams,
+})
+const progressionData = computed(() => progressionResponse.value?.data)
+
+const refreshProgression = async () => {
+  refreshingProgression.value = true
+  try {
+    await refreshProgressionData()
+  } finally {
+    refreshingProgression.value = false
+  }
+}
+
+// Refresh when game type changes
+watch(selectedGameType, () => {
+  refreshProgressionData()
+})
+
+// Chart rendering
+function renderProgressionChart() {
+  if (
+    !progressionChartCanvas.value ||
+    !progressionData.value ||
+    progressionData.value.weekly.length < 2
+  ) {
+    return
+  }
+
+  // Destroy existing chart
+  if (progressionChartInstance) {
+    progressionChartInstance.destroy()
+  }
+
+  const ctx = progressionChartCanvas.value.getContext('2d')
+  if (!ctx) return
+
+  const weekly = progressionData.value.weekly
+  const labels = weekly.map(d => d.week)
+  const accuracyData = weekly.map(d => d.accuracy)
+
+  progressionChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Weekly Accuracy',
+          data: accuracyData,
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        ...(progressionData.value.rollingAverage !== null
+          ? [
+              {
+                label: '30-Day Average',
+                data: accuracyData.map(() => progressionData.value!.rollingAverage),
+                borderColor: 'rgb(34, 197, 94)',
+                borderDash: [5, 5],
+                tension: 0,
+                fill: false,
+                pointRadius: 0,
+              },
+            ]
+          : []),
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+        },
+        tooltip: {
+          callbacks: {
+            label: context => {
+              const yValue = context.parsed.y ?? 0
+              const dataPoint = weekly[context.dataIndex]
+              if (context.datasetIndex === 0 && dataPoint) {
+                return `Accuracy: ${yValue.toFixed(1)}% (${dataPoint.correctCount}/${dataPoint.sampleCount})`
+              }
+              return `${context.dataset.label}: ${yValue.toFixed(1)}%`
+            },
+          },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          min: Math.max(0, Math.min(...accuracyData) - 10),
+          max: Math.min(100, Math.max(...accuracyData) + 10),
+          ticks: {
+            callback: value => `${value}%`,
+          },
+        },
+      },
+    },
+  })
+}
+
+// Watch for data changes and re-render chart
+watch(
+  () => progressionData.value,
+  () => {
+    nextTick(() => {
+      renderProgressionChart()
+    })
+  },
+  { deep: true }
+)
+
+onMounted(() => {
+  nextTick(() => {
+    renderProgressionChart()
+  })
+})
+
+onUnmounted(() => {
+  if (progressionChartInstance) {
+    progressionChartInstance.destroy()
+  }
+})
+
+// Trend helpers
+function getTrendIcon(trend: string): string {
+  switch (trend) {
+    case 'improving':
+      return 'i-heroicons-arrow-trending-up'
+    case 'declining':
+      return 'i-heroicons-arrow-trending-down'
+    default:
+      return 'i-heroicons-minus'
+  }
+}
+
+function getTrendClass(trend: string): string {
+  switch (trend) {
+    case 'improving':
+      return 'text-green-600 dark:text-green-400'
+    case 'declining':
+      return 'text-red-600 dark:text-red-400'
+    default:
+      return 'text-gray-600 dark:text-gray-400'
+  }
+}
+
+function getTrendDescription(comparison: PeriodComparison): string {
+  const diff = comparison.current.accuracy - comparison.previous.accuracy
+  if (Math.abs(diff) < 2) {
+    return 'Accuracy is stable'
+  }
+  const direction = diff > 0 ? 'up' : 'down'
+  return `${Math.abs(diff).toFixed(1)}% ${direction} from previous period`
 }
 
 const getCalibrationClass = (predicted: number, actual: number): string => {

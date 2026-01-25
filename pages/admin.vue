@@ -349,6 +349,67 @@
               </p>
             </div>
           </UCard>
+
+          <!-- Draw Lookup -->
+          <UCard>
+            <h3 class="font-semibold mb-2">Draw Lookup</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Look up any draw by number, or fetch it from Svenska Spel API.
+            </p>
+            <div class="flex gap-2 mb-4">
+              <UInput
+                v-model="lookupDrawNumber"
+                type="number"
+                size="sm"
+                placeholder="Draw number"
+                class="w-28"
+                :disabled="lookupLoading || fetchingFromApi"
+              />
+              <USelect
+                v-model="lookupGameType"
+                size="sm"
+                aria-label="Game type"
+                :items="[
+                  { value: 'stryktipset', label: 'Stryktipset' },
+                  { value: 'europatipset', label: 'Europatipset' },
+                  { value: 'topptipset', label: 'Topptipset' },
+                ]"
+                :disabled="lookupLoading || fetchingFromApi"
+              />
+            </div>
+            <div class="flex gap-2">
+              <UButton
+                icon="i-heroicons-magnifying-glass"
+                :loading="lookupLoading"
+                :disabled="!lookupDrawNumber || fetchingFromApi"
+                @click="lookupDraw"
+              >
+                Lookup
+              </UButton>
+              <UButton
+                v-if="lookupResult && !lookupResult.found"
+                icon="i-heroicons-cloud-arrow-down"
+                color="primary"
+                variant="soft"
+                :loading="fetchingFromApi"
+                :disabled="lookupLoading"
+                @click="fetchDrawFromApi"
+              >
+                Fetch from API
+              </UButton>
+            </div>
+            <div v-if="lookupError" class="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
+              <p class="text-sm text-red-700 dark:text-red-400">{{ lookupError }}</p>
+            </div>
+            <div
+              v-if="lookupResult && !lookupResult.found && !lookupError"
+              class="mt-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20"
+            >
+              <p class="text-sm text-yellow-700 dark:text-yellow-400">
+                Draw not found locally. Click "Fetch from API" to retrieve it.
+              </p>
+            </div>
+          </UCard>
         </div>
       </div>
 
@@ -473,6 +534,14 @@
         :match-number="manualEntryData.matchNumber"
         :game-type="manualEntryData.gameType"
         @submitted="onManualEntrySubmitted"
+      />
+
+      <!-- Draw Details Modal -->
+      <AdminDrawDetailsModal
+        v-model:open="drawDetailsModalOpen"
+        :draw="lookupResult?.draw"
+        :refreshing="fetchingFromApi"
+        @refresh="refreshDrawFromApi"
       />
 
       <!-- Draw Finalization Section -->
@@ -860,6 +929,15 @@ const manualEntryData = ref<{
   gameType: string
 } | null>(null)
 const fetchingMatch = ref<string | null>(null)
+
+// Draw Lookup states
+const lookupDrawNumber = ref('')
+const lookupGameType = ref<'stryktipset' | 'europatipset' | 'topptipset'>('stryktipset')
+const lookupLoading = ref(false)
+const lookupError = ref('')
+const lookupResult = ref<any>(null)
+const drawDetailsModalOpen = ref(false)
+const fetchingFromApi = ref(false)
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // Schedule status
@@ -1233,6 +1311,82 @@ async function onManualEntrySubmitted() {
   manualEntryData.value = null
   // Reload data after successful manual entry
   await Promise.all([loadFailedGames(), loadCurrentDraws()])
+}
+
+// Draw Lookup functions
+async function lookupDraw() {
+  if (!lookupDrawNumber.value) return
+
+  lookupLoading.value = true
+  lookupError.value = ''
+  lookupResult.value = null
+
+  try {
+    const result = await $fetch<{
+      success: boolean
+      found: boolean
+      draw?: Record<string, unknown>
+      message?: string
+    }>('/api/admin/draws/lookup', {
+      query: {
+        drawNumber: lookupDrawNumber.value,
+        gameType: lookupGameType.value,
+      },
+    })
+
+    lookupResult.value = result
+
+    if (result.found && result.draw) {
+      // Open the modal to show draw details
+      drawDetailsModalOpen.value = true
+    }
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    lookupError.value = err?.data?.message || err?.message || 'Failed to lookup draw'
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
+async function fetchDrawFromApi() {
+  if (!lookupDrawNumber.value) return
+
+  fetchingFromApi.value = true
+  lookupError.value = ''
+
+  try {
+    const result = await $fetch<{
+      success: boolean
+      action: string
+      draw?: Record<string, unknown>
+    }>(`/api/admin/draws/${lookupDrawNumber.value}/fetch`, {
+      method: 'POST',
+      body: {
+        gameType: lookupGameType.value,
+      },
+    })
+
+    if (result.success && result.draw) {
+      lookupResult.value = {
+        success: true,
+        found: true,
+        draw: result.draw,
+      }
+      drawDetailsModalOpen.value = true
+      // Also refresh current draws list if we fetched a new draw
+      await loadCurrentDraws()
+    }
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    lookupError.value = err?.data?.message || err?.message || 'Failed to fetch draw from API'
+  } finally {
+    fetchingFromApi.value = false
+  }
+}
+
+async function refreshDrawFromApi() {
+  if (!lookupResult.value?.draw) return
+  await fetchDrawFromApi()
 }
 
 // Helpers

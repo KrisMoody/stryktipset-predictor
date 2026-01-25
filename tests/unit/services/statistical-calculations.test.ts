@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- Test file with mock data */
 import { describe, it, expect } from 'vitest'
 
 // Import calculation functions directly to test pure logic
@@ -33,6 +32,8 @@ import {
   oddsToImpliedProbability,
   calculateMargin,
 } from '../../../server/services/statistical-calculations/value-calculator'
+
+import type { ModelConfig } from '../../../server/services/statistical-calculations/types'
 
 describe('Elo Rating System', () => {
   describe('calculateExpected', () => {
@@ -573,7 +574,7 @@ describe('Value Calculator', () => {
       const modelProb = { homeProb: 0.55, drawProb: 0.25, awayProb: 0.2 }
       // Away is overpriced relative to model
       const odds = { homeOdds: 1.8, drawOdds: 3.5, awayOdds: 7.0 }
-      const evs = calculateExpectedValues(modelProb, odds, { evThreshold: 0.03 } as any)
+      const evs = calculateExpectedValues(modelProb, odds, { evThreshold: 0.03 } as ModelConfig)
 
       // 7.0 odds for 20% model probability = EV of (0.2 * 7) - 1 = 0.4 = 40%
       expect(evs.evAway).toBeCloseTo(0.4, 2)
@@ -584,7 +585,7 @@ describe('Value Calculator', () => {
       const modelProb = { homeProb: 0.5, drawProb: 0.25, awayProb: 0.25 }
       // Market roughly matches model
       const odds = { homeOdds: 2.0, drawOdds: 4.0, awayOdds: 4.0 }
-      const evs = calculateExpectedValues(modelProb, odds, { evThreshold: 0.1 } as any)
+      const evs = calculateExpectedValues(modelProb, odds, { evThreshold: 0.1 } as ModelConfig)
 
       expect(evs.bestValueOutcome).toBeNull()
     })

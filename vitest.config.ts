@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitest/config'
+import type { PluginOption } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 export default defineConfig({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  plugins: [vue() as any],
+  plugins: [vue() as PluginOption],
   test: {
     globals: true,
     environment: 'happy-dom',

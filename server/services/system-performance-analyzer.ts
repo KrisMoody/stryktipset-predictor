@@ -389,8 +389,11 @@ export class SystemPerformanceAnalyzer {
     Array<{
       drawNumber: number
       systemId: string
+      systemType: string
       bestScore: number
+      payout: number
       roi: number
+      correctRow: string | null
       createdAt: Date
     }>
   > {
@@ -406,8 +409,11 @@ export class SystemPerformanceAnalyzer {
     return performances.map(p => ({
       drawNumber: p.draw_number,
       systemId: p.system_id,
+      systemType: p.system_type,
       bestScore: p.best_score || 0,
+      payout: Number(p.payout || 0),
       roi: Number(p.roi || 0),
+      correctRow: p.correct_row || null,
       createdAt: p.created_at,
     }))
   }

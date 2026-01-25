@@ -88,13 +88,26 @@
           </div>
 
           <div v-if="system.guarantee" class="pt-2 border-t border-gray-200 dark:border-gray-700">
-            <UBadge :color="getGuaranteeColor(system.guarantee)" variant="subtle">
-              Guarantee: {{ system.guarantee }} rätt
-            </UBadge>
+            <UTooltip
+              :text="`Guarantees ${system.guarantee} rätt when all your base selections are correct`"
+            >
+              <UBadge :color="getGuaranteeColor(system.guarantee)" variant="subtle" class="cursor-help">
+                Guarantees {{ system.guarantee }} rätt
+              </UBadge>
+            </UTooltip>
           </div>
 
-          <div class="text-xs text-gray-500 dark:text-gray-400 pt-2">
-            {{ getReductionRatio(system) }} reduction
+          <div class="flex items-center justify-between pt-2">
+            <UTooltip text="Percentage of full combinations covered by this system">
+              <span class="text-xs text-gray-500 dark:text-gray-400 cursor-help">
+                {{ getReductionRatio(system) }} coverage
+              </span>
+            </UTooltip>
+            <UTooltip text="Chance of hitting 13 rätt if all base selections are correct">
+              <span class="text-xs font-medium text-primary-600 dark:text-primary-400 cursor-help">
+                {{ getJackpotChance(system) }} for 13 rätt
+              </span>
+            </UTooltip>
           </div>
         </div>
       </UCard>
@@ -241,5 +254,14 @@ const getReductionRatio = (system: BettingSystem) => {
   const fullRows = Math.pow(3, system.helgarderingar) * Math.pow(2, system.halvgarderingar)
   const ratio = ((system.rows / fullRows) * 100).toFixed(1)
   return `${ratio}%`
+}
+
+const getJackpotChance = (system: BettingSystem) => {
+  const fullRows = Math.pow(3, system.helgarderingar) * Math.pow(2, system.halvgarderingar)
+  const chance = (system.rows / fullRows) * 100
+  if (chance >= 100) return '100%'
+  if (chance >= 10) return `${chance.toFixed(0)}%`
+  if (chance >= 1) return `${chance.toFixed(1)}%`
+  return `${chance.toFixed(2)}%`
 }
 </script>

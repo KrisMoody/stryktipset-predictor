@@ -435,7 +435,8 @@
             <div
               v-for="draw in currentDraws.draws"
               :key="draw.draw_number"
-              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              @click="navigateToDraw(draw.id)"
             >
               <div class="flex items-center gap-4">
                 <div>
@@ -456,7 +457,7 @@
                 color="warning"
                 variant="soft"
                 icon="i-heroicons-archive-box"
-                @click="openArchiveModal(draw)"
+                @click.stop="openArchiveModal(draw)"
               >
                 Archive
               </UButton>
@@ -545,9 +546,9 @@
       />
 
       <!-- Fetch Results Modal -->
-      <UModal v-model:open="fetchResultsModalOpen">
+      <UModal v-model:open="fetchResultsModalOpen" :ui="{ content: 'sm:max-w-3xl' }">
         <template #content>
-          <UCard class="w-[42rem]">
+          <UCard>
             <template #header>
               <div class="flex items-center gap-2">
                 <UIcon name="i-heroicons-cloud-arrow-down" class="w-5 h-5 text-primary-500" />
@@ -824,7 +825,8 @@
               <div
                 v-for="draw in pendingFinalization.notReady"
                 :key="`${draw.game_type}-${draw.draw_number}`"
-                class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                @click="navigateToDraw(draw.id)"
               >
                 <div>
                   <p class="font-medium text-sm">#{{ draw.draw_number }} ({{ draw.game_type }})</p>
@@ -838,7 +840,7 @@
                     variant="soft"
                     icon="i-heroicons-cloud-arrow-down"
                     :loading="fetchingResults === draw.id"
-                    @click="openFetchResultsModal(draw)"
+                    @click.stop="openFetchResultsModal(draw)"
                   >
                     Fetch Results
                   </UButton>
@@ -1371,6 +1373,12 @@ async function loadCurrentDraws() {
     currentDraws.value = { success: false, error: 'Failed to load' }
   } finally {
     loadingCurrentDraws.value = false
+  }
+}
+
+function navigateToDraw(drawId: number | undefined) {
+  if (drawId) {
+    navigateTo(`/draw/${drawId}`)
   }
 }
 

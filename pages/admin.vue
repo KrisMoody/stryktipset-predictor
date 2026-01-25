@@ -436,7 +436,7 @@
               v-for="draw in currentDraws.draws"
               :key="draw.draw_number"
               class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              @click="navigateToDraw(draw.id)"
+              @click="navigateToDraw(draw)"
             >
               <div class="flex items-center gap-4">
                 <div>
@@ -826,7 +826,7 @@
                 v-for="draw in pendingFinalization.notReady"
                 :key="`${draw.game_type}-${draw.draw_number}`"
                 class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                @click="navigateToDraw(draw.id)"
+                @click="navigateToDraw(draw)"
               >
                 <div>
                   <p class="font-medium text-sm">#{{ draw.draw_number }} ({{ draw.game_type }})</p>
@@ -1062,6 +1062,7 @@ import type {
   ClearCacheResponse,
   CurrentDrawsResponse,
   CurrentDrawInfo,
+  PendingDrawInfo,
   PendingFinalizationResponse,
   FailedGamesResponse,
   DrawLookupResponse,
@@ -1376,10 +1377,9 @@ async function loadCurrentDraws() {
   }
 }
 
-function navigateToDraw(drawId: number | undefined) {
-  if (drawId) {
-    navigateTo(`/draw/${drawId}`)
-  }
+function navigateToDraw(draw: CurrentDrawInfo | PendingDrawInfo) {
+  const path = draw.is_current ? `/draw/${draw.draw_number}` : `/draw/${draw.draw_number}/results`
+  navigateTo({ path, query: { gameType: draw.game_type || 'stryktipset' } })
 }
 
 function openArchiveModal(draw: CurrentDrawInfo) {

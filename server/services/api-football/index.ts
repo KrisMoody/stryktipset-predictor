@@ -19,3 +19,18 @@ export { TeamMatcher, getTeamMatcher } from './team-matcher'
 // Enrichment
 export { MatchEnrichmentService, getMatchEnrichmentService } from './match-enrichment'
 export type { EnrichmentResult, BatchEnrichmentResult } from './match-enrichment'
+
+// Result Fallback
+export {
+  ResultFallbackService,
+  getResultFallbackService,
+  resultFallbackService,
+} from './result-fallback-service'
+export { extractResultFromFixture } from './result-fallback-service'
+export type {
+  ExtractedResult,
+  MatchResultStatus,
+  FetchedResult,
+  DrawResultStatus,
+  SyncResult,
+} from './result-fallback-service'

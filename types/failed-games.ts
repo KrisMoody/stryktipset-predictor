@@ -2,7 +2,7 @@ import type { GameType } from './game-types'
 
 export type FailedGameStatus = 'pending' | 'retry_scheduled' | 'manual_entry' | 'resolved'
 export type FailureReason = 'api_error' | 'missing_data' | 'timeout' | 'parse_error'
-export type ResolutionType = 'api_retry' | 'manual_entry'
+export type ResolutionType = 'api_retry' | 'manual_entry' | 'api_football_fallback'
 
 export interface FailedGame {
   id: number

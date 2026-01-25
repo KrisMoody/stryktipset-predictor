@@ -544,6 +544,196 @@
         @refresh="refreshDrawFromApi"
       />
 
+      <!-- Fetch Results Modal -->
+      <UModal v-model:open="fetchResultsModalOpen">
+        <template #content>
+          <UCard class="w-[42rem]">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-cloud-arrow-down" class="w-5 h-5 text-primary-500" />
+                <h3 class="font-semibold">
+                  Fetch Results from API-Football - Draw #{{ drawToFetchResults?.draw_number }}
+                </h3>
+              </div>
+            </template>
+
+            <div class="space-y-4">
+              <!-- Loading state -->
+              <div v-if="fetchingResults" class="flex flex-col items-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mb-4" />
+                <p class="text-sm text-gray-500">Fetching results from API-Football...</p>
+              </div>
+
+              <!-- Results preview -->
+              <div v-else-if="fetchedResultsPreview">
+                <!-- Summary -->
+                <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <p class="text-gray-500">Ready to commit</p>
+                      <p class="font-semibold text-success-600">
+                        {{ fetchedResultsPreview.summary?.readyToCommit || 0 }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-gray-500">Terminal statuses</p>
+                      <p class="font-semibold text-warning-600">
+                        {{ fetchedResultsPreview.summary?.terminalStatuses || 0 }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-gray-500">In progress</p>
+                      <p class="font-semibold text-info-600">
+                        {{ fetchedResultsPreview.summary?.inProgress || 0 }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-gray-500">Errors</p>
+                      <p class="font-semibold text-error-600">
+                        {{ fetchedResultsPreview.summary?.errors || 0 }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Discrepancy warning -->
+                <UAlert
+                  v-if="fetchedResultsPreview.hasDiscrepancies"
+                  color="warning"
+                  icon="i-heroicons-exclamation-triangle"
+                  class="mb-4"
+                >
+                  <template #title>Result Discrepancies Detected</template>
+                  <template #description>
+                    <p class="text-sm mb-2">
+                      Some results from API-Football differ from existing Svenska Spel results:
+                    </p>
+                    <ul class="text-sm list-disc list-inside">
+                      <li v-for="d in fetchedResultsPreview.discrepancyDetails" :key="d.matchId">
+                        Match #{{ d.matchNumber }} ({{ d.homeTeam }} vs {{ d.awayTeam }}): Svenska
+                        Spel={{ d.svenskaSpel }}, API-Football={{ d.apiFootball }}
+                      </li>
+                    </ul>
+                  </template>
+                </UAlert>
+
+                <!-- Results table -->
+                <div class="border rounded-lg overflow-hidden dark:border-gray-700">
+                  <table class="w-full text-sm">
+                    <thead class="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        <th class="px-3 py-2 text-left">#</th>
+                        <th class="px-3 py-2 text-left">Match</th>
+                        <th class="px-3 py-2 text-center">Result</th>
+                        <th class="px-3 py-2 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                      <tr
+                        v-for="result in fetchedResultsPreview.results"
+                        :key="result.matchId"
+                        :class="result.hasDiscrepancy ? 'bg-warning-50 dark:bg-warning-900/20' : ''"
+                      >
+                        <td class="px-3 py-2">{{ result.matchNumber }}</td>
+                        <td class="px-3 py-2">{{ result.homeTeam }} vs {{ result.awayTeam }}</td>
+                        <td class="px-3 py-2 text-center">
+                          <span v-if="result.fetchedResult?.isFinished" class="font-mono">
+                            {{ result.fetchedResult.homeGoals }}-{{
+                              result.fetchedResult.awayGoals
+                            }}
+                            <span class="text-gray-400">({{ result.fetchedResult.outcome }})</span>
+                          </span>
+                          <span
+                            v-else-if="result.fetchedResult?.isTerminal"
+                            class="text-warning-600"
+                          >
+                            {{ result.fetchedResult.rawStatus }}
+                          </span>
+                          <span v-else-if="result.error" class="text-error-600">Error</span>
+                          <span v-else class="text-gray-400">-</span>
+                        </td>
+                        <td class="px-3 py-2 text-center">
+                          <UBadge
+                            v-if="result.fetchedResult?.isFinished"
+                            color="success"
+                            variant="subtle"
+                            size="xs"
+                          >
+                            Ready
+                          </UBadge>
+                          <UBadge
+                            v-else-if="result.fetchedResult?.isTerminal"
+                            color="warning"
+                            variant="subtle"
+                            size="xs"
+                          >
+                            Terminal
+                          </UBadge>
+                          <UBadge v-else-if="result.error" color="error" variant="subtle" size="xs">
+                            Error
+                          </UBadge>
+                          <UBadge v-else color="neutral" variant="subtle" size="xs">
+                            In Progress
+                          </UBadge>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Force commit checkbox -->
+                <div
+                  v-if="fetchedResultsPreview.hasDiscrepancies"
+                  class="flex items-center gap-2 mt-4"
+                >
+                  <UCheckbox id="force-commit" v-model="forceCommitResults" />
+                  <label
+                    for="force-commit"
+                    class="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
+                  >
+                    Force commit despite discrepancies (API-Football results will NOT overwrite
+                    existing Svenska Spel results)
+                  </label>
+                </div>
+              </div>
+
+              <!-- Error state -->
+              <div v-else-if="fetchResultsError" class="text-center py-8">
+                <UIcon
+                  name="i-heroicons-exclamation-circle"
+                  class="w-12 h-12 text-error-500 mx-auto mb-4"
+                />
+                <p class="text-error-600">{{ fetchResultsError }}</p>
+              </div>
+            </div>
+
+            <template #footer>
+              <div class="flex justify-end gap-2">
+                <UButton variant="ghost" @click="closeFetchResultsModal">Cancel</UButton>
+                <UButton
+                  v-if="
+                    fetchedResultsPreview &&
+                    (fetchedResultsPreview.summary?.readyToCommit > 0 ||
+                      fetchedResultsPreview.summary?.terminalStatuses > 0)
+                  "
+                  color="primary"
+                  :loading="committingResults"
+                  :disabled="fetchedResultsPreview.hasDiscrepancies && !forceCommitResults"
+                  @click="commitFetchedResults"
+                >
+                  Commit
+                  {{
+                    (fetchedResultsPreview.summary?.readyToCommit || 0) +
+                    (fetchedResultsPreview.summary?.terminalStatuses || 0)
+                  }}
+                  Results
+                </UButton>
+              </div>
+            </template>
+          </UCard>
+        </template>
+      </UModal>
+
       <!-- Draw Finalization Section -->
       <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
@@ -640,9 +830,22 @@
                   <p class="font-medium text-sm">#{{ draw.draw_number }} ({{ draw.game_type }})</p>
                   <p class="text-xs text-gray-500">{{ draw.finalizationReason }}</p>
                 </div>
-                <UBadge :color="getStatusColor(draw.status)" variant="subtle" size="sm">
-                  {{ draw.status }}
-                </UBadge>
+                <div class="flex items-center gap-2">
+                  <UButton
+                    v-if="draw.matchesWithResults < draw.totalMatches"
+                    size="xs"
+                    color="primary"
+                    variant="soft"
+                    icon="i-heroicons-cloud-arrow-down"
+                    :loading="fetchingResults === draw.id"
+                    @click="openFetchResultsModal(draw)"
+                  >
+                    Fetch Results
+                  </UButton>
+                  <UBadge :color="getStatusColor(draw.status)" variant="subtle" size="sm">
+                    {{ draw.status }}
+                  </UBadge>
+                </div>
               </div>
             </div>
             <div v-else class="text-center py-4 text-gray-500 text-sm">All draws are ready</div>
@@ -938,6 +1141,15 @@ const lookupError = ref('')
 const lookupResult = ref<any>(null)
 const drawDetailsModalOpen = ref(false)
 const fetchingFromApi = ref(false)
+
+// API-Football Result Fetch states
+const fetchResultsModalOpen = ref(false)
+const drawToFetchResults = ref<any>(null)
+const fetchingResults = ref<number | null>(null)
+const fetchedResultsPreview = ref<any>(null)
+const fetchResultsError = ref('')
+const forceCommitResults = ref(false)
+const committingResults = ref(false)
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // Schedule status
@@ -1387,6 +1599,124 @@ async function fetchDrawFromApi() {
 async function refreshDrawFromApi() {
   if (!lookupResult.value?.draw) return
   await fetchDrawFromApi()
+}
+
+// API-Football Result Fetch functions
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function openFetchResultsModal(draw: any) {
+  drawToFetchResults.value = draw
+  fetchedResultsPreview.value = null
+  fetchResultsError.value = ''
+  forceCommitResults.value = false
+  fetchResultsModalOpen.value = true
+  fetchingResults.value = draw.id
+
+  try {
+    const result = await $fetch<{
+      success: boolean
+      results?: Array<{
+        matchId: number
+        matchNumber: number
+        homeTeam: string
+        awayTeam: string
+        fetchedResult: {
+          homeGoals: number
+          awayGoals: number
+          outcome: string
+          isFinished: boolean
+          isTerminal: boolean
+          rawStatus: string
+        } | null
+        existingResult: { home: number; away: number; outcome: string } | null
+        hasDiscrepancy: boolean
+        error?: string
+      }>
+      summary?: {
+        total: number
+        readyToCommit: number
+        terminalStatuses: number
+        inProgress: number
+        errors: number
+        discrepancies: number
+      }
+      hasDiscrepancies?: boolean
+      discrepancyDetails?: Array<{
+        matchId: number
+        matchNumber: number
+        homeTeam: string
+        awayTeam: string
+        svenskaSpel: string
+        apiFootball: string
+      }>
+      message?: string
+    }>(`/api/admin/draws/${draw.id}/fetch-results`, {
+      method: 'POST',
+    })
+
+    if (result.success) {
+      fetchedResultsPreview.value = result
+    } else {
+      fetchResultsError.value = result.message || 'Failed to fetch results'
+    }
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    fetchResultsError.value = err?.data?.message || err?.message || 'Failed to fetch results'
+  } finally {
+    fetchingResults.value = null
+  }
+}
+
+function closeFetchResultsModal() {
+  fetchResultsModalOpen.value = false
+  drawToFetchResults.value = null
+  fetchedResultsPreview.value = null
+  fetchResultsError.value = ''
+  forceCommitResults.value = false
+}
+
+async function commitFetchedResults() {
+  if (!drawToFetchResults.value) return
+
+  committingResults.value = true
+  try {
+    const result = await $fetch<{
+      success: boolean
+      resultsUpdated?: number
+      statusesUpdated?: number
+      drawArchived?: boolean
+      message?: string
+      error?: string
+    }>(`/api/admin/draws/${drawToFetchResults.value.id}/commit-results`, {
+      method: 'POST',
+      body: { force: forceCommitResults.value },
+    })
+
+    if (result.success) {
+      toast.add({
+        title: 'Results Committed',
+        description: result.message || `Updated ${result.resultsUpdated} results`,
+        color: 'success',
+      })
+      closeFetchResultsModal()
+      // Reload data
+      await Promise.all([loadPendingFinalization(), loadCurrentDraws()])
+    } else {
+      toast.add({
+        title: 'Commit Failed',
+        description: result.error || 'Failed to commit results',
+        color: 'error',
+      })
+    }
+  } catch (error: unknown) {
+    const err = error as { data?: { message?: string }; message?: string }
+    toast.add({
+      title: 'Commit Failed',
+      description: err?.data?.message || err?.message || 'Failed to commit results',
+      color: 'error',
+    })
+  } finally {
+    committingResults.value = false
+  }
 }
 
 // Helpers

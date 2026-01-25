@@ -3,6 +3,7 @@ import { failedGamesService } from '~/server/services/failed-games-service'
 import { drawSyncService } from '~/server/services/draw-sync'
 import { createApiClient } from '~/server/services/svenska-spel-api'
 import { prisma } from '~/server/utils/prisma'
+import { resultFallbackService } from '~/server/services/api-football/result-fallback-service'
 import type { GameType } from '~/types/game-types'
 
 export default defineEventHandler(async event => {
@@ -168,8 +169,75 @@ export default defineEventHandler(async event => {
         error: 'Match was processed but not found in database',
       }
     } catch (fetchError) {
-      // Update the failed game record with the new error
       const errorMessage = fetchError instanceof Error ? fetchError.message : 'Fetch failed'
+      console.log(
+        `[Admin] Svenska Spel API retry failed for match ${failedGame.matchNumber}, trying API-Football fallback...`
+      )
+
+      // Try API-Football as fallback source
+      try {
+        // First check if the match exists (it might have been created earlier but without result)
+        const match = await prisma.matches.findUnique({
+          where: {
+            draw_id_match_number: {
+              draw_id: failedGame.drawId,
+              match_number: failedGame.matchNumber,
+            },
+          },
+          select: { id: true, outcome: true },
+        })
+
+        if (match) {
+          // Match exists - try to fetch result from API-Football
+          const fetchResult = await resultFallbackService.syncMatchResult(match.id)
+
+          if (fetchResult.fetchedResult?.isFinished) {
+            // Update the match with the fetched result
+            await prisma.matches.update({
+              where: { id: match.id },
+              data: {
+                result_home: fetchResult.fetchedResult.homeGoals,
+                result_away: fetchResult.fetchedResult.awayGoals,
+                outcome: fetchResult.fetchedResult.outcome,
+                status: 'Completed',
+                status_time: new Date(),
+                result_source: 'api-football',
+              },
+            })
+
+            await failedGamesService.markResolvedSafe(id, 'api_football_fallback')
+
+            return {
+              success: true,
+              message: `Result fetched from API-Football: ${fetchResult.fetchedResult.homeGoals}-${fetchResult.fetchedResult.awayGoals}`,
+              matchId: match.id,
+              source: 'api-football',
+            }
+          } else if (fetchResult.fetchedResult?.isTerminal) {
+            // Match has terminal status (postponed, cancelled, etc.)
+            await prisma.matches.update({
+              where: { id: match.id },
+              data: {
+                status: fetchResult.fetchedResult.rawStatus,
+                status_time: new Date(),
+              },
+            })
+
+            await failedGamesService.markResolvedSafe(id, 'api_football_fallback')
+
+            return {
+              success: true,
+              message: `Match status updated from API-Football: ${fetchResult.fetchedResult.rawStatus}`,
+              matchId: match.id,
+              source: 'api-football',
+            }
+          }
+        }
+      } catch (apiFootballError) {
+        console.warn('[Admin] API-Football fallback also failed:', apiFootballError)
+      }
+
+      // Both sources failed - record the error
       await failedGamesService.recordFailedGame(
         failedGame.drawId,
         failedGame.matchNumber,
@@ -180,7 +248,7 @@ export default defineEventHandler(async event => {
 
       return {
         success: false,
-        error: `Retry failed: ${errorMessage}`,
+        error: `Retry failed: ${errorMessage} (API-Football fallback also unavailable)`,
       }
     }
   } catch (error) {

@@ -127,6 +127,7 @@ model matches {
   result_home  Int?
   result_away  Int?
   outcome      String?   @db.VarChar(5) // "1", "X", "2"
+  result_source String?  @db.VarChar(20) // "svenska-spel", "api-football", "manual"
   coverage     Int? // Coverage level from provider
   betRadar_id  String?   @db.VarChar(100) // BetRadar match ID
   kambi_id     String?   @db.VarChar(100) // Kambi match ID

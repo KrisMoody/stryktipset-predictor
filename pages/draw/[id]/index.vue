@@ -119,6 +119,20 @@
       </div>
     </template>
 
+    <!-- Error State -->
+    <div v-else class="py-12">
+      <UAlert
+        color="error"
+        icon="i-heroicons-exclamation-triangle"
+        title="Draw Not Found"
+        description="Unable to load draw data. Please check the draw number and try again."
+      />
+      <div class="mt-4 flex gap-2">
+        <UButton to="/admin" variant="soft" color="neutral"> Back to Admin </UButton>
+        <UButton variant="soft" color="primary" @click="refresh()"> Retry </UButton>
+      </div>
+    </div>
+
     <!-- Re-evaluation Modal -->
     <MatchReEvaluationModal
       :model-value="reEvaluationModal.isOpen"

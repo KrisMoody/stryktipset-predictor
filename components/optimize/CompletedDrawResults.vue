@@ -8,11 +8,7 @@
           {{ formatDate(drawDate) }}
         </p>
       </div>
-      <UBadge
-        :color="isComplete ? 'success' : 'warning'"
-        variant="soft"
-        size="lg"
-      >
+      <UBadge :color="isComplete ? 'success' : 'warning'" variant="soft" size="lg">
         {{ isComplete ? 'Completed' : 'In Progress' }}
       </UBadge>
     </div>
@@ -89,10 +85,7 @@
           <!-- Coupon Header -->
           <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800">
             <div class="flex items-center gap-2">
-              <UBadge
-                :color="coupon.systemType === 'R' ? 'info' : 'secondary'"
-                variant="solid"
-              >
+              <UBadge :color="coupon.systemType === 'R' ? 'info' : 'secondary'" variant="solid">
                 {{ coupon.systemId }}
               </UBadge>
               <span class="text-sm text-gray-500 dark:text-gray-400">
@@ -108,10 +101,7 @@
               </div>
               <div class="text-right">
                 <div class="text-xs text-gray-500 dark:text-gray-400">ROI</div>
-                <div
-                  class="font-bold"
-                  :class="coupon.roi >= 0 ? 'text-green-600' : 'text-red-600'"
-                >
+                <div class="font-bold" :class="coupon.roi >= 0 ? 'text-green-600' : 'text-red-600'">
                   {{ coupon.roi.toFixed(0) }}%
                 </div>
               </div>
@@ -123,10 +113,15 @@
             <UButton
               variant="ghost"
               size="sm"
-              :icon="expandedCoupons.includes(coupon.systemId) ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+              :icon="
+                expandedCoupons.includes(coupon.systemId)
+                  ? 'i-heroicons-chevron-up'
+                  : 'i-heroicons-chevron-down'
+              "
               @click="toggleCouponExpand(coupon.systemId)"
             >
-              {{ expandedCoupons.includes(coupon.systemId) ? 'Hide' : 'Show' }} {{ coupon.rows.length }} rows
+              {{ expandedCoupons.includes(coupon.systemId) ? 'Hide' : 'Show' }}
+              {{ coupon.rows.length }} rows
             </UButton>
 
             <div v-if="expandedCoupons.includes(coupon.systemId)" class="mt-3 space-y-1">
@@ -134,7 +129,11 @@
                 v-for="(row, idx) in coupon.rows"
                 :key="idx"
                 class="flex items-center gap-2 p-2 rounded"
-                :class="getRowScore(row, correctRow) === 13 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-50 dark:bg-gray-800'"
+                :class="
+                  getRowScore(row, correctRow) === 13
+                    ? 'bg-green-100 dark:bg-green-900/30'
+                    : 'bg-gray-50 dark:bg-gray-800'
+                "
               >
                 <span class="text-xs text-gray-400 w-6">{{ idx + 1 }}</span>
                 <div class="flex gap-0.5">
@@ -147,7 +146,10 @@
                     {{ pick }}
                   </span>
                 </div>
-                <span class="ml-2 text-sm font-semibold" :class="getScoreColor(getRowScore(row, correctRow))">
+                <span
+                  class="ml-2 text-sm font-semibold"
+                  :class="getScoreColor(getRowScore(row, correctRow))"
+                >
                   {{ getRowScore(row, correctRow) }}/13
                 </span>
               </div>

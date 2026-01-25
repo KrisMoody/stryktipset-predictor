@@ -93,9 +93,8 @@ export default defineEventHandler(async event => {
       .slice(0, limit)
       .map(draw => ({
         ...draw,
-        overallRoi: draw.totalCost > 0
-          ? ((draw.totalPayout - draw.totalCost) / draw.totalCost) * 100
-          : 0,
+        overallRoi:
+          draw.totalCost > 0 ? ((draw.totalPayout - draw.totalCost) / draw.totalCost) * 100 : 0,
       }))
 
     return {

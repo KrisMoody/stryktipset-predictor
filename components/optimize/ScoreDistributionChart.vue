@@ -30,7 +30,10 @@
     </div>
 
     <!-- Hit Rates Summary -->
-    <div v-if="hasData" class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+    <div
+      v-if="hasData"
+      class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700"
+    >
       <div class="text-center p-2 rounded-lg bg-gray-50 dark:bg-gray-800">
         <div class="text-lg font-bold" :class="hitRate13 > 0 ? 'text-yellow-500' : 'text-gray-400'">
           {{ hitRate13.toFixed(1) }}%
@@ -122,13 +125,18 @@ const hitRate12Plus = computed(() => {
 
 const hitRate11Plus = computed(() => {
   if (totalRows.value === 0) return 0
-  const count = (props.distribution[11] || 0) + (props.distribution[12] || 0) + (props.distribution[13] || 0)
+  const count =
+    (props.distribution[11] || 0) + (props.distribution[12] || 0) + (props.distribution[13] || 0)
   return (count / totalRows.value) * 100
 })
 
 const hitRate10Plus = computed(() => {
   if (totalRows.value === 0) return 0
-  const count = (props.distribution[10] || 0) + (props.distribution[11] || 0) + (props.distribution[12] || 0) + (props.distribution[13] || 0)
+  const count =
+    (props.distribution[10] || 0) +
+    (props.distribution[11] || 0) +
+    (props.distribution[12] || 0) +
+    (props.distribution[13] || 0)
   return (count / totalRows.value) * 100
 })
 </script>

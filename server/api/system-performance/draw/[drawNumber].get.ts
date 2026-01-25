@@ -80,9 +80,10 @@ export default defineEventHandler(async event => {
       matchNumber: m.match_number,
       homeTeam: m.homeTeam.name,
       awayTeam: m.awayTeam.name,
-      result: m.result_home !== null && m.result_away !== null
-        ? `${m.result_home}-${m.result_away}`
-        : null,
+      result:
+        m.result_home !== null && m.result_away !== null
+          ? `${m.result_home}-${m.result_away}`
+          : null,
       outcome: m.outcome,
     }))
 

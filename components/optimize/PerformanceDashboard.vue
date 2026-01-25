@@ -188,12 +188,7 @@
       <template #header>
         <div class="flex items-center justify-between">
           <h3 class="text-xl font-semibold">Recent Results</h3>
-          <USelect
-            v-model="systemTypeFilter"
-            :items="systemTypeOptions"
-            size="sm"
-            class="w-32"
-          />
+          <USelect v-model="systemTypeFilter" :items="systemTypeOptions" size="sm" class="w-32" />
         </div>
       </template>
 
@@ -474,9 +469,7 @@ const showDrawDetails = async (drawNumber: number) => {
   selectedDrawData.value = null
 
   try {
-    const response = await $fetch<DrawDetailsResponse>(
-      `/api/system-performance/draw/${drawNumber}`
-    )
+    const response = await $fetch<DrawDetailsResponse>(`/api/system-performance/draw/${drawNumber}`)
     if (response?.success) {
       selectedDrawData.value = response
     }

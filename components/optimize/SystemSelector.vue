@@ -91,7 +91,11 @@
             <UTooltip
               :text="`Guarantees ${system.guarantee} rätt when all your base selections are correct`"
             >
-              <UBadge :color="getGuaranteeColor(system.guarantee)" variant="subtle" class="cursor-help">
+              <UBadge
+                :color="getGuaranteeColor(system.guarantee)"
+                variant="subtle"
+                class="cursor-help"
+              >
                 Guarantees {{ system.guarantee }} rätt
               </UBadge>
             </UTooltip>

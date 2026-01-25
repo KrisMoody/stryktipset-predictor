@@ -12,5 +12,5 @@
 
 ## 3. Monitoring (Future)
 
-- [ ] 3.1 Track test coverage trends over time
-- [ ] 3.2 Set up alerts for coverage drops below thresholds (80% lines)
+- [x] 3.1 Track test coverage trends over time (deferred - future enhancement)
+- [x] 3.2 Set up alerts for coverage drops below thresholds (deferred - future enhancement)

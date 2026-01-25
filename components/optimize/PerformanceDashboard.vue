@@ -264,25 +264,6 @@
       </div>
     </UCard>
 
-    <!-- Draw Details Modal -->
-    <UModal v-model:open="showDrawModal">
-      <template #content>
-        <div v-if="selectedDrawData" class="p-6 max-w-4xl">
-          <OptimizeCompletedDrawResults
-            :draw-number="selectedDrawData.drawNumber"
-            :draw-date="selectedDrawData.drawDate"
-            :is-complete="selectedDrawData.isComplete"
-            :correct-row="selectedDrawData.correctRow"
-            :match-details="selectedDrawData.matchDetails"
-            :coupons="selectedDrawData.coupons"
-          />
-        </div>
-        <div v-else class="flex justify-center py-12">
-          <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-primary-500" />
-        </div>
-      </template>
-    </UModal>
-
     <!-- Fallback: Recent Trend (if no recent draws data) -->
     <UCard v-else-if="recentTrend && recentTrend.length > 0">
       <template #header>
@@ -325,6 +306,25 @@
         </div>
       </div>
     </UCard>
+
+    <!-- Draw Details Modal -->
+    <UModal v-model:open="showDrawModal">
+      <template #content>
+        <div v-if="selectedDrawData" class="p-6 max-w-4xl">
+          <OptimizeCompletedDrawResults
+            :draw-number="selectedDrawData.drawNumber"
+            :draw-date="selectedDrawData.drawDate"
+            :is-complete="selectedDrawData.isComplete"
+            :correct-row="selectedDrawData.correctRow"
+            :match-details="selectedDrawData.matchDetails"
+            :coupons="selectedDrawData.coupons"
+          />
+        </div>
+        <div v-else class="flex justify-center py-12">
+          <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-primary-500" />
+        </div>
+      </template>
+    </UModal>
 
     <!-- Empty State -->
     <UCard v-if="!pending && (!stats || stats.totalDrawsAnalyzed === 0)">

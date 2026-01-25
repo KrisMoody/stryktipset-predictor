@@ -672,12 +672,17 @@
           <!-- Failed Games List -->
           <UCard>
             <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-x-circle" class="w-5 h-5 text-error-500" />
-                <h3 class="font-semibold">Failed Games</h3>
-                <UBadge color="error" variant="subtle" size="sm">
-                  {{ failedGamesData?.counts?.pendingGames || 0 }}
-                </UBadge>
+              <div class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-heroicons-x-circle" class="w-5 h-5 text-error-500" />
+                  <h3 class="font-semibold">Failed Games</h3>
+                  <UBadge color="error" variant="subtle" size="sm">
+                    {{ failedGamesData?.counts?.pendingGames || 0 }}
+                  </UBadge>
+                </div>
+                <span v-if="failedGamesLastUpdated" class="text-xs text-gray-500">
+                  Updated {{ failedGamesTimeAgo }}
+                </span>
               </div>
             </template>
 
@@ -773,6 +778,9 @@
 <script setup lang="ts">
 import type { ScheduleWindowStatus } from '~/types'
 import { useUserProfile } from '~/composables/useUserProfile'
+import { useIntervalFn, useDocumentVisibility, useTimeAgo } from '@vueuse/core'
+
+const toast = useToast()
 
 definePageMeta({})
 
@@ -838,6 +846,10 @@ const pendingFinalization = ref<any>(null)
 const loadingFailedGames = ref(false)
 const retryingGameId = ref<number | null>(null)
 const failedGamesData = ref<any>(null)
+const failedGamesLastUpdated = ref<Date | null>(null)
+const failedGamesTimeAgoDate = computed(() => failedGamesLastUpdated.value ?? new Date())
+const failedGamesTimeAgo = useTimeAgo(failedGamesTimeAgoDate)
+const visibility = useDocumentVisibility()
 
 // Manual entry modal state
 const manualEntryModalOpen = ref(false)
@@ -1113,6 +1125,7 @@ async function loadFailedGames() {
   loadingFailedGames.value = true
   try {
     failedGamesData.value = await $fetch('/api/admin/draws/failed-games')
+    failedGamesLastUpdated.value = new Date()
   } catch (error) {
     console.error('Error loading failed games:', error)
     failedGamesData.value = { success: false, error: 'Failed to load' }
@@ -1121,18 +1134,52 @@ async function loadFailedGames() {
   }
 }
 
+// Auto-refresh failed games every 30 seconds (pause when tab hidden or retry in progress)
+useIntervalFn(
+  async () => {
+    if (retryingGameId.value || visibility.value === 'hidden' || accessDenied.value) return
+    await loadFailedGames()
+  },
+  30000,
+  { immediate: false }
+)
+
 async function retryFailedGame(gameId: number) {
   retryingGameId.value = gameId
   try {
-    const result = await $fetch(`/api/admin/draws/failed-games/${gameId}/retry`, {
+    const result = await $fetch<{
+      success: boolean
+      alreadyResolved?: boolean
+      message?: string
+      error?: string
+      matchId?: number
+    }>(`/api/admin/draws/failed-games/${gameId}/retry`, {
       method: 'POST',
     })
+
     if (result.success) {
       // Reload failed games and draws after successful retry
       await Promise.all([loadFailedGames(), loadCurrentDraws()])
+
+      toast.add({
+        title: result.alreadyResolved ? 'Already Resolved' : 'Retry Successful',
+        description: result.message || 'Match processed successfully',
+        color: result.alreadyResolved ? 'info' : 'success',
+      })
+    } else {
+      toast.add({
+        title: 'Retry Failed',
+        description: result.error || 'Unknown error',
+        color: 'error',
+      })
     }
   } catch (error) {
     console.error('Error retrying failed game:', error)
+    toast.add({
+      title: 'Retry Failed',
+      description: error instanceof Error ? error.message : 'Network error',
+      color: 'error',
+    })
   } finally {
     retryingGameId.value = null
   }

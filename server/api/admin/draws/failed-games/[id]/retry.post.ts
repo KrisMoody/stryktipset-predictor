@@ -23,9 +23,11 @@ export default defineEventHandler(async event => {
     const failedGame = await failedGamesService.getFailedGameById(id)
 
     if (!failedGame) {
+      // Record was deleted by a background sync - this is actually success
       return {
-        success: false,
-        error: 'Failed game record not found',
+        success: true,
+        alreadyResolved: true,
+        message: 'This failed game was already processed by a background sync.',
       }
     }
 
@@ -42,8 +44,50 @@ export default defineEventHandler(async event => {
       }
     }
 
-    // Update status to retry_scheduled
-    await failedGamesService.updateStatus(id, 'retry_scheduled')
+    // Check if match already exists (concurrent sync may have created it)
+    const existingMatchEarly = await prisma.matches.findUnique({
+      where: {
+        draw_id_match_number: {
+          draw_id: failedGame.drawId,
+          match_number: failedGame.matchNumber,
+        },
+      },
+    })
+
+    if (existingMatchEarly) {
+      // Match already exists - the concurrent sync already processed it
+      await failedGamesService.markResolvedSafe(id, 'api_retry')
+      return {
+        success: true,
+        alreadyResolved: true,
+        message: `Match ${failedGame.matchNumber} was already processed.`,
+        matchId: existingMatchEarly.id,
+      }
+    }
+
+    // Update status to retry_scheduled (gracefully handle if deleted)
+    const statusUpdated = await failedGamesService.updateStatusSafe(id, 'retry_scheduled')
+
+    if (!statusUpdated) {
+      // Record was deleted between our check and update - check if match exists now
+      const matchCreatedConcurrently = await prisma.matches.findUnique({
+        where: {
+          draw_id_match_number: {
+            draw_id: failedGame.drawId,
+            match_number: failedGame.matchNumber,
+          },
+        },
+      })
+
+      return {
+        success: true,
+        alreadyResolved: true,
+        message: matchCreatedConcurrently
+          ? `Match ${failedGame.matchNumber} was processed by a concurrent sync.`
+          : 'This failed game record was removed during retry.',
+        matchId: matchCreatedConcurrently?.id,
+      }
+    }
 
     // Try to re-fetch the draw data from API
     const gameType = draw.game_type as GameType
@@ -69,8 +113,8 @@ export default defineEventHandler(async event => {
           if (matchEvent) {
             await drawSyncService.processDrawData(historicDraw, gameType)
 
-            // Mark as resolved
-            await failedGamesService.markResolved(id, 'api_retry')
+            // Mark as resolved (gracefully handle if already deleted by processDrawData)
+            await failedGamesService.markResolvedSafe(id, 'api_retry')
 
             return {
               success: true,
@@ -109,8 +153,8 @@ export default defineEventHandler(async event => {
       })
 
       if (existingMatch) {
-        // Mark as resolved
-        await failedGamesService.markResolved(id, 'api_retry')
+        // Mark as resolved (gracefully handle if already deleted by processDrawData)
+        await failedGamesService.markResolvedSafe(id, 'api_retry')
 
         return {
           success: true,

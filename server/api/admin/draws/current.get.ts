@@ -9,7 +9,9 @@ export default defineEventHandler(async event => {
     const currentDraws = await prisma.draws.findMany({
       where: { is_current: true },
       select: {
+        id: true,
         draw_number: true,
+        game_type: true,
         draw_date: true,
         close_time: true,
         status: true,
@@ -33,7 +35,9 @@ export default defineEventHandler(async event => {
       const totalMatches = draw.matches.length
 
       return {
+        id: draw.id,
         draw_number: draw.draw_number,
+        game_type: draw.game_type,
         draw_date: draw.draw_date,
         close_time: draw.close_time,
         status: draw.status,

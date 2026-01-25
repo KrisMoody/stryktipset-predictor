@@ -1,29 +1,55 @@
 <template>
-  <UContainer class="py-8">
-    <div class="mb-8">
-      <div class="flex items-center gap-4 mb-2">
-        <UButton variant="ghost" to="/performance" size="sm">
-          <UIcon name="i-heroicons-arrow-left" class="w-4 h-4 mr-1" />
-          Back to Performance
-        </UButton>
+  <div class="p-6">
+    <!-- Breadcrumb -->
+    <AppBreadcrumb />
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+      <div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            Draw #{{ drawNumber }} Results
+          </h1>
+          <UBadge color="neutral" variant="subtle" size="lg"> Completed </UBadge>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {{ gameDisplayName }}
+        </p>
       </div>
-      <h1 class="text-4xl font-bold mb-2">Draw #{{ drawNumber }} Results</h1>
-      <p class="text-gray-600 dark:text-gray-400">
-        View the winning combination and your system results
-      </p>
+      <UButton to="/admin" variant="ghost" color="neutral">
+        <UIcon name="i-heroicons-arrow-left" class="w-4 h-4 mr-1" />
+        Back to Admin
+      </UButton>
     </div>
 
+    <!-- Loading State -->
     <div v-if="pending" class="flex justify-center py-12">
-      <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-primary-500" />
+      <div class="text-center">
+        <div
+          class="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500 mx-auto mb-3"
+        />
+        <p class="text-gray-500 dark:text-gray-400">Loading results...</p>
+      </div>
     </div>
 
-    <div v-else-if="error" class="text-center py-12">
-      <div class="text-6xl mb-4">😕</div>
-      <h3 class="text-xl font-semibold mb-2">Failed to load results</h3>
-      <p class="text-gray-600 dark:text-gray-400 mb-6">{{ error.message }}</p>
-      <UButton to="/performance" variant="outline">Back to Performance</UButton>
+    <!-- Error State -->
+    <div v-else-if="error" class="py-12">
+      <UAlert
+        color="error"
+        icon="i-heroicons-exclamation-triangle"
+        title="Results Not Found"
+        :description="
+          error.message ||
+          'Unable to load draw results. Please check the draw number and try again.'
+        "
+      />
+      <div class="mt-4 flex gap-2">
+        <UButton to="/admin" variant="soft" color="neutral"> Back to Admin </UButton>
+        <UButton variant="soft" color="primary" @click="refresh()"> Retry </UButton>
+      </div>
     </div>
 
+    <!-- Results Content -->
     <OptimizeCompletedDrawResults
       v-else-if="data"
       :draw-number="drawNumber"
@@ -32,14 +58,21 @@
       :match-details="matchDetails"
       :coupons="coupons"
     />
-  </UContainer>
+  </div>
 </template>
 
 <script setup lang="ts">
 import type { CouponRow } from '~/types'
+import type { GameType } from '~/types/game-types'
+import { getGameConfig } from '~/server/constants/game-configs'
+
+definePageMeta({})
 
 const route = useRoute()
 const drawNumber = computed(() => parseInt(route.params.id as string) || 0)
+
+const gameType = computed(() => (route.query.gameType as GameType) || 'stryktipset')
+const gameDisplayName = computed(() => getGameConfig(gameType.value).displayName)
 
 interface Match {
   matchNumber: number
@@ -73,8 +106,12 @@ interface DrawResultsResponse {
   systemResults: SystemResult[]
 }
 
-const { data, pending, error } = await useFetch<DrawResultsResponse>(
-  () => `/api/draws/${drawNumber.value}/results`
+const { data, pending, error, refresh } = await useFetch<DrawResultsResponse>(
+  `/api/draws/${drawNumber.value}/results`,
+  {
+    query: { gameType },
+    watch: [gameType],
+  }
 )
 
 // Transform matches to matchDetails format
@@ -109,6 +146,6 @@ const coupons = computed(() => {
 })
 
 useHead({
-  title: computed(() => `Draw #${drawNumber.value} Results - Stryktipset AI Predictor`),
+  title: computed(() => `Draw #${drawNumber.value} Results - ${gameDisplayName.value}`),
 })
 </script>

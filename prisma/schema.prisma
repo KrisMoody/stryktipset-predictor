@@ -114,25 +114,26 @@ model failed_games {
 
 // Individual matches in a draw
 model matches {
-  id           Int       @id @default(autoincrement())
-  draw_id      Int
-  match_number Int // Position in draw (1-13)
-  match_id     Int // Svenska Spel match ID
-  home_team_id Int
-  away_team_id Int
-  league_id    Int
-  start_time   DateTime  @db.Timestamp(6)
-  status       String    @db.VarChar(50) // "Not started", "In progress", "Completed"
-  status_time  DateTime? @db.Timestamp(6) // When status was last updated
-  result_home  Int?
-  result_away  Int?
-  outcome      String?   @db.VarChar(5) // "1", "X", "2"
-  coverage     Int? // Coverage level from provider
-  betRadar_id  String?   @db.VarChar(100) // BetRadar match ID
-  kambi_id     String?   @db.VarChar(100) // Kambi match ID
-  raw_data     Json? // Store full match data from API
-  created_at   DateTime  @default(now()) @db.Timestamp(6)
-  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  id            Int       @id @default(autoincrement())
+  draw_id       Int
+  match_number  Int // Position in draw (1-13)
+  match_id      Int // Svenska Spel match ID
+  home_team_id  Int
+  away_team_id  Int
+  league_id     Int
+  start_time    DateTime  @db.Timestamp(6)
+  status        String    @db.VarChar(50) // "Not started", "In progress", "Completed"
+  status_time   DateTime? @db.Timestamp(6) // When status was last updated
+  result_home   Int?
+  result_away   Int?
+  outcome       String?   @db.VarChar(5) // "1", "X", "2"
+  result_source String?   @db.VarChar(20) // "svenska-spel", "api-football", "manual"
+  coverage      Int? // Coverage level from provider
+  betRadar_id   String?   @db.VarChar(100) // BetRadar match ID
+  kambi_id      String?   @db.VarChar(100) // Kambi match ID
+  raw_data      Json? // Store full match data from API
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamp(6)
 
   // API-Football mapping
   api_football_fixture_id   Int?

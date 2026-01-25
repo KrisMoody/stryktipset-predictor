@@ -6,6 +6,7 @@ import { scheduleWindowService } from '../services/schedule-window-service'
 import { progressiveScraper } from '../services/progressive-scraper'
 import { drawLifecycle } from '../services/draw-lifecycle'
 import { embeddingsService } from '../services/embeddings-service'
+import { resultFallbackService } from '../services/api-football/result-fallback-service'
 import { captureOperationError } from '../utils/bugsnag-helpers'
 import { getAllGameTypes } from '../constants/game-configs'
 import { prisma } from '../utils/prisma'
@@ -210,6 +211,33 @@ export default defineNitroPlugin(() => {
     }
   })
 
+  // Result fallback sync: Every 6 hours (0:30, 6:30, 12:30, 18:30)
+  // Fetches missing results from API-Football for draws 48h past last match start
+  new Cron('30 0,6,12,18 * * *', async () => {
+    console.log('[Scheduler] Running result fallback sync from API-Football...')
+    try {
+      const result = await resultFallbackService.runAutomaticSync()
+      console.log(
+        `[Scheduler] Result fallback sync completed: ${result.drawsProcessed} draws, ` +
+          `${result.totalResultsUpdated} results updated, ${result.totalDrawsArchived} draws archived`
+      )
+
+      // Invalidate cache if any draws were archived
+      if (result.totalDrawsArchived > 0) {
+        drawCacheService.invalidateAllDrawCache()
+        await scheduleWindowService.forceRefreshCache()
+      }
+    } catch (error) {
+      console.error('[Scheduler] Error in result fallback sync:', error)
+
+      captureOperationError(error, {
+        operation: 'scheduled_task',
+        service: 'result-fallback',
+        metadata: { schedule: 'every-6h' },
+      })
+    }
+  })
+
   // Dynamic scraping: Every hour, decide based on deadline proximity
   // - Late phase (< 12h): scrape every hour
   // - Mid phase (12-36h): scrape every 2 hours
@@ -322,6 +350,7 @@ export default defineNitroPlugin(() => {
   console.log('  - Draw sync: Daily at midnight and 6 AM (all game types)')
   console.log('  - Performance update: Daily at 3 AM')
   console.log('  - Draw finalization: Daily at 4 AM')
+  console.log('  - Result fallback sync: Every 6 hours (API-Football for missing results)')
   console.log('  - Dynamic scrape: Hourly (frequency based on deadline proximity)')
   console.log('    - Late phase (<12h): every hour')
   console.log('    - Mid phase (12-36h): every 2 hours')

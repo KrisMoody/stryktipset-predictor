@@ -1,7 +1,7 @@
 import { prisma } from '~/server/utils/prisma'
 import { getGameConfig } from '~/server/constants/game-configs'
 import type { GameType } from '~/types/game-types'
-import type { failed_games as PrismaFailedGame } from '@prisma/client'
+import { Prisma, type failed_games as PrismaFailedGame } from '@prisma/client'
 import type {
   FailedGame,
   FailedGameStatus,
@@ -138,6 +138,36 @@ class FailedGamesService {
   }
 
   /**
+   * Safely mark a failed game as resolved
+   * Returns true if updated, false if record no longer exists (P2025)
+   */
+  async markResolvedSafe(
+    failedGameId: number,
+    resolutionType: ResolutionType,
+    adminUserId?: string
+  ): Promise<boolean> {
+    try {
+      await prisma.failed_games.update({
+        where: { id: failedGameId },
+        data: {
+          status: 'resolved',
+          resolved_at: new Date(),
+          resolved_by: adminUserId || null,
+          resolution_type: resolutionType,
+        },
+      })
+      console.log(`[FailedGames] Marked game ${failedGameId} as resolved via ${resolutionType}`)
+      return true
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        console.log(`[FailedGames] Record ${failedGameId} no longer exists (concurrent deletion)`)
+        return false
+      }
+      throw error
+    }
+  }
+
+  /**
    * Update status of a failed game
    */
   async updateStatus(failedGameId: number, status: FailedGameStatus): Promise<void> {
@@ -145,6 +175,26 @@ class FailedGamesService {
       where: { id: failedGameId },
       data: { status },
     })
+  }
+
+  /**
+   * Safely update status of a failed game
+   * Returns true if updated, false if record no longer exists (P2025)
+   */
+  async updateStatusSafe(failedGameId: number, status: FailedGameStatus): Promise<boolean> {
+    try {
+      await prisma.failed_games.update({
+        where: { id: failedGameId },
+        data: { status },
+      })
+      return true
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        console.log(`[FailedGames] Record ${failedGameId} no longer exists (concurrent deletion)`)
+        return false
+      }
+      throw error
+    }
   }
 
   /**

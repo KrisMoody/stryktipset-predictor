@@ -912,10 +912,10 @@
   dependencies:
     "@iconify/types" "*"
 
-"@iconify-json/lucide@^1.2.86":
-  version "1.2.86"
-  resolved "https://registry.yarnpkg.com/@iconify-json/lucide/-/lucide-1.2.86.tgz#b370ca8b60a2ef6dabb0b0dce33b1734b38b2808"
-  integrity sha512-W/Jz7/gGOkI9u43r+UHmQtZtcyw2YLvMwiHa01WV6V4DYltrPNXiD+bCa+djV8LZB1uwF8CiympOMIbgiQ74nA==
+"@iconify-json/lucide@^1.2.87":
+  version "1.2.87"
+  resolved "https://registry.yarnpkg.com/@iconify-json/lucide/-/lucide-1.2.87.tgz#7a55e0a3dc9c45a9e0fcb673cc3447e77397d119"
+  integrity sha512-wxYIAp0f8Uw0rJa6BMWMaRbiHk3yV4XczA38GKXFlqyZtTdmHM1QOF4NZw5xpMlRDzbh2MnB7wjteLeFnn/ciQ==
   dependencies:
     "@iconify/types" "*"
 
@@ -3501,10 +3501,10 @@
   dependencies:
     rfdc "^1.4.1"
 
-"@vue/language-core@3.2.3", "@vue/language-core@^3.2.1":
-  version "3.2.3"
-  resolved "https://registry.yarnpkg.com/@vue/language-core/-/language-core-3.2.3.tgz#e9d8765e202a4ab5bc72a6ac8807e8796c03404f"
-  integrity sha512-VpN/GnYDzGLh44AI6i1OB/WsLXo6vwnl0EWHBelGc4TyC0yEq6azwNaed/+Tgr8anFlSdWYnMEkyHJDPe7ii7A==
+"@vue/language-core@3.2.4", "@vue/language-core@^3.2.1":
+  version "3.2.4"
+  resolved "https://registry.yarnpkg.com/@vue/language-core/-/language-core-3.2.4.tgz#03bb7a67ab8639fabb2cc4e49360fc742e99816a"
+  integrity sha512-bqBGuSG4KZM45KKTXzGtoCl9cWju5jsaBKaJJe3h5hRAAWpZUuj5G+L+eI01sPIkm4H6setKRlw7E85wLdDNew==
   dependencies:
     "@volar/language-core" "2.4.27"
     "@vue/compiler-dom" "^3.5.0"
@@ -4901,7 +4901,7 @@ es-set-tostringtag@^2.1.0:
     has-tostringtag "^1.0.2"
     hasown "^2.0.2"
 
-esbuild@^0.25.0, esbuild@^0.25.12:
+esbuild@^0.25.12:
   version "0.25.12"
   resolved "https://registry.yarnpkg.com/esbuild/-/esbuild-0.25.12.tgz#97a1d041f4ab00c2fce2f838d2b9969a2d2a97a5"
   integrity sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==
@@ -5763,10 +5763,10 @@ h3@^1.12.0, h3@^1.15.4, h3@^1.15.5:
     ufo "^1.6.3"
     uncrypto "^0.1.3"
 
-happy-dom@^20.3.3:
-  version "20.3.7"
-  resolved "https://registry.yarnpkg.com/happy-dom/-/happy-dom-20.3.7.tgz#0e210b88c12f71e786f3b21baccb5f62fc181120"
-  integrity sha512-sb5IzoRl1WJKsUSRe+IloJf3z1iDq5PQ7Yk/ULMsZ5IAQEs9ZL7RsFfiKBXU7nK9QmO+iz0e59EH8r8jexTZ/g==
+happy-dom@^20.3.9:
+  version "20.3.9"
+  resolved "https://registry.yarnpkg.com/happy-dom/-/happy-dom-20.3.9.tgz#7f7f3dc904660e32f5abecf3efaa57bd9d36f6f8"
+  integrity sha512-OIoj0PcK2JaxQuANHxWkxFRSNXAuSgO1vCzCT66KItE0W/ieZLG+/iW8OetlxB+F9EaPB7DoFYKAubFG1f4Mvw==
   dependencies:
     "@types/node" ">=20.0.0"
     "@types/whatwg-mimetype" "^3.0.2"
@@ -9626,12 +9626,12 @@ vite-plugin-vue-tracer@^1.1.3:
     pathe "^2.0.3"
     source-map-js "^1.2.1"
 
-vite@7.2.7, "vite@^6.0.0 || ^7.0.0", vite@^7.3.1:
-  version "7.2.7"
-  resolved "https://registry.yarnpkg.com/vite/-/vite-7.2.7.tgz#0789a4c3206081699f34a9ecca2dda594a07478e"
-  integrity sha512-ITcnkFeR3+fI8P1wMgItjGrR10170d8auB4EpMLPqmx6uxElH3a/hHGQabSHKdqd4FXWO1nFIp9rRn7JQ34ACQ==
+vite@7.3.1, "vite@^6.0.0 || ^7.0.0", vite@^7.3.1:
+  version "7.3.1"
+  resolved "https://registry.yarnpkg.com/vite/-/vite-7.3.1.tgz#7f6cfe8fb9074138605e822a75d9d30b814d6507"
+  integrity sha512-w+N7Hifpc3gRjZ63vYBXA56dvvRlNWRczTdmCBBa+CotUzAPf5b7YMdMR/8CQoeYE5LX3W4wj6RYTgonm1b9DA==
   dependencies:
-    esbuild "^0.25.0"
+    esbuild "^0.27.0"
     fdir "^6.5.0"
     picomatch "^4.0.3"
     postcss "^8.5.6"
@@ -9731,13 +9731,13 @@ vue-router@^4.6.4:
   dependencies:
     "@vue/devtools-api" "^6.6.4"
 
-vue-tsc@^3.2.2:
-  version "3.2.3"
-  resolved "https://registry.yarnpkg.com/vue-tsc/-/vue-tsc-3.2.3.tgz#a2bc15955b5b21a2826b9a89930001fc8e369193"
-  integrity sha512-1RdRB7rQXGFMdpo0aXf9spVzWEPGAk7PEb/ejHQwVrcuQA/HsGiixIc3uBQeqY2YjeEEgvr2ShQewBgcN4c1Cw==
+vue-tsc@^3.2.4:
+  version "3.2.4"
+  resolved "https://registry.yarnpkg.com/vue-tsc/-/vue-tsc-3.2.4.tgz#a8cebd4b44e6804a99f4d88a8161a4bfb293c3b4"
+  integrity sha512-xj3YCvSLNDKt1iF9OcImWHhmYcihVu9p4b9s4PGR/qp6yhW+tZJaypGxHScRyOrdnHvaOeF+YkZOdKwbgGvp5g==
   dependencies:
     "@volar/typescript" "2.4.27"
-    "@vue/language-core" "3.2.3"
+    "@vue/language-core" "3.2.4"
 
 vue@^3.4.5, vue@^3.5.13, vue@^3.5.26, vue@^3.5.27:
   version "3.5.27"
